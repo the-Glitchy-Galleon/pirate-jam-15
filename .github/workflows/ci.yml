@@ -8,32 +8,32 @@ on:
     branches: [main]
 
 jobs:
-    check:
-        runs-on: ubuntu-latest
-        steps:
-        - name: Checkout code
-          uses: actions/checkout@v3
-        - name: Install Rust
-          uses: actions-rs/toolchain@v1
-          with:
-            profile: minimal
-            toolchain: 1.79.0
-            override: true
-            target: wasm32-unknown-unknown
-            components: rustfmt
-        - name: Set up cargo cache
-          uses: actions/cache@v3
-          continue-on-error: false
-          with:
-            path: |
-                ~/.cargo/bin/
-                ~/.cargo/registry/index/
-                ~/.cargo/registry/cache/
-                ~/.cargo/git/db/
-                target/
-            key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-            restore-keys: ${{ runner.os }}-cargo-
-        - name: Check
-          run: cargo check
-        - name: Fmt
-          run: cargo fmt --all -- --check
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.79.0
+          override: true
+          target: wasm32-unknown-unknown
+          components: rustfmt
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - name: Check
+        run: cargo check
+      - name: Fmt
+        run: cargo fmt --all -- --check
