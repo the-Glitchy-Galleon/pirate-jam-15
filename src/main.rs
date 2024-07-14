@@ -24,7 +24,7 @@ fn main() -> AppExit {
 			}),
 		));
 	}
-	
+
 	#[cfg(not(target_family = "wasm"))]
 	{
 		app.add_plugins(DefaultPlugins);
