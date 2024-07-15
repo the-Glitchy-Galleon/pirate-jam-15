@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Install alsa and udev
+        run: sudo apt-get update --fix-missing; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -35,5 +37,7 @@ jobs:
           restore-keys: check-${{ runner.os }}-cargo-
       - name: Check
         run: cargo check --target wasm32-unknown-unknown
+      - name: Test
+        run: cargo test
       - name: Fmt
         run: cargo fmt --all -- --check
