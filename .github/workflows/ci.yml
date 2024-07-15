@@ -35,5 +35,7 @@ jobs:
           restore-keys: check-${{ runner.os }}-cargo-
       - name: Check
         run: cargo check --target wasm32-unknown-unknown
+      - name: Test
+        run: cargo test --target wasm32-unknown-unknown
       - name: Fmt
         run: cargo fmt --all -- --check
