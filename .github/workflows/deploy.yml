@@ -31,7 +31,7 @@ jobs:
           key: deploy-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: deploy-${{ runner.os }}-cargo-
       - name: Install trunk
-        run: cargo install --locked trunk
+        run: cargo install --locked trunk || true
       - name: Build
         run: trunk build --release --public-url ${{ github.event.repository.name }}
       - name: Upload artifact
