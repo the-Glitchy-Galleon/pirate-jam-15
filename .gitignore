@@ -17,3 +17,7 @@ target/
 # Web stuff
 
 /dist
+
+# VScode stuff
+
+.vscode/
