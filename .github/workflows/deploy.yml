@@ -28,8 +28,8 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: deploy-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: deploy-${{ runner.os }}-cargo-
       - name: Install trunk
         run: cargo install --locked trunk
       - name: Build
@@ -43,10 +43,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Create artifact dir
+        run: mkdir ./dist
       - name: Acquire artifact
         uses: actions/download-artifact@v4
         with:
           name: web-dist
+          path: ./dist
       - name: Push to GitHub pages
         uses: peaceiris/actions-gh-pages@v4
         with:
