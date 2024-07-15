@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cfg-if = "1.0.0"
-anyhow = "1.0.86"
+cfg-if = "^1"
+anyhow = "^1"
 itertools = "0.13.0"
 
 [dependencies.bevy]
