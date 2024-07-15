@@ -30,10 +30,10 @@ jobs:
             target/
           key: deploy-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: deploy-${{ runner.os }}-cargo-
-      - name: Install trunk
+      - name: Install trunk and related tools
         run: |
           cargo install --locked trunk || true
-          cargo install wasm-bindgen-cli --locked --version "0.29.2" || true
+          cargo install wasm-bindgen-cli --locked --version "0.2.29" || true
           cargo install wasm-opt --locked --version "0.116.1" || true
       - name: Build
         run: trunk build --release --public-url "/${{ github.event.repository.name }}"
