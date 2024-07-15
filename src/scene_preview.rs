@@ -70,7 +70,7 @@ impl SupportedAssetKind {
 		match s.as_str() {
 			"gltf" | "glb" => Some(SupportedAssetKind::Gltf),
 			ext => {
-				log::warn!("could_load: unsupported asset kind: {ext}");
+				warn!("could_load: unsupported asset kind: {ext}");
 				None
 			}
 		}
