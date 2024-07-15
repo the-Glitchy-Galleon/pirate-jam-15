@@ -1,6 +1,7 @@
 use bevy::{asset::LoadState, prelude::*};
-use std::{f32::consts::PI, ffi::OsStr, path::Path};
-use ui::{UiHeaderText, UiRoot};
+use itertools::izip;
+use std::{f32::consts::PI, ffi::OsStr, path::Path, time::Duration};
+use ui::{CurrentAnimationTextTag, UiHeaderText, UiRoot, TRANSPARENT};
 
 pub struct ScenePreviewPlugin;
 
@@ -13,6 +14,7 @@ impl Plugin for ScenePreviewPlugin {
             })
             .add_event::<DespawnAllScenesEvent>()
             .add_event::<SpawnGltfEvent>()
+            .add_event::<InitAnimationPlayerEvent>()
             .add_systems(Startup, ui::setup)
             .add_systems(
                 Update,
@@ -20,10 +22,13 @@ impl Plugin for ScenePreviewPlugin {
                     file_drag_and_drop,
                     load_queue,
                     spawn_gltf,
+                    setup_animation_master.after(spawn_gltf),
+                    start_animation_on_load.after(setup_animation_master),
                     despawn_all_gltfs,
-                    draw_gizmos,
+                    change_animation,
                 ),
-            );
+            )
+            .add_systems(Update, draw_gizmos);
     }
 }
 
@@ -87,10 +92,10 @@ fn file_drag_and_drop(
     ass: Res<AssetServer>,
     mut evs: EventReader<FileDragAndDrop>,
     mut queue: ResMut<LoadQueue>,
-    mut root: Query<(&mut Visibility, &mut BackgroundColor), With<UiRoot>>,
+    mut root: Query<&mut BackgroundColor, With<UiRoot>>,
     mut text: Query<&mut Text, With<UiHeaderText>>,
 ) {
-    let Ok((mut root_vis, mut root_bg)) = root.get_single_mut() else {
+    let Ok(mut root_bg) = root.get_single_mut() else {
         error!("no root UI");
         return;
     };
@@ -111,20 +116,21 @@ fn file_drag_and_drop(
                 } else {
                     warn!("Asset not supported: {path_buf:?}");
                 }
-
-                *root_vis = Visibility::Hidden;
+                *root_bg = TRANSPARENT.into();
             }
             FileDragAndDrop::HoveredFile { window, path_buf } => {
-                let t = format!("Load {}", path_buf.file_name().unwrap().to_string_lossy());
-                *text = Text::from_section(t, TextStyle::default());
-                *root_vis = Visibility::Visible;
+                text.sections[0].value =
+                    format!("Load {}", path_buf.file_name().unwrap().to_string_lossy());
                 *root_bg = match SupportedAssetKind::could_load(&path_buf) {
                     Some(_) => BackgroundColor(bevy::color::palettes::tailwind::BLUE_800.into()),
                     _ => BackgroundColor(bevy::color::palettes::tailwind::RED_800.into()),
                 };
             }
             FileDragAndDrop::HoveredFileCanceled { window } => {
-                *root_vis = Visibility::Hidden;
+                // *root_vis = Visibility::Hidden;
+                *root_bg = bevy::color::palettes::tailwind::RED_800
+                    .with_alpha(0.2)
+                    .into();
             }
         }
     }
@@ -167,6 +173,7 @@ fn spawn_gltf(
     mut cmd: Commands,
     mut evs: EventReader<SpawnGltfEvent>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
+    mut init_evs: EventWriter<InitAnimationPlayerEvent>,
     gltfs: Res<Assets<Gltf>>,
 ) {
     for ev in evs.read() {
@@ -175,10 +182,23 @@ fn spawn_gltf(
             return;
         };
         let mut graph = AnimationGraph::new();
-        let _animations = graph
-            .add_clips(gltf.animations.iter().map(|x| x.clone()), 1.0, graph.root)
-            .collect::<Vec<_>>();
-        let _graph = graphs.add(graph);
+
+        let animations = izip!(
+            gltf.named_animations.keys().cloned(),
+            graph.add_clips(
+                gltf.named_animations.values().map(|x| x.clone()),
+                1.0,
+                graph.root
+            )
+        )
+        .collect::<Vec<_>>();
+
+        let graph = graphs.add(graph);
+
+        init_evs.send(InitAnimationPlayerEvent {
+            list: animations,
+            graph,
+        });
 
         // Spawning the gltf scene in will also spawn in the
         // `AnimationPlayer` and other goodies when available
@@ -187,6 +207,111 @@ fn spawn_gltf(
             transform: Transform::IDENTITY,
             ..Default::default()
         },));
+    }
+}
+
+#[derive(Event)]
+struct InitAnimationPlayerEvent {
+    list: Vec<(Box<str>, AnimationNodeIndex)>,
+    graph: Handle<AnimationGraph>,
+}
+
+#[derive(Component)]
+struct AnimationMaster {
+    list: Vec<(Box<str>, AnimationNodeIndex)>,
+    player_entity: Entity,
+    main_anim_idx: usize,
+}
+
+impl AnimationMaster {
+    pub fn from_event(ev: &InitAnimationPlayerEvent, player_entity: Entity) -> Self {
+        Self {
+            list: ev.list.clone(),
+            player_entity,
+            main_anim_idx: 0,
+        }
+    }
+}
+
+fn setup_animation_master(
+    mut cmd: Commands,
+    mut qry: Query<Entity, Added<AnimationPlayer>>,
+    mut evs: EventReader<InitAnimationPlayerEvent>,
+) {
+    for ent in qry.iter_mut() {
+        let transitions = AnimationTransitions::new();
+
+        // wonky but whatever, i can't find a way to sync it up
+        // since the entity of the AnimationPlayer is somewhere buried in the scene
+        let Some(ev) = evs.read().next() else {
+            return;
+        };
+
+        cmd.entity(ent)
+            .insert(AnimationMaster::from_event(ev, ent))
+            .insert(transitions)
+            .insert(ev.graph.clone());
+    }
+}
+
+fn start_animation_on_load(
+    mut text: Query<&mut Text, With<CurrentAnimationTextTag>>,
+    mut master: Query<&mut AnimationMaster, Added<AnimationMaster>>,
+    mut player: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
+) {
+    let Ok(mut text) = text.get_single_mut() else {
+        return;
+    };
+    for master in master.iter_mut() {
+        let Ok((mut player, mut transitions)) = player.get_mut(master.player_entity) else {
+            error!("Found no AnimationPlayer for AnimationMaster");
+            continue;
+        };
+
+        if let Some((name, idx)) = master.list.get(master.main_anim_idx) {
+            // ev.handled = true;
+            info!("Starting Animation: {name}");
+            transitions.play(&mut player, *idx, Duration::ZERO).repeat();
+            player.start(*idx);
+        }
+        let anim = master.list.get(master.main_anim_idx).unwrap();
+        text.sections[0].value = format!("[1] < {} > [2]", anim.0);
+    }
+}
+
+fn change_animation(
+    mut text: Query<&mut Text, With<CurrentAnimationTextTag>>,
+    mut master: Query<&mut AnimationMaster>,
+    mut player: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
+    input: Res<ButtonInput<KeyCode>>,
+) {
+    let Ok(mut text) = text.get_single_mut() else {
+        return;
+    };
+    for mut master in master.iter_mut() {
+        let Ok((mut player, mut transitions)) = player.get_mut(master.player_entity) else {
+            continue;
+        };
+
+        let old_idx = master.main_anim_idx;
+
+        if input.just_pressed(KeyCode::Digit1) {
+            master.main_anim_idx = (old_idx + 1) % master.list.len();
+        }
+
+        if input.just_pressed(KeyCode::Digit2) {
+            master.main_anim_idx = (if old_idx == 0 {
+                master.list.len()
+            } else {
+                old_idx
+            }) - 1;
+        }
+
+        if old_idx != master.main_anim_idx {
+            let anim = master.list.get(master.main_anim_idx).unwrap();
+            transitions.play(&mut player, anim.1, Duration::from_secs_f32(0.1));
+            text.sections[0].value = format!("[1] < {} > [2]", anim.0);
+        }
     }
 }
 
@@ -212,6 +337,11 @@ mod ui {
         ui::{node_bundles::TextBundle, PositionType, Val},
     };
 
+    pub const TRANSPARENT: Color = Color::LinearRgba(LinearRgba::NONE);
+
+    #[derive(Component)]
+    pub struct CurrentAnimationTextTag;
+
     #[derive(Component)]
     pub struct UiRoot;
 
@@ -230,18 +360,20 @@ mod ui {
                     padding: UiRect::all(Val::Px(24.0)),
                     ..default()
                 },
-                visibility: Visibility::Hidden,
+                visibility: Visibility::Visible,
                 ..default()
             },
         ))
         .with_children(|p| {
             p.spawn((
+                CurrentAnimationTextTag,
                 UiHeaderText,
                 TextBundle::from_section(
                     "Hello, World!",
                     TextStyle::default(), // doesn't seem to change anything?
                 )
                 .with_text_justify(JustifyText::Center)
+                .with_background_color(TRANSPARENT)
                 .with_style(Style {
                     position_type: PositionType::Absolute,
                     left: Val::Vh(0.5),

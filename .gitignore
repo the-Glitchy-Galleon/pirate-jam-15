@@ -9,6 +9,8 @@ target/
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
+# A safe space for scrapped code in-between checkouts
+/src/graveyard
 
 # Added by cargo
 
