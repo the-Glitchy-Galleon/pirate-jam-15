@@ -43,7 +43,7 @@ mod web {
 	}
 
 	#[styled_component(Root)]
-	fn view() -> Html {
+	pub fn view() -> Html {
 		set_window_title(LAUNCHER_TITLE);
 		set_global_css();
 
