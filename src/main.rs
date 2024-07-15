@@ -14,16 +14,16 @@ use yew::prelude::*;
 static LAUNCHER_TITLE: &'static str = "pirate ship";
 
 fn set_window_title(title: &str) {
-    web_sys::window()
-        .map(|w| w.document())
-        .flatten()
-        .expect("Unable to get DOM")
-        .set_title(title);
+	web_sys::window()
+		.map(|w| w.document())
+		.flatten()
+		.expect("Unable to get DOM")
+		.set_title(title);
 }
 
 fn set_global_css() {
-    global_style! {
-        r#"
+	global_style! {
+		r#"
         html {
             min-height: 100%;
             position: relative;
@@ -34,37 +34,37 @@ fn set_global_css() {
             margin: 0;
         }
         "#
-    }
-    .expect("Unable to mount global style");
+	}
+	.expect("Unable to mount global style");
 }
 
 #[styled_component(Root)]
 fn view() -> Html {
-    set_window_title(LAUNCHER_TITLE);
-    set_global_css();
+	set_window_title(LAUNCHER_TITLE);
+	set_global_css();
 
-    let css = css!(
-        r#"
+	let css = css!(
+		r#"
         position: absolute;
         overflow: hidden;
         width: 100%;
         height: 100%;
         "#
-    );
+	);
 
-    html! {
-        <div class={ css }>
-            <canvas id="bevy"></canvas>
-        </div>
-    }
+	html! {
+		<div class={ css }>
+			<canvas id="bevy"></canvas>
+		</div>
+	}
 }
 
 fn main() -> AppExit {
-    // Mount the DOM
-    yew::Renderer::<Root>::new().render();
+	// Mount the DOM
+	yew::Renderer::<Root>::new().render();
 
-    // Start the Bevy App
-    #[allow(unused_mut)]
+	// Start the Bevy App
+	#[allow(unused_mut)]
 	let mut app = App::new();
 
 	#[cfg(target_family = "wasm")]
