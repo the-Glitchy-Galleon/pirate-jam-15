@@ -8,7 +8,9 @@ Submission for the Pirate Jam 15 by fabi337, hquil and InnocentusLime
 
 ## Running the project
 
-1. Make sure you have [Rust installed](https://www.rust-lang.org/learn/get-started), with **rustup**
+1. Make sure you have [Rust installed](https://www.rust-lang.org/learn/get-started)
+    * You need **rustup**
+    * Your Rust version must be 1.79 or higher
 2. Install the wasm32 target
 ```sh
 rustup target install wasm32-unknown-unknown
