@@ -36,6 +36,6 @@ jobs:
       - name: Check
         run: cargo check --target wasm32-unknown-unknown
       - name: Test
-        run: cargo test --target wasm32-unknown-unknown
+        run: cargo test
       - name: Fmt
         run: cargo fmt --all -- --check
