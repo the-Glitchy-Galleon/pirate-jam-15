@@ -4,21 +4,23 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "*"
-itertools = "*"
+cfg-if = "1.0.0"
+anyhow = "1.0.86"
+itertools = "0.13.0"
 log = { version = "*", features = [
     "max_level_debug",
     "release_max_level_warn",
 ] }
-web-sys = { version="0.3.69", features=["Document", "Window"] }
-yew = { version = "0.21.0", features=["csr"] }
-stylist = { version= "0.13.0", features=["yew_integration"] }
 
 [dependencies.bevy]
 version = "0.14.0"
 features = ["bevy_animation", "jpeg"]
 
 [target.'cfg(target_family="wasm")'.dependencies]
+web-sys = { version="0.3.69", features=["Document", "Window"] }
+yew = { version = "0.21.0", features=["csr"] }
+stylist = { version= "0.13.0", features=["yew_integration"] }
+
 bevy_web_file_drop = "0.0.5"
 
 [profile.dev.package."*"]
