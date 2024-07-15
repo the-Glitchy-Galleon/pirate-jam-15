@@ -3527,7 +3527,6 @@ dependencies = [
  "bevy_web_file_drop",
  "cfg-if",
  "itertools 0.13.0",
- "log",
  "stylist",
  "web-sys",
  "yew",
