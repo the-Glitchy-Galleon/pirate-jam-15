@@ -10,6 +10,9 @@ log = { version = "*", features = [
     "max_level_debug",
     "release_max_level_warn",
 ] }
+web-sys = { version="0.3.69", features=["Document", "Window"] }
+yew = { version = "0.21.0", features=["csr"] }
+stylist = { version= "0.13.0", features=["yew_integration"] }
 
 [dependencies.bevy]
 version = "0.14.0"
