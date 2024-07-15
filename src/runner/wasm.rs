@@ -56,6 +56,13 @@ pub fn create_app() -> App {
 
     app.add_plugins(bevy_web_file_drop::WebFileDropPlugin);
 
+    app.add_plugins(DefaultPlugins.set(AssetPlugin {
+        // Todo: Need to disable the meta check for drag-and-drop loading to work in webgl
+        // take this out once not required anymore
+        meta_check: bevy::asset::AssetMetaCheck::Never,
+        ..default()
+    }));
+
     app
 }
 
