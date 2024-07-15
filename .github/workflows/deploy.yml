@@ -41,6 +41,7 @@ jobs:
           path: ./dist
   deploy-to-pages:
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - name: Acquire artifact
         uses: actions/download-artifact@v4
