@@ -16,16 +16,16 @@ fn set_window_title(title: &str) {
 fn set_global_css() {
     global_style! {
         r#"
-		html {
-			min-height: 100%;
-			position: relative;
-		}
-		body {
-			height: 100%;
-			padding: 0;
-			margin: 0;
-		}
-		"#
+        html {
+            min-height: 100%;
+            position: relative;
+        }
+        body {
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        "#
     }
     .expect("Unable to mount global style");
 }
@@ -37,11 +37,11 @@ fn view() -> Html {
 
     let css = css!(
         r#"
-		position: absolute;
-		overflow: hidden;
-		width: 100%;
-		height: 100%;
-		"#
+        position: absolute;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        "#
     );
 
     html! {
