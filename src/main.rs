@@ -92,9 +92,3 @@ fn main() -> AppExit {
 
 	app.run()
 }
-
-#[derive(Component)]
-enum Direction {
-    Up,
-    Down,
-}
