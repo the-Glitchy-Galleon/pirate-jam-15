@@ -59,7 +59,7 @@ fn view() -> Html {
     }
 }
 
-fn main() {
+fn main() -> AppExit {
     // Mount the DOM
     yew::Renderer::<Root>::new().render();
 
