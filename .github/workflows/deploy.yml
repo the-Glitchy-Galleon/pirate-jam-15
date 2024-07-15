@@ -33,7 +33,7 @@ jobs:
       - name: Install trunk
         run: cargo install --locked trunk
       - name: Build
-        run: trunk build
+        run: trunk build --release
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
