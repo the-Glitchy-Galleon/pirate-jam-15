@@ -7,10 +7,41 @@ edition = "2021"
 cfg-if = "^1"
 anyhow = "^1"
 itertools = "0.13.0"
+rand = "0.8.5"
+bevy_kira_audio = { version = "0.20.0", features = ["ogg"] }
+bevy_rapier3d = "0.27.0"
 
 [dependencies.bevy]
 version = "0.14.0"
-features = ["bevy_animation", "jpeg"]
+default-features = false
+features = [
+    "animation",
+    "bevy_animation",
+    "bevy_asset",
+    "bevy_state",
+    "bevy_color",
+    "bevy_gilrs",
+    "bevy_scene",
+    "bevy_winit",
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_gltf",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_ui",
+    "multi_threaded",
+    "jpeg",
+    "png",
+    "hdr",
+    "x11",
+    "bevy_gizmos",
+    "android_shared_stdcxx",
+    "tonemapping_luts",
+    "default_font",
+    "webgl2",
+    "sysinfo_plugin",
+]
 
 [target.'cfg(target_family="wasm")'.dependencies]
 web-sys = { version="0.3.69", features=["Document", "Window"] }
