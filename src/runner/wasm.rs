@@ -1,7 +1,5 @@
 use bevy::prelude::*;
-use stylist::yew::styled_component;
-use stylist::{css, global_style};
-use yew::prelude::*;
+use web_sys::Document;
 
 static LAUNCHER_TITLE: &'static str = "pirate ship";
 
@@ -13,62 +11,54 @@ fn set_window_title(title: &str) {
         .set_title(title);
 }
 
-fn set_global_css() {
-    global_style! {
-        r#"
-        html {
-            min-height: 100%;
-            position: relative;
-        }
-        body {
-            height: 100%;
-            padding: 0;
-            margin: 0;
-        }
-        "#
-    }
-    .expect("Unable to mount global style");
-}
-
-#[styled_component(Root)]
-fn view() -> Html {
-    set_window_title(LAUNCHER_TITLE);
-    set_global_css();
-
-    let css = css!(
-        r#"
-        position: absolute;
-        overflow: hidden;
-        width: 100%;
-        height: 100%;
-        "#
-    );
-
-    html! {
-        <div class={ css }>
-            <canvas id="bevy"></canvas>
-        </div>
-    }
-}
-
 pub fn create_app() -> App {
     let mut app = App::new();
 
     app.add_plugins(bevy_web_file_drop::WebFileDropPlugin);
 
-    app.add_plugins(DefaultPlugins.set(AssetPlugin {
-        // Todo: Need to disable the meta check for drag-and-drop loading to work in webgl
-        // take this out once not required anymore
-        meta_check: bevy::asset::AssetMetaCheck::Never,
-        ..default()
-    }));
+    app.add_plugins(DefaultPlugins
+        .set(AssetPlugin {
+            // Todo: Need to disable the meta check for drag-and-drop loading to work in webgl
+            // take this out once not required anymore
+            meta_check: bevy::asset::AssetMetaCheck::Never,
+            ..default()
+        })
+        .set(WindowPlugin {
+            primary_window: Some(Window {
+                fit_canvas_to_parent: true,
+                canvas: Some("#bevyscreen".to_owned()),
+                ..default()
+            }),
+            ..default()
+        })
+    );
 
     app
 }
 
+fn setup_dom(document: &Document) {
+    let load = document
+                .query_selector("#bevyload")
+                .expect("Cannot query for canvas element.");
+    let load = load.expect("Expected load screen");
+
+    let canvas = document
+                .create_element("canvas")
+                .expect("Cannot create canvas.");
+
+    canvas.set_id("bevyscreen");
+
+    load.insert_adjacent_element("beforebegin", &canvas)
+        .expect("Cannot insert canvas");
+    load.remove();
+}
+
 pub fn run_app(app: &mut App) -> AppExit {
-    // Mount the DOM
-    yew::Renderer::<Root>::new().render();
+    let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
+
+    set_window_title(LAUNCHER_TITLE);
+    setup_dom(&document);
 
     app.run()
 }
