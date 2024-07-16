@@ -510,6 +510,7 @@ mod ui {
         text::{JustifyText, TextStyle},
         ui::{node_bundles::TextBundle, PositionType, Val},
     };
+    use super::super::pointer_capture_check::NoPointerCapture;
 
     pub const TRANSPARENT: Color = Color::LinearRgba(LinearRgba::NONE);
 
@@ -525,6 +526,7 @@ mod ui {
     pub fn setup(mut cmd: Commands) {
         cmd.spawn((
             UiRoot,
+            NoPointerCapture,
             NodeBundle {
                 style: Style {
                     width: Val::Percent(100.0),
@@ -541,6 +543,7 @@ mod ui {
         .with_children(|p| {
             p.spawn((
                 CurrentAnimationTextTag,
+                NoPointerCapture,
                 UiHeaderText,
                 TextBundle::from_section(
                     "Hello, World!",
