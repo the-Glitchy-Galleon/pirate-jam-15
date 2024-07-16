@@ -1,21 +1,37 @@
+use bevy::window::PrimaryWindow;
 use bevy::{asset::LoadState, prelude::*};
+use bevy_kira_audio::prelude::*;
+use bevy_kira_audio::AudioSource;
+use bevy_rapier3d::geometry::Collider;
+use bevy_rapier3d::pipeline::QueryFilter;
+use bevy_rapier3d::plugin::{NoUserData, RapierContext, RapierPhysicsPlugin};
 use itertools::izip;
+use rand::Rng;
 use std::{f32::consts::PI, ffi::OsStr, path::Path, time::Duration};
 use ui::{CurrentAnimationTextTag, UiHeaderText, UiRoot, TRANSPARENT};
+
+pub const BOX_EMISSIVE_ACTIVE: LinearRgba = LinearRgba::rgb(1.5, 1.5, 1.5);
 
 pub struct ScenePreviewPlugin;
 
 impl Plugin for ScenePreviewPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LoadQueue>()
+        app.add_plugins(bevy_kira_audio::AudioPlugin)
+            .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+            .init_resource::<LoadQueue>()
             .insert_resource(AmbientLight {
                 color: Color::WHITE,
                 brightness: 2000.,
             })
+            // .init_asset::<bevy_kira_audio::AudioSource>()
+            .insert_resource(SpatialAudio { max_distance: 15. })
+            .init_resource::<AudioFiles>()
             .add_event::<DespawnAllScenesEvent>()
             .add_event::<SpawnGltfEvent>()
             .add_event::<InitAnimationPlayerEvent>()
             .add_systems(Startup, ui::setup)
+            .add_systems(Startup, setup_audio_receiver)
+            .add_systems(Startup, setup_audio_emitters)
             .add_systems(
                 Update,
                 (
@@ -26,10 +42,169 @@ impl Plugin for ScenePreviewPlugin {
                     start_animation_on_load.after(setup_animation_master),
                     despawn_all_gltfs,
                     change_animation,
+                    toggle_sound_emitter_on_click,
                 ),
             )
             .add_systems(Update, draw_gizmos);
     }
+}
+
+#[derive(Resource)]
+struct AudioFiles {
+    fire_with_crackles: Handle<AudioSource>,
+    jungle_amb_1: Handle<AudioSource>,
+    footsteps: [Handle<AudioSource>; 5],
+    loopable_ambience_1: Handle<AudioSource>,
+}
+
+impl FromWorld for AudioFiles {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            fire_with_crackles: world
+                .load_asset("tooling/scene_preview/test_sounds/fire_with crackles_1.ogg"),
+            jungle_amb_1: world.load_asset("tooling/scene_preview/test_sounds/jungle_amb_1.ogg"),
+            footsteps: [
+                world.load_asset("tooling/scene_preview/test_sounds/footsteps_1.ogg"),
+                world.load_asset("tooling/scene_preview/test_sounds/footsteps_2.ogg"),
+                world.load_asset("tooling/scene_preview/test_sounds/footsteps_3.ogg"),
+                world.load_asset("tooling/scene_preview/test_sounds/footsteps_4.ogg"),
+                world.load_asset("tooling/scene_preview/test_sounds/footsteps_5.ogg"),
+            ],
+            loopable_ambience_1: world
+                .load_asset("tooling/scene_preview/test_sounds/loopable_ambience_1.ogg"),
+        }
+    }
+}
+
+fn setup_audio_emitters(
+    mut cmd: Commands,
+    audio: Res<Audio>,
+    sfx: Res<AudioFiles>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut mats: ResMut<Assets<StandardMaterial>>,
+) {
+    cmd.spawn((
+        PbrBundle {
+            mesh: meshes.add(Cuboid {
+                half_size: Vec3::new(0.25, 0.5, 0.25),
+            }),
+            material: mats.add(StandardMaterial {
+                emissive: BOX_EMISSIVE_ACTIVE,
+                ..StandardMaterial::from_color(LinearRgba::RED)
+            }),
+            transform: Transform::from_xyz(-3.0, 0.5, 1.0),
+            ..default()
+        },
+        Collider::cuboid(0.5, 1.0, 0.5),
+        AudioEmitter {
+            instances: vec![audio.play(sfx.fire_with_crackles.clone()).looped().handle()],
+        },
+    ));
+    cmd.spawn((
+        PbrBundle {
+            mesh: meshes.add(Cuboid {
+                half_size: Vec3::new(0.25, 0.5, 0.25),
+            }),
+            material: mats.add(StandardMaterial {
+                emissive: BOX_EMISSIVE_ACTIVE,
+                ..StandardMaterial::from_color(LinearRgba::GREEN)
+            }),
+            transform: Transform::from_xyz(3.0, 0.5, 1.0),
+            ..default()
+        },
+        Collider::cuboid(0.5, 1.0, 0.5),
+        AudioEmitter {
+            instances: vec![audio.play(sfx.jungle_amb_1.clone()).looped().handle()],
+        },
+    ));
+    cmd.spawn((
+        PbrBundle {
+            mesh: meshes.add(Cuboid {
+                half_size: Vec3::new(0.25, 0.5, 0.25),
+            }),
+            material: mats.add(StandardMaterial {
+                emissive: BOX_EMISSIVE_ACTIVE,
+                ..StandardMaterial::from_color(LinearRgba::BLUE)
+            }),
+            transform: Transform::from_xyz(0.0, 0.5, -2.0),
+            ..default()
+        },
+        Collider::cuboid(0.5, 1.0, 0.5),
+        AudioEmitter {
+            instances: vec![audio
+                .play(sfx.loopable_ambience_1.clone())
+                .looped()
+                .handle()],
+        },
+    ));
+}
+
+fn setup_audio_receiver(mut cmd: Commands, cam: Query<Entity, With<Camera>>) {
+    for cam in cam.iter() {
+        cmd.entity(cam).insert(AudioReceiver);
+    }
+}
+
+fn toggle_sound_emitter_on_click(
+    camera_query: Query<(&Camera, &GlobalTransform)>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    rapier_context: Res<RapierContext>,
+    emitters: Query<(&AudioEmitter, &Handle<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut audio_instances: ResMut<Assets<AudioInstance>>,
+    sfx: Res<AudioFiles>,
+    audio: Res<Audio>,
+) {
+    if !mouse.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    let window = window_query.single();
+    let Some(cursor_position) = window.cursor_position() else {
+        return;
+    };
+    let (camera, camera_global_transform) = camera_query.single();
+    let Some(ray) = camera.viewport_to_world(camera_global_transform, cursor_position) else {
+        return;
+    };
+
+    if let Some((entity, toi)) = rapier_context.cast_ray(
+        ray.origin,
+        *ray.direction,
+        50.0,
+        true,
+        QueryFilter::default(),
+    ) {
+        let _hit_point = ray.origin + *ray.direction * toi;
+
+        if let Ok((emitter, mat)) = emitters.get(entity) {
+            for instance in emitter.instances.iter() {
+                if let Some(instance) = audio_instances.get_mut(instance) {
+                    let mut rng = rand::thread_rng();
+                    audio.play(sfx.footsteps[rng.gen_range(0..sfx.footsteps.len())].clone());
+
+                    match instance.state() {
+                        PlaybackState::Paused { .. } => {
+                            instance.resume(AudioTween::default());
+                            if let Some(mat) = materials.get_mut(mat) {
+                                mat.emissive = BOX_EMISSIVE_ACTIVE;
+                            }
+                        }
+                        PlaybackState::Playing { .. } => {
+                            instance.pause(AudioTween::default());
+
+                            if let Some(mat) = materials.get_mut(mat) {
+                                mat.emissive = LinearRgba::NONE;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        //
+    };
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -269,7 +444,6 @@ fn start_animation_on_load(
         };
 
         if let Some((name, idx)) = master.list.get(master.main_anim_idx) {
-            // ev.handled = true;
             info!("Starting Animation: {name}");
             transitions.play(&mut player, *idx, Duration::ZERO).repeat();
             player.start(*idx);
