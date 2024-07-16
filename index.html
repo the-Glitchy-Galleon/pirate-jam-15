@@ -28,9 +28,9 @@
     
     
     
-<script type="module" nonce="e8ypm+uGy74zeecVxKmLBA==">
-import init, * as bindings from '/pirate-jam-15/pirate-jam-15-85268909b3a62ad2.js';
-const wasm = await init('/pirate-jam-15/pirate-jam-15-85268909b3a62ad2_bg.wasm');
+<script type="module" nonce="JAu+67h+XUPT6NfT/lqOMg==">
+import init, * as bindings from '/pirate-jam-15/pirate-jam-15-ed10be9eda50af66.js';
+const wasm = await init('/pirate-jam-15/pirate-jam-15-ed10be9eda50af66_bg.wasm');
 
 
 window.wasmBindings = bindings;
@@ -40,9 +40,9 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
 
-<link rel="modulepreload" href="/pirate-jam-15/pirate-jam-15-85268909b3a62ad2.js" crossorigin=anonymous integrity="sha384-E9fdwnNaXJKPsO2FVYkt/ExMbUDhZ1G8+9f7vsZFi6HjWod+hSgqn0WkQcAJzeiB">
+<link rel="modulepreload" href="/pirate-jam-15/pirate-jam-15-ed10be9eda50af66.js" crossorigin=anonymous integrity="sha384-7iFRAF5vJxQy80FO+2qiERQ3dTX5xIGxNUn0gSLRKBQusUTLu2osBHApKWqaGrDK">
 <link rel="modulepreload" href="/pirate-jam-15/snippets/bevy_web_file_drop-14e863d39d362992/src/drop.js" crossorigin=anonymous integrity="sha384-b6MNTTcQSYWrXevZYqPG28s4vV4N/9+4hDQ8x3TERxv6/r+3a/4wUWmLf3XnUmMr">
-<link rel="preload" href="/pirate-jam-15/pirate-jam-15-85268909b3a62ad2_bg.wasm" crossorigin=anonymous integrity="sha384-E4VcwW94Xy7YhLMPj25HCphJOV6kAdKeuuOVULUzM+m8Nr3PBz/k/+ypi2sd/0T3" as="fetch" type="application/wasm"></head>
+<link rel="preload" href="/pirate-jam-15/pirate-jam-15-ed10be9eda50af66_bg.wasm" crossorigin=anonymous integrity="sha384-vvBA0inAQjd12Cg61pLeqb+7bJbPw7sd8d0Zr8uGGEZw5ite1QkxTdAwNql34Cm4" as="fetch" type="application/wasm"></head>
 
 <body>
     <!-- The following is a loading modal which is replaced on WASM load. -->
@@ -77,6 +77,69 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
                 repeatCount="indefinite" />
         </circle>
     </svg>
+
+    
+	<script>
+		// the following function keeps track of all AudioContexts and resumes them on the first user
+		// interaction with the page. If the function is called and all contexts are already running,
+		// it will remove itself from all event listeners.
+		(function () {
+			// An array of all contexts to resume on the page
+			const audioContextList = [];
+
+			// An array of various user interaction events we should listen for
+			const userInputEventNames = [
+				"click",
+				"contextmenu",
+				"auxclick",
+				"dblclick",
+				"mousedown",
+				"mouseup",
+				"pointerup",
+				"touchend",
+				"keydown",
+				"keyup",
+			];
+
+			// A proxy object to intercept AudioContexts and
+			// add them to the array for tracking and resuming later
+			self.AudioContext = new Proxy(self.AudioContext, {
+				construct(target, args) {
+					const result = new target(...args);
+					audioContextList.push(result);
+					return result;
+				},
+			});
+
+			// To resume all AudioContexts being tracked
+			function resumeAllContexts(_event) {
+				let count = 0;
+
+				audioContextList.forEach((context) => {
+					if (context.state !== "running") {
+						context.resume();
+					} else {
+						count++;
+					}
+				});
+
+				// If all the AudioContexts have now resumed then we unbind all
+				// the event listeners from the page to prevent unnecessary resume attempts
+				// Checking count > 0 ensures that the user interaction happens AFTER the game started up
+				if (count > 0 && count === audioContextList.length) {
+					userInputEventNames.forEach((eventName) => {
+						document.removeEventListener(eventName, resumeAllContexts);
+					});
+				}
+			}
+
+			// We bind the resume function for each user interaction
+			// event on the page
+			userInputEventNames.forEach((eventName) => {
+				document.addEventListener(eventName, resumeAllContexts);
+			});
+		})();
+	</script>
 </body>
 
 </html>
