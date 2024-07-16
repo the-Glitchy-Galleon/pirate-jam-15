@@ -505,12 +505,12 @@ fn despawn_all_gltfs(
 }
 
 mod ui {
+    use super::super::pointer_capture_check::NoPointerCapture;
     use bevy::{
         prelude::*,
         text::{JustifyText, TextStyle},
         ui::{node_bundles::TextBundle, PositionType, Val},
     };
-    use super::super::pointer_capture_check::NoPointerCapture;
 
     pub const TRANSPARENT: Color = Color::LinearRgba(LinearRgba::NONE);
 
