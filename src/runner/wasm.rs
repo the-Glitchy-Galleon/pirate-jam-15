@@ -16,21 +16,22 @@ pub fn create_app() -> App {
 
     app.add_plugins(bevy_web_file_drop::WebFileDropPlugin);
 
-    app.add_plugins(DefaultPlugins
-        .set(AssetPlugin {
-            // Todo: Need to disable the meta check for drag-and-drop loading to work in webgl
-            // take this out once not required anymore
-            meta_check: bevy::asset::AssetMetaCheck::Never,
-            ..default()
-        })
-        .set(WindowPlugin {
-            primary_window: Some(Window {
-                fit_canvas_to_parent: true,
-                canvas: Some("#bevyscreen".to_owned()),
+    app.add_plugins(
+        DefaultPlugins
+            .set(AssetPlugin {
+                // Todo: Need to disable the meta check for drag-and-drop loading to work in webgl
+                // take this out once not required anymore
+                meta_check: bevy::asset::AssetMetaCheck::Never,
+                ..default()
+            })
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    fit_canvas_to_parent: true,
+                    canvas: Some("#bevyscreen".to_owned()),
+                    ..default()
+                }),
                 ..default()
             }),
-            ..default()
-        })
     );
 
     app
@@ -38,13 +39,13 @@ pub fn create_app() -> App {
 
 fn setup_dom(document: &Document) {
     let load = document
-                .query_selector("#bevyload")
-                .expect("Cannot query for canvas element.");
+        .query_selector("#bevyload")
+        .expect("Cannot query for canvas element.");
     let load = load.expect("Expected load screen");
 
     let canvas = document
-                .create_element("canvas")
-                .expect("Cannot create canvas.");
+        .create_element("canvas")
+        .expect("Cannot create canvas.");
 
     canvas.set_id("bevyscreen");
 
