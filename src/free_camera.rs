@@ -238,7 +238,7 @@ pub mod ui {
     pub struct Crosshair;
 
     pub fn setup(mut cmd: Commands, ass: Res<AssetServer>) {
-        let crosshair = ass.load("test_sounds/crosshair.png");
+        let crosshair = ass.load("tooling/scene_preview/crosshair.png");
 
         cmd.spawn((
             Crosshair,
