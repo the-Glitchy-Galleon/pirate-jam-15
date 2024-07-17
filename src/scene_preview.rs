@@ -1,7 +1,6 @@
 use bevy::window::PrimaryWindow;
 use bevy::{asset::LoadState, prelude::*};
-use bevy_kira_audio::prelude::*;
-use bevy_kira_audio::AudioSource;
+use crate::framework::prelude::*;
 use bevy_rapier3d::geometry::Collider;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::plugin::{NoUserData, RapierContext, RapierPhysicsPlugin};
@@ -16,15 +15,12 @@ pub struct ScenePreviewPlugin;
 
 impl Plugin for ScenePreviewPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(bevy_kira_audio::AudioPlugin)
-            .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+        app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
             .init_resource::<LoadQueue>()
             .insert_resource(AmbientLight {
                 color: Color::WHITE,
                 brightness: 2000.,
             })
-            // .init_asset::<bevy_kira_audio::AudioSource>()
-            .insert_resource(SpatialAudio { max_distance: 15. })
             .init_resource::<AudioFiles>()
             .add_event::<DespawnAllScenesEvent>()
             .add_event::<SpawnGltfEvent>()
@@ -51,10 +47,10 @@ impl Plugin for ScenePreviewPlugin {
 
 #[derive(Resource)]
 struct AudioFiles {
-    fire_with_crackles: Handle<AudioSource>,
-    jungle_amb_1: Handle<AudioSource>,
-    footsteps: [Handle<AudioSource>; 5],
-    loopable_ambience_1: Handle<AudioSource>,
+    fire_with_crackles: Handle<AudioAsset>,
+    jungle_amb_1: Handle<AudioAsset>,
+    footsteps: [Handle<AudioAsset>; 5],
+    loopable_ambience_1: Handle<AudioAsset>,
 }
 
 impl FromWorld for AudioFiles {
