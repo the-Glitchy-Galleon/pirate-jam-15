@@ -28,9 +28,9 @@
     
     
     
-<script type="module" nonce="xswKRbikbMBYUJBZ0PHFeA==">
-import init, * as bindings from '/pirate-jam-15/pirate-jam-15-23166947c8e25e8b.js';
-const wasm = await init('/pirate-jam-15/pirate-jam-15-23166947c8e25e8b_bg.wasm');
+<script type="module" nonce="s4FER5l6NMirYRL25MDezw==">
+import init, * as bindings from '/pirate-jam-15/pirate-jam-15-19f8fee2c8d4e8e.js';
+const wasm = await init('/pirate-jam-15/pirate-jam-15-19f8fee2c8d4e8e_bg.wasm');
 
 
 window.wasmBindings = bindings;
@@ -40,45 +40,69 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
 
-<link rel="modulepreload" href="/pirate-jam-15/pirate-jam-15-23166947c8e25e8b.js" crossorigin=anonymous integrity="sha384-7iFRAF5vJxQy80FO+2qiERQ3dTX5xIGxNUn0gSLRKBQusUTLu2osBHApKWqaGrDK">
+<link rel="modulepreload" href="/pirate-jam-15/pirate-jam-15-19f8fee2c8d4e8e.js" crossorigin=anonymous integrity="sha384-oXY/BmqBm8KNLWqn2aLrJCXS9tXI/hlGu6Qm81vkqX66qf81GycTiURD+LKLqUkh">
 <link rel="modulepreload" href="/pirate-jam-15/snippets/bevy_web_file_drop-14e863d39d362992/src/drop.js" crossorigin=anonymous integrity="sha384-b6MNTTcQSYWrXevZYqPG28s4vV4N/9+4hDQ8x3TERxv6/r+3a/4wUWmLf3XnUmMr">
-<link rel="preload" href="/pirate-jam-15/pirate-jam-15-23166947c8e25e8b_bg.wasm" crossorigin=anonymous integrity="sha384-N/TZYC1ozTGt95auwlOon0Hb34gOxtD+bLyv8pqRSxdWnzUf/j3vQdb7yCBnKp9A" as="fetch" type="application/wasm"></head>
+<link rel="preload" href="/pirate-jam-15/pirate-jam-15-19f8fee2c8d4e8e_bg.wasm" crossorigin=anonymous integrity="sha384-rikHodOQGE3CdCqRJtrlwakILk6OCPD0Gj81AiFfoyIk3WuH1QRTTk+9tcF45Y5+" as="fetch" type="application/wasm"></head>
 
 <body>
     <!-- The following is a loading modal which is replaced on WASM load. -->
     <style>
-        img {
+        img#bevylogo {
             max-width: 80%;
             max-height: 200px;
+			margin-bottom: 10px;
         }
 
-        svg {
+        svg#loadspin {
             width: 100px;
             height: 100px;
         }
 
         body {
-            margin: 0;
-            display: flex;
+			margin: 0;
+			padding: 0;
+			min-height: 100vh;
+            background: rgb(40, 40, 40);
+            color: rgb(204, 204, 204);
+			box-sizing: border-box;
+        }
+
+		#app {
+			margin: 0;
+			padding: 0;
+			width: 100%;
+			height: 100vh;
+			box-sizing: border-box;
+			overflow: hidden;
+		}
+
+		#bevyload {
+			height: 100vh;
+			display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            min-height: 100vh;
-            background: rgb(40, 40, 40);
-            color: rgb(204, 204, 204);
-        }
-    </style>
-    <img src="static/bevy_logo_fill.png" alt="Bevy" />
-    <svg version=" 1.1" id="L3" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
-        y="0px" viewBox="0 0 100 100" enable-background="new 0 0 0 0" xml:space="preserve">
-        <circle fill="none" stroke="rgb(204, 204, 204)" stroke-width="4" cx="50" cy="50" r="44" style="opacity:0.5;" />
-        <circle fill="rgb(40, 40, 40)" stroke="rgb(204, 204, 204)" stroke-width="3" cx="8" cy="54" r="6">
-            <animateTransform attributeName="transform" dur="2s" type="rotate" from="0 50 48" to="360 50 52"
-                repeatCount="indefinite" />
-        </circle>
-    </svg>
+		}
 
-    
+		#bevyscreen {
+			box-sizing: border-box;
+		}
+    </style>
+	<div id="app">
+		<div id="bevyload">
+			<img id="bevylogo" src="static/bevy_logo_fill.png" alt="Bevy" />
+			<svg id="loadspin" version=" 1.1" id="L3" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+				y="0px" viewBox="0 0 100 100" enable-background="new 0 0 0 0" xml:space="preserve">
+				<circle fill="none" stroke="rgb(204, 204, 204)" stroke-width="4" cx="50" cy="50" r="44" style="opacity:0.5;" />
+				<circle fill="rgb(40, 40, 40)" stroke="rgb(204, 204, 204)" stroke-width="3" cx="8" cy="54" r="6">
+					<animateTransform attributeName="transform" dur="2s" type="rotate" from="0 50 48" to="360 50 52"
+						repeatCount="indefinite" />
+				</circle>
+			</svg>
+		</div>
+	</div>
+
+
 	<script>
 		// the following function keeps track of all AudioContexts and resumes them on the first user
 		// interaction with the page. If the function is called and all contexts are already running,
