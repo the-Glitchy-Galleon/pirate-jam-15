@@ -1,0 +1,63 @@
+name: Release to Itch
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.79.0
+          override: true
+          target: wasm32-unknown-unknown
+          components: rustfmt
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: deploy-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: deploy-${{ runner.os }}-cargo-
+      - name: Install trunk and related tools
+        run: |
+          cargo install --locked trunk || true
+          cargo install wasm-bindgen-cli --locked --version "0.2.92" || true
+          cargo install wasm-opt --locked --version "0.116.1" || true
+      - name: Build
+        run: trunk build --release --public-url "./"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: ./dist
+  deploy-to-itch:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Create artifact dir
+        run: mkdir ./dist
+      - name: Acquire artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: ./dist
+      - name: Push windows version to itch.io
+        uses: manleydev/butler-publish-itchio-action@v1.0.3
+        env:
+          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_TOKEN }}
+          ITCH_GAME: pirate-jam-15
+          ITCH_USER: innocentuslime
+          CHANNEL: html5
+          PACKAGE: ./dist

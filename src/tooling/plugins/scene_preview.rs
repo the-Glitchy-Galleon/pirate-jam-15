@@ -124,7 +124,7 @@ fn setup_audio_emitters(
             }),
             material: mats.add(StandardMaterial {
                 emissive: BOX_EMISSIVE_ACTIVE,
-                ..StandardMaterial::from_color(LinearRgba::BLUE)
+                ..StandardMaterial::from_color(LinearRgba::WHITE)
             }),
             transform: Transform::from_xyz(0.0, 0.5, -2.0),
             ..default()
