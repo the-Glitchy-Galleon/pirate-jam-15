@@ -501,6 +501,7 @@ fn despawn_all_gltfs(
 }
 
 mod ui {
+    use super::super::pointer_capture_check::NoPointerCapture;
     use bevy::{
         prelude::*,
         text::{JustifyText, TextStyle},
@@ -521,6 +522,7 @@ mod ui {
     pub fn setup(mut cmd: Commands) {
         cmd.spawn((
             UiRoot,
+            NoPointerCapture,
             NodeBundle {
                 style: Style {
                     width: Val::Percent(100.0),
@@ -537,6 +539,7 @@ mod ui {
         .with_children(|p| {
             p.spawn((
                 CurrentAnimationTextTag,
+                NoPointerCapture,
                 UiHeaderText,
                 TextBundle::from_section(
                     "Hello, World!",

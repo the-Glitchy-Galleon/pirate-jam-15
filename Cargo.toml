@@ -8,8 +8,16 @@ cfg-if = "^1"
 anyhow = "^1"
 itertools = "0.13.0"
 rand = "0.8.5"
+
 bevy_kira_audio = { version = "0.20.0", features = ["ogg"] }
 bevy_rapier3d = "0.27.0"
+bevy_egui = { version = "0.28.0", default-features = false, features = [
+    "render",
+    "default_fonts",
+] }
+bevy-inspector-egui = { git = "https://github.com/the-Glitchy-Galleon/bevy-inspector-egui.git", default-features = false, features = [
+    "bevy_render",
+] }
 
 [dependencies.bevy]
 version = "0.14.0"
@@ -45,8 +53,6 @@ features = [
 
 [target.'cfg(target_family="wasm")'.dependencies]
 web-sys = { version="0.3.69", features=["Document", "Window"] }
-yew = { version = "0.21.0", features=["csr"] }
-stylist = { version= "0.13.0", features=["yew_integration"] }
 
 bevy_web_file_drop = "0.0.5"
 
