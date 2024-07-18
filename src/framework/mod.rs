@@ -1,13 +1,14 @@
 pub mod audio;
+pub mod easing;
 
 pub mod prelude {
-    // re-export some bevy_kira_audio definitions here,
-    // to prevent using functionality that isn't supported by the framework.
-    pub use super::audio::AudioPlugin;
-    pub use bevy_kira_audio::prelude::AudioControl as _;
-    pub use bevy_kira_audio::prelude::{
-        Audio, AudioEmitter, AudioInstance, AudioReceiver, AudioSource, AudioTween, PlaybackState,
+    // Full audio control should be possible by just using these definitions, and not the audio libs directly
+    pub use super::audio::{
+        Audio, AudioAsset, AudioChannel, AudioChannels, AudioEmitterBundle, AudioInstanceControl,
+        AudioInstanceState, AudioPlugin, AudioSpatialRange,
     };
-    // Use `AudioAsset` to disambiguate from the `AudioSource` exported by bevy::prelude
-    pub use bevy_kira_audio::prelude::AudioSource as AudioAsset;
+    pub use bevy_kira_audio::prelude::AudioControl as _;
+    pub use bevy_kira_audio::prelude::{AudioReceiver, PlaybackState, Volume};
+
+    pub use super::easing::Easing;
 }
