@@ -2,7 +2,7 @@
 //! because people think pub(crate) is a reasonable thing to do. might just have forked it...
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 
 // Use `AudioAsset` to disambiguate from the `AudioSource` exported by bevy::prelude
 pub use bevy_kira_audio::prelude::AudioSource as AudioAsset;
@@ -265,7 +265,7 @@ impl AudioChannels {
 pub struct VolumeTween {
     source: f64,
     target: f64,
-    start: SystemTime,
+    time: Time<Real>,
     duration: Duration,
     easing: Easing,
 }
@@ -274,29 +274,32 @@ impl AudioChannels {
     pub fn get(&self, channel: AudioChannel) -> Volume {
         self.volumes[channel as usize]
     }
+
+    // Todo: would be nice if the user didn't have to feed the time in,
+    // but i can't find any way to ask bevy for the current time.
     pub fn fade_to(
         &mut self,
         channel: AudioChannel,
         target: Volume,
         duration: Duration,
         easing: Easing,
+        current_time: Time<Real>,
     ) {
         self.tweens[channel as usize] = Some(VolumeTween {
             source: self.volumes[channel as usize].as_amplitude(),
             target: target.as_amplitude(),
-            start: SystemTime::now(),
+            time: current_time,
             duration,
             easing,
         });
     }
 }
 
-fn update_audio_channel_volumes(mut channel_volumes: ResMut<AudioChannels>) {
+fn update_audio_channel_volumes(mut channel_volumes: ResMut<AudioChannels>, time: Res<Time>) {
     for i in 0..AudioChannel::COUNT {
-        let res = channel_volumes.tweens[i].as_ref().map(|tween| {
-            let t = SystemTime::now()
-                .duration_since(tween.start)
-                .unwrap_or(Duration::ZERO);
+        let res = channel_volumes.tweens[i].as_mut().map(|tween| {
+            tween.time.update();
+            let t = tween.time.elapsed();
 
             if t >= tween.duration {
                 (Volume::Amplitude(tween.target), true)

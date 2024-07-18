@@ -143,6 +143,7 @@ fn setup_audio_emitters(
 fn initial_channel_fade_in(
     input: Res<ButtonInput<MouseButton>>,
     mut channels: ResMut<AudioChannels>,
+    time: Res<Time<Real>>,
 ) {
     if input.just_pressed(MouseButton::Left) {
         channels.fade_to(
@@ -150,18 +151,21 @@ fn initial_channel_fade_in(
             Volume::Amplitude(0.4),
             Duration::from_secs_f32(2.0),
             Easing::Linear,
+            time.clone(),
         );
         channels.fade_to(
             AudioChannel::AMB,
             Volume::Amplitude(0.4),
             Duration::from_secs_f32(2.0),
             Easing::Linear,
+            time.clone()
         );
         channels.fade_to(
             AudioChannel::SFX,
             Volume::Amplitude(0.8),
             Duration::from_secs_f32(2.0),
             Easing::Linear,
+            time.clone()
         );
     }
 }
