@@ -164,10 +164,12 @@ pub fn camera_controller(
 }
 
 pub mod ui {
-    use super::super::{
-        cursor_grab_and_center::CursorGrabEvent, pointer_capture_check::NoPointerCapture,
+    use super::super::pointer_capture_check::NoPointerCapture;
+    use bevy::{
+        prelude::*,
+        ui::Val,
+        window::{CursorGrabMode, PrimaryWindow},
     };
-    use bevy::{prelude::*, ui::Val};
 
     #[derive(Component)]
     pub struct Crosshair;
@@ -206,19 +208,21 @@ pub mod ui {
     }
 
     pub fn toggle_crosshair_focus(
-        mut evs: EventReader<CursorGrabEvent>,
         mut crosshair: Query<&mut Visibility, With<Crosshair>>,
+        window: Query<&Window, With<PrimaryWindow>>,
     ) {
         let Ok(mut visibility) = crosshair.get_single_mut() else {
             warn!("Couldn't find crosshair.");
             return;
         };
-        for CursorGrabEvent(_, on) in evs.read() {
-            *visibility = if *on {
-                Visibility::Visible
-            } else {
-                Visibility::Hidden
-            }
+
+        let Ok(window) = window.get_single() else {
+            return;
+        };
+        match window.cursor.grab_mode {
+            CursorGrabMode::Locked => *visibility = Visibility::Visible,
+            CursorGrabMode::Confined => *visibility = Visibility::Visible,
+            CursorGrabMode::None => *visibility = Visibility::Hidden,
         }
     }
 }

@@ -1,5 +1,4 @@
 use crate::framework::prelude::*;
-use bevy::window::PrimaryWindow;
 use bevy::{asset::LoadState, prelude::*};
 use bevy_rapier3d::geometry::Collider;
 use bevy_rapier3d::pipeline::QueryFilter;
@@ -91,7 +90,7 @@ fn setup_audio_emitters(
             transform: Transform::from_xyz(-3.0, 0.5, 1.0),
             ..default()
         },
-        Collider::cuboid(0.5, 1.0, 0.5),
+        Collider::cuboid(0.25, 0.5, 0.25),
         AudioEmitterBundle::default(),
         AudioSpatialRange(15.0),
     ));
@@ -112,7 +111,7 @@ fn setup_audio_emitters(
             transform: Transform::from_xyz(3.0, 0.5, 1.0),
             ..default()
         },
-        Collider::cuboid(0.5, 1.0, 0.5),
+        Collider::cuboid(0.25, 0.5, 0.25),
         AudioEmitterBundle::default(),
         AudioSpatialRange(15.0),
     ));
@@ -130,7 +129,7 @@ fn setup_audio_emitters(
             ..default()
         },
         AudioEmitterBundle::default(),
-        Collider::cuboid(0.5, 1.0, 0.5),
+        Collider::cuboid(0.25, 0.5, 0.25),
         AudioSpatialRange(15.0),
     ));
     audio.play_spatial(
@@ -180,7 +179,6 @@ fn setup_audio_receiver(mut cmd: Commands, cam: Query<Entity, With<Camera>>) {
 
 fn toggle_sound_emitter_on_click(
     camera_query: Query<(&Camera, &GlobalTransform)>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
     rapier_context: Res<RapierContext>,
     mut emitters: Query<(
         &AudioInstanceState,
@@ -191,13 +189,12 @@ fn toggle_sound_emitter_on_click(
     mouse: Res<ButtonInput<MouseButton>>,
     sfx: Res<AudioFiles>,
     mut audio: ResMut<Audio>,
+    cursor_position: Res<LogicalCursorPosition>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
     }
-
-    let window = window_query.single();
-    let Some(cursor_position) = window.cursor_position() else {
+    let Some(cursor_position) = cursor_position.0 else {
         return;
     };
     let (camera, camera_global_transform) = camera_query.single();

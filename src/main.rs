@@ -4,6 +4,7 @@ use crate::framework::prelude::AudioPlugin;
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use framework::prelude::*;
 use tooling::prelude::*;
 
 pub mod framework;
@@ -17,6 +18,7 @@ fn main() -> AppExit {
         .add_plugins(AudioPlugin)
         .add_plugins(CursorGrabAndCenterPlugin)
         .add_plugins(PointerCaptureCheckPlugin)
+        .add_plugins(LogicalCursorPlugin)
         .add_plugins(FreeCameraPlugin)
         .add_plugins(FpsCounterPlugin)
         .add_plugins(ScenePreviewPlugin);
