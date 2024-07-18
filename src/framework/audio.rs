@@ -217,10 +217,11 @@ pub enum AudioChannel {
     BGM = 0,
     AMB = 1,
     SFX = 2,
+    VOX = 3,
 }
 
 impl AudioChannel {
-    pub const COUNT: usize = 3;
+    pub const COUNT: usize = 4;
 }
 
 #[derive(Debug)]
