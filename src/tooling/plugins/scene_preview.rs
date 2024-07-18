@@ -1,4 +1,4 @@
-use bevy::window::PrimaryWindow;
+use crate::framework::prelude::*;
 use bevy::{asset::LoadState, prelude::*};
 use bevy_kira_audio::prelude::*;
 use bevy_kira_audio::AudioSource;
@@ -95,7 +95,7 @@ fn setup_audio_emitters(
             transform: Transform::from_xyz(-3.0, 0.5, 1.0),
             ..default()
         },
-        Collider::cuboid(0.5, 1.0, 0.5),
+        Collider::cuboid(0.25, 0.5, 0.25),
         AudioEmitter {
             instances: vec![audio.play(sfx.fire_with_crackles.clone()).looped().handle()],
         },
@@ -112,7 +112,7 @@ fn setup_audio_emitters(
             transform: Transform::from_xyz(3.0, 0.5, 1.0),
             ..default()
         },
-        Collider::cuboid(0.5, 1.0, 0.5),
+        Collider::cuboid(0.25, 0.5, 0.25),
         AudioEmitter {
             instances: vec![audio.play(sfx.jungle_amb_1.clone()).looped().handle()],
         },
@@ -129,7 +129,7 @@ fn setup_audio_emitters(
             transform: Transform::from_xyz(0.0, 0.5, -2.0),
             ..default()
         },
-        Collider::cuboid(0.5, 1.0, 0.5),
+        Collider::cuboid(0.25, 0.5, 0.25),
         AudioEmitter {
             instances: vec![audio
                 .play(sfx.loopable_ambience_1.clone())
@@ -147,7 +147,6 @@ fn setup_audio_receiver(mut cmd: Commands, cam: Query<Entity, With<Camera>>) {
 
 fn toggle_sound_emitter_on_click(
     camera_query: Query<(&Camera, &GlobalTransform)>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
     rapier_context: Res<RapierContext>,
     emitters: Query<(&AudioEmitter, &Handle<StandardMaterial>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -155,13 +154,12 @@ fn toggle_sound_emitter_on_click(
     mut audio_instances: ResMut<Assets<AudioInstance>>,
     sfx: Res<AudioFiles>,
     audio: Res<Audio>,
+    cursor_position: Res<LogicalCursorPosition>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
     }
-
-    let window = window_query.single();
-    let Some(cursor_position) = window.cursor_position() else {
+    let Some(cursor_position) = cursor_position.0 else {
         return;
     };
     let (camera, camera_global_transform) = camera_query.single();
