@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use bevy::{input::InputSystem, prelude::*};
-use bevy_egui::EguiPlugin;
+use bevy::{input::{mouse::MouseButtonInput, InputSystem}, prelude::*, render::camera::RenderTarget, window::{PrimaryWindow, WindowRef}};
+use bevy_egui::{egui::epaint::text::cursor, EguiPlugin};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 use tooling::prelude::*;
@@ -9,11 +9,79 @@ use tooling::prelude::*;
 mod runner;
 pub mod tooling;
 
-const MOUSE_SENSITIVITY: f32 = 0.3;
 const GROUND_TIMER: f32 = 0.5;
 const MOVEMENT_SPEED: f32 = 8.0;
 const JUMP_SPEED: f32 = 20.0;
 const GRAVITY: f32 = -9.81;
+
+fn mouse_tap(
+    time: Res<Time>,
+    window: Query<&Window, With<PrimaryWindow>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    rap_ctx: ResMut<RapierContext>,
+    cam: Query<(&GlobalTransform, &Camera)>,
+    mut gizmos: Gizmos,
+    mut player: Query<(
+        &mut Transform,
+        &mut KinematicCharacterController,
+        Option<&KinematicCharacterControllerOutput>,
+    )>,
+    mut movement: ResMut<MovementInput>,
+) {
+    let Ok(window) = window.get_single()
+        else { return; };
+    let Some(pos) = window.cursor_position()
+        else { return; };
+    let Some((cam_tf, cam)) = cam.iter()
+            .filter(|(_, cam)| {
+                matches!(cam.target, RenderTarget::Window(WindowRef::Primary))
+            }).next()
+        else { return; };
+    let Some(cursor_ray) = cam.viewport_to_world(cam_tf, pos)
+        else { return; };
+
+    // gizmos.circle(
+    //     cursor_ray.origin + 10.0 * cursor_ray.direction.as_vec3(),
+    //     cursor_ray.direction,
+    //     1.0,
+    //     Color::linear_rgb(1.0, 0.0, 0.0),
+    // );
+
+    let Some((_, ray_hit)) = rap_ctx.cast_ray_and_get_normal(
+        cursor_ray.origin,
+        cursor_ray.direction.as_vec3(),
+        1000.0,
+        true,
+        default()
+    ) else { return; };
+
+
+    let Ok(hit_dir) = Dir3::new(ray_hit.normal)
+        else { return; };
+
+    gizmos.arrow(
+        ray_hit.point + ray_hit.normal * 10.0,
+        ray_hit.point,
+        Color::linear_rgb(1.0, 0.0, 0.0),
+    );
+
+    gizmos.circle(
+        ray_hit.point,
+        hit_dir,
+        3.0,
+        Color::linear_rgb(1.0, 0.0, 0.0),
+    );
+
+    let Ok((player_tf, mut controller, output)) = player.get_single_mut() else {
+        return;
+    };
+    let delta_time = time.delta_seconds();
+    let walk_dir = (ray_hit.point - player_tf.translation).normalize_or_zero();
+
+    if mouse_buttons.pressed(MouseButton::Left) {
+        movement.0 = walk_dir;
+    }
+}
 
 fn spawn_gameplay_camera(mut commands: Commands) {
     commands.spawn(Camera3dBundle {
@@ -118,30 +186,30 @@ fn setup_physics(mut commands: Commands) {
 #[derive(Default, Resource, Deref, DerefMut)]
 struct MovementInput(Vec3);
 
-fn handle_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut movement: ResMut<MovementInput>,
-) {
-    if keyboard.pressed(KeyCode::KeyW) {
-        movement.z -= 1.0;
-    }
-    if keyboard.pressed(KeyCode::KeyS) {
-        movement.z += 1.0
-    }
-    if keyboard.pressed(KeyCode::KeyA) {
-        movement.x -= 1.0;
-    }
-    if keyboard.pressed(KeyCode::KeyD) {
-        movement.x += 1.0
-    }
-    **movement = movement.normalize_or_zero();
-    if keyboard.pressed(KeyCode::ShiftLeft) {
-        **movement *= 2.0;
-    }
-    if keyboard.pressed(KeyCode::Space) {
-        movement.y = 1.0;
-    }
-}
+// fn handle_input(
+//     keyboard: Res<ButtonInput<KeyCode>>,
+//     mut movement: ResMut<MovementInput>,
+// ) {
+//     if keyboard.pressed(KeyCode::KeyW) {
+//         movement.z -= 1.0;
+//     }
+//     if keyboard.pressed(KeyCode::KeyS) {
+//         movement.z += 1.0
+//     }
+//     if keyboard.pressed(KeyCode::KeyA) {
+//         movement.x -= 1.0;
+//     }
+//     if keyboard.pressed(KeyCode::KeyD) {
+//         movement.x += 1.0
+//     }
+//     **movement = movement.normalize_or_zero();
+//     if keyboard.pressed(KeyCode::ShiftLeft) {
+//         **movement *= 2.0;
+//     }
+//     if keyboard.pressed(KeyCode::Space) {
+//         movement.y = 1.0;
+//     }
+// }
 
 fn player_movement(
     time: Res<Time>,
@@ -195,7 +263,9 @@ fn main() -> AppExit {
         .add_systems(Startup, spawn_gameplay_camera)
         .add_systems(Startup, setup_physics)
         .add_systems(Startup, setup_player)
-        .add_systems(PreUpdate, handle_input.after(InputSystem))
+        // .add_systems(PreUpdate, handle_input.after(InputSystem))
+        .add_systems(PreUpdate, mouse_tap.after(InputSystem))
+        // .add_systems(Update, mouse_tap)
         .add_systems(FixedUpdate, player_movement)
         // .add_plugins(CursorGrabAndCenterPlugin)
         // .add_plugins(PointerCaptureCheckPlugin)
