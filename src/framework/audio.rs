@@ -2,7 +2,7 @@
 //! because people think pub(crate) is a reasonable thing to do. might just have forked it...
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 // Use `AudioAsset` to disambiguate from the `AudioSource` exported by bevy::prelude
 pub use bevy_kira_audio::prelude::AudioSource as AudioAsset;
@@ -277,6 +277,7 @@ impl AudioChannels {
 
     // Todo: would be nice if the user didn't have to feed the time in,
     // but i can't find any way to ask bevy for the current time.
+    // `std::time::SystemTime` and `std::time::Instant` are not supported on wasm, it seems.
     pub fn fade_to(
         &mut self,
         channel: AudioChannel,
@@ -295,7 +296,7 @@ impl AudioChannels {
     }
 }
 
-fn update_audio_channel_volumes(mut channel_volumes: ResMut<AudioChannels>, time: Res<Time>) {
+fn update_audio_channel_volumes(mut channel_volumes: ResMut<AudioChannels>) {
     for i in 0..AudioChannel::COUNT {
         let res = channel_volumes.tweens[i].as_mut().map(|tween| {
             tween.time.update();
