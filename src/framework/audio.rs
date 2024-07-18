@@ -289,7 +289,7 @@ impl AudioChannels {
         self.tweens[channel as usize] = Some(VolumeTween {
             source: self.volumes[channel as usize].as_amplitude(),
             target: target.as_amplitude(),
-            time: current_time,
+            time: Time::new(current_time.last_update().unwrap()),
             duration,
             easing,
         });
@@ -301,7 +301,6 @@ fn update_audio_channel_volumes(mut channel_volumes: ResMut<AudioChannels>) {
         let res = channel_volumes.tweens[i].as_mut().map(|tween| {
             tween.time.update();
             let t = tween.time.elapsed();
-
             if t >= tween.duration {
                 (Volume::Amplitude(tween.target), true)
             } else {
@@ -414,11 +413,6 @@ fn update_audio_instances(
             }
         } else {
             // Todo: provide audio controls for non-emitter sounds
-            println!(
-                "volume: {chan_vol}, {global_vol} = {}",
-                chan_vol * global_vol
-            );
-
             bevy_instance.set_volume(1.0 * global_vol * chan_vol, AudioTween::default());
         }
     }

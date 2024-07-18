@@ -144,29 +144,31 @@ fn initial_channel_fade_in(
     input: Res<ButtonInput<MouseButton>>,
     mut channels: ResMut<AudioChannels>,
     time: Res<Time<Real>>,
+    mut initialized: Local<bool>,
 ) {
-    if input.just_pressed(MouseButton::Left) {
+    if !*initialized && input.just_pressed(MouseButton::Left) {
         channels.fade_to(
             AudioChannel::BGM,
             Volume::Amplitude(0.4),
             Duration::from_secs_f32(2.0),
-            Easing::Linear,
+            Easing::InPowf(3.0),
             time.clone(),
         );
         channels.fade_to(
             AudioChannel::AMB,
             Volume::Amplitude(0.4),
             Duration::from_secs_f32(2.0),
-            Easing::Linear,
+            Easing::InPowf(3.0),
             time.clone(),
         );
         channels.fade_to(
             AudioChannel::SFX,
-            Volume::Amplitude(0.8),
+            Volume::Amplitude(0.6),
             Duration::from_secs_f32(2.0),
-            Easing::Linear,
+            Easing::InPowf(3.0),
             time.clone(),
         );
+        *initialized = true;
     }
 }
 
