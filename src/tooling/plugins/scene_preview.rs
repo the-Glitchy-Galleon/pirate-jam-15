@@ -1,7 +1,5 @@
 use crate::framework::prelude::*;
 use bevy::{asset::LoadState, prelude::*};
-use bevy_kira_audio::prelude::*;
-use bevy_kira_audio::AudioSource;
 use bevy_rapier3d::geometry::Collider;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::plugin::{NoUserData, RapierContext, RapierPhysicsPlugin};
@@ -16,28 +14,25 @@ pub struct ScenePreviewPlugin;
 
 impl Plugin for ScenePreviewPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(bevy_kira_audio::AudioPlugin)
-            .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+        app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
             .init_resource::<LoadQueue>()
             .insert_resource(AmbientLight {
                 color: Color::WHITE,
                 brightness: 2000.,
             })
-            // .init_asset::<bevy_kira_audio::AudioSource>()
-            .insert_resource(SpatialAudio { max_distance: 15. })
             .init_resource::<AudioFiles>()
             .add_event::<DespawnAllScenesEvent>()
             .add_event::<SpawnGltfEvent>()
             .add_event::<InitAnimationPlayerEvent>()
             .add_systems(Startup, ui::setup)
-            .add_systems(Startup, setup_audio_receiver)
-            .add_systems(Startup, setup_audio_emitters)
+            .add_systems(Startup, (setup_audio_receiver, setup_audio_emitters))
             .add_systems(
                 Update,
                 (
                     file_drag_and_drop,
                     load_queue,
                     spawn_gltf,
+                    initial_channel_fade_in,
                     setup_animation_master.after(spawn_gltf),
                     start_animation_on_load.after(setup_animation_master),
                     despawn_all_gltfs,
@@ -51,10 +46,10 @@ impl Plugin for ScenePreviewPlugin {
 
 #[derive(Resource)]
 struct AudioFiles {
-    fire_with_crackles: Handle<AudioSource>,
-    jungle_amb_1: Handle<AudioSource>,
-    footsteps: [Handle<AudioSource>; 5],
-    loopable_ambience_1: Handle<AudioSource>,
+    fire_with_crackles: Handle<AudioAsset>,
+    jungle_amb_1: Handle<AudioAsset>,
+    footsteps: [Handle<AudioAsset>; 5],
+    loopable_ambience_1: Handle<AudioAsset>,
 }
 
 impl FromWorld for AudioFiles {
@@ -78,12 +73,12 @@ impl FromWorld for AudioFiles {
 
 fn setup_audio_emitters(
     mut cmd: Commands,
-    audio: Res<Audio>,
-    sfx: Res<AudioFiles>,
+    mut audio: ResMut<Audio>,
+    assets: Res<AudioFiles>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut mats: ResMut<Assets<StandardMaterial>>,
 ) {
-    cmd.spawn((
+    let ent = cmd.spawn((
         PbrBundle {
             mesh: meshes.add(Cuboid {
                 half_size: Vec3::new(0.25, 0.5, 0.25),
@@ -96,11 +91,15 @@ fn setup_audio_emitters(
             ..default()
         },
         Collider::cuboid(0.25, 0.5, 0.25),
-        AudioEmitter {
-            instances: vec![audio.play(sfx.fire_with_crackles.clone()).looped().handle()],
-        },
+        AudioEmitterBundle::default(),
+        AudioSpatialRange(15.0),
     ));
-    cmd.spawn((
+    audio.play_spatial(
+        assets.fire_with_crackles.clone(),
+        AudioChannel::AMB,
+        ent.id(),
+    );
+    let ent = cmd.spawn((
         PbrBundle {
             mesh: meshes.add(Cuboid {
                 half_size: Vec3::new(0.25, 0.5, 0.25),
@@ -113,11 +112,11 @@ fn setup_audio_emitters(
             ..default()
         },
         Collider::cuboid(0.25, 0.5, 0.25),
-        AudioEmitter {
-            instances: vec![audio.play(sfx.jungle_amb_1.clone()).looped().handle()],
-        },
+        AudioEmitterBundle::default(),
+        AudioSpatialRange(15.0),
     ));
-    cmd.spawn((
+    audio.play_spatial(assets.jungle_amb_1.clone(), AudioChannel::AMB, ent.id());
+    let ent = cmd.spawn((
         PbrBundle {
             mesh: meshes.add(Cuboid {
                 half_size: Vec3::new(0.25, 0.5, 0.25),
@@ -129,14 +128,47 @@ fn setup_audio_emitters(
             transform: Transform::from_xyz(0.0, 0.5, -2.0),
             ..default()
         },
+        AudioEmitterBundle::default(),
         Collider::cuboid(0.25, 0.5, 0.25),
-        AudioEmitter {
-            instances: vec![audio
-                .play(sfx.loopable_ambience_1.clone())
-                .looped()
-                .handle()],
-        },
+        AudioSpatialRange(15.0),
     ));
+    audio.play_spatial(
+        assets.loopable_ambience_1.clone(),
+        AudioChannel::BGM,
+        ent.id(),
+    );
+}
+
+fn initial_channel_fade_in(
+    input: Res<ButtonInput<MouseButton>>,
+    mut channels: ResMut<AudioChannels>,
+    time: Res<Time<Real>>,
+    mut initialized: Local<bool>,
+) {
+    if !*initialized && input.just_pressed(MouseButton::Left) {
+        channels.fade_to(
+            AudioChannel::BGM,
+            Volume::Amplitude(0.4),
+            Duration::from_secs_f32(2.0),
+            Easing::InPowf(3.0),
+            time.clone(),
+        );
+        channels.fade_to(
+            AudioChannel::AMB,
+            Volume::Amplitude(0.4),
+            Duration::from_secs_f32(2.0),
+            Easing::InPowf(3.0),
+            time.clone(),
+        );
+        channels.fade_to(
+            AudioChannel::SFX,
+            Volume::Amplitude(0.6),
+            Duration::from_secs_f32(2.0),
+            Easing::InPowf(3.0),
+            time.clone(),
+        );
+        *initialized = true;
+    }
 }
 
 fn setup_audio_receiver(mut cmd: Commands, cam: Query<Entity, With<Camera>>) {
@@ -148,12 +180,15 @@ fn setup_audio_receiver(mut cmd: Commands, cam: Query<Entity, With<Camera>>) {
 fn toggle_sound_emitter_on_click(
     camera_query: Query<(&Camera, &GlobalTransform)>,
     rapier_context: Res<RapierContext>,
-    emitters: Query<(&AudioEmitter, &Handle<StandardMaterial>)>,
+    mut emitters: Query<(
+        &AudioInstanceState,
+        &mut AudioInstanceControl,
+        &Handle<StandardMaterial>,
+    )>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mouse: Res<ButtonInput<MouseButton>>,
-    mut audio_instances: ResMut<Assets<AudioInstance>>,
     sfx: Res<AudioFiles>,
-    audio: Res<Audio>,
+    mut audio: ResMut<Audio>,
     cursor_position: Res<LogicalCursorPosition>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
@@ -176,32 +211,30 @@ fn toggle_sound_emitter_on_click(
     ) {
         let _hit_point = ray.origin + *ray.direction * toi;
 
-        if let Ok((emitter, mat)) = emitters.get(entity) {
-            for instance in emitter.instances.iter() {
-                if let Some(instance) = audio_instances.get_mut(instance) {
-                    let mut rng = rand::thread_rng();
-                    audio.play(sfx.footsteps[rng.gen_range(0..sfx.footsteps.len())].clone());
+        if let Ok((state, mut control, mat)) = emitters.get_mut(entity) {
+            let mut rng = rand::thread_rng();
+            audio.play(
+                sfx.footsteps[rng.gen_range(0..sfx.footsteps.len())].clone(),
+                AudioChannel::SFX,
+            );
 
-                    match instance.state() {
-                        PlaybackState::Paused { .. } => {
-                            instance.resume(AudioTween::default());
-                            if let Some(mat) = materials.get_mut(mat) {
-                                mat.emissive = BOX_EMISSIVE_ACTIVE;
-                            }
-                        }
-                        PlaybackState::Playing { .. } => {
-                            instance.pause(AudioTween::default());
-
-                            if let Some(mat) = materials.get_mut(mat) {
-                                mat.emissive = LinearRgba::NONE;
-                            }
-                        }
-                        _ => {}
+            match state.state() {
+                PlaybackState::Paused { .. } => {
+                    control.resume();
+                    if let Some(mat) = materials.get_mut(mat) {
+                        mat.emissive = BOX_EMISSIVE_ACTIVE;
                     }
                 }
+                PlaybackState::Playing { .. } => {
+                    control.pause();
+
+                    if let Some(mat) = materials.get_mut(mat) {
+                        mat.emissive = LinearRgba::NONE;
+                    }
+                }
+                _ => {}
             }
         }
-        //
     };
 }
 
