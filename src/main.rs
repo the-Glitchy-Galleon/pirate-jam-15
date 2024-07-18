@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use bevy::prelude::*;
+use bevy::{input::InputSystem, prelude::*};
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
@@ -8,6 +8,12 @@ use tooling::prelude::*;
 
 mod runner;
 pub mod tooling;
+
+const MOUSE_SENSITIVITY: f32 = 0.3;
+const GROUND_TIMER: f32 = 0.5;
+const MOVEMENT_SPEED: f32 = 8.0;
+const JUMP_SPEED: f32 = 20.0;
+const GRAVITY: f32 = -9.81;
 
 fn spawn_gameplay_camera(mut commands: Commands) {
     commands.spawn(Camera3dBundle {
@@ -17,15 +23,43 @@ fn spawn_gameplay_camera(mut commands: Commands) {
     });
 }
 
-fn spawn_player(mut commands: Commands) {
-    commands.spawn(
-        (
-            TransformBundle::from(Transform::from_xyz(0., 1., 0.)),
-            RigidBody::Dynamic,
-            Collider::cuboid(0.5, 1.0, 0.5),
-        )
-    );
+pub fn setup_player(mut commands: Commands) {
+    commands
+        .spawn((
+            SpatialBundle {
+                transform: Transform::from_xyz(0.0, 5.0, 0.0),
+                ..default()
+            },
+            Collider::round_cylinder(0.9, 0.3, 0.2),
+            KinematicCharacterController {
+                custom_mass: Some(5.0),
+                up: Vec3::Y,
+                offset: CharacterLength::Absolute(0.01),
+                slide: true,
+                autostep: Some(CharacterAutostep {
+                    max_height: CharacterLength::Relative(0.3),
+                    min_width: CharacterLength::Relative(0.5),
+                    include_dynamic_bodies: false,
+                }),
+                // Don’t allow climbing slopes larger than 45 degrees.
+                max_slope_climb_angle: 45.0_f32.to_radians(),
+                // Automatically slide down on slopes smaller than 30 degrees.
+                min_slope_slide_angle: 30.0_f32.to_radians(),
+                apply_impulse_to_dynamic_bodies: true,
+                snap_to_ground: None,
+                ..default()
+            },
+        ));
+        // .with_children(|b| {
+        //     // FPS Camera
+        //     b.spawn(Camera3dBundle {
+        //         transform: Transform::from_xyz(0.0, 0.2, -0.1),
+        //         ..Default::default()
+        //     });
+        // });
 }
+
+// fn move_player
 
 fn setup_physics(mut commands: Commands) {
     /*
@@ -80,6 +114,74 @@ fn setup_physics(mut commands: Commands) {
     }
 }
 
+/// Keyboard input vector
+#[derive(Default, Resource, Deref, DerefMut)]
+struct MovementInput(Vec3);
+
+fn handle_input(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut movement: ResMut<MovementInput>,
+) {
+    if keyboard.pressed(KeyCode::KeyW) {
+        movement.z -= 1.0;
+    }
+    if keyboard.pressed(KeyCode::KeyS) {
+        movement.z += 1.0
+    }
+    if keyboard.pressed(KeyCode::KeyA) {
+        movement.x -= 1.0;
+    }
+    if keyboard.pressed(KeyCode::KeyD) {
+        movement.x += 1.0
+    }
+    **movement = movement.normalize_or_zero();
+    if keyboard.pressed(KeyCode::ShiftLeft) {
+        **movement *= 2.0;
+    }
+    if keyboard.pressed(KeyCode::Space) {
+        movement.y = 1.0;
+    }
+}
+
+fn player_movement(
+    time: Res<Time>,
+    mut input: ResMut<MovementInput>,
+    mut player: Query<(
+        &mut Transform,
+        &mut KinematicCharacterController,
+        Option<&KinematicCharacterControllerOutput>,
+    )>,
+    mut vertical_movement: Local<f32>,
+    mut grounded_timer: Local<f32>,
+) {
+    let Ok((transform, mut controller, output)) = player.get_single_mut() else {
+        return;
+    };
+    let delta_time = time.delta_seconds();
+    // Retrieve input
+    let mut movement = Vec3::new(input.x, 0.0, input.z) * MOVEMENT_SPEED;
+    let jump_speed = input.y * JUMP_SPEED;
+    // Clear input
+    **input = Vec3::ZERO;
+    // Check physics ground check
+    if output.map(|o| o.grounded).unwrap_or(false) {
+        *grounded_timer = GROUND_TIMER;
+        *vertical_movement = 0.0;
+    }
+    // If we are grounded we can jump
+    if *grounded_timer > 0.0 {
+        *grounded_timer -= delta_time;
+        // If we jump we clear the grounded tolerance
+        if jump_speed > 0.0 {
+            *vertical_movement = jump_speed;
+            *grounded_timer = 0.0;
+        }
+    }
+    movement.y = *vertical_movement;
+    *vertical_movement += GRAVITY * delta_time * controller.custom_mass.unwrap_or(1.0);
+    controller.translation = Some(transform.rotation * (movement * delta_time));
+}
+
 fn main() -> AppExit {
     let mut app = runner::create_app();
 
@@ -89,9 +191,12 @@ fn main() -> AppExit {
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
         ))
+        .init_resource::<MovementInput>()
         .add_systems(Startup, spawn_gameplay_camera)
         .add_systems(Startup, setup_physics)
-        .add_systems(Startup, spawn_player)
+        .add_systems(Startup, setup_player)
+        .add_systems(PreUpdate, handle_input.after(InputSystem))
+        .add_systems(FixedUpdate, player_movement)
         // .add_plugins(CursorGrabAndCenterPlugin)
         // .add_plugins(PointerCaptureCheckPlugin)
         // .add_plugins(FreeCameraPlugin)
