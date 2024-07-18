@@ -95,7 +95,7 @@ fn setup_audio_emitters(
             transform: Transform::from_xyz(-3.0, 0.5, 1.0),
             ..default()
         },
-        Collider::cuboid(0.5, 1.0, 0.5),
+        Collider::cuboid(0.25, 0.5, 0.25),
         AudioEmitter {
             instances: vec![audio.play(sfx.fire_with_crackles.clone()).looped().handle()],
         },
@@ -112,7 +112,7 @@ fn setup_audio_emitters(
             transform: Transform::from_xyz(3.0, 0.5, 1.0),
             ..default()
         },
-        Collider::cuboid(0.5, 1.0, 0.5),
+        Collider::cuboid(0.25, 0.5, 0.25),
         AudioEmitter {
             instances: vec![audio.play(sfx.jungle_amb_1.clone()).looped().handle()],
         },
@@ -129,7 +129,7 @@ fn setup_audio_emitters(
             transform: Transform::from_xyz(0.0, 0.5, -2.0),
             ..default()
         },
-        Collider::cuboid(0.5, 1.0, 0.5),
+        Collider::cuboid(0.25, 0.5, 0.25),
         AudioEmitter {
             instances: vec![audio
                 .play(sfx.loopable_ambience_1.clone())
