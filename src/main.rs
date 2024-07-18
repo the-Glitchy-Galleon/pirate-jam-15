@@ -3,8 +3,10 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use framework::prelude::*;
 use tooling::prelude::*;
 
+pub mod framework;
 mod runner;
 pub mod tooling;
 
@@ -14,6 +16,7 @@ fn main() -> AppExit {
     app.add_plugins((EguiPlugin, WorldInspectorPlugin::new()))
         .add_plugins(CursorGrabAndCenterPlugin)
         .add_plugins(PointerCaptureCheckPlugin)
+        .add_plugins(LogicalCursorPlugin)
         .add_plugins(FreeCameraPlugin)
         .add_plugins(FpsCounterPlugin)
         .add_plugins(ScenePreviewPlugin);
