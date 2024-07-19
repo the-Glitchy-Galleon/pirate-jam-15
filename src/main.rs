@@ -1,14 +1,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use bevy::{input::InputSystem, prelude::*, render::camera::RenderTarget, window::{PrimaryWindow, WindowRef}};
+use bevy::{
+    input::InputSystem,
+    prelude::*,
+    render::camera::RenderTarget,
+    window::{PrimaryWindow, WindowRef},
+};
 // use bevy_egui::{egui::epaint::text::cursor, EguiPlugin};
 // use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 use tooling::prelude::*;
 
-mod runner;
-mod player_movement;
 mod player_minion;
+mod player_movement;
+mod runner;
 pub mod tooling;
 
 use player_minion::*;
@@ -58,26 +63,21 @@ pub fn setup_player(mut commands: Commands) {
             minion_st,
         ))
         .with_children(|b| {
-            b.spawn((
-                SpatialBundle {
-                    ..default()
-                },
-                PlayerCollector,
-            )).with_children(|b| {
-                b.spawn((
-                    SpatialBundle {
-                        transform: Transform::from_rotation(Quat::from_rotation_z(
-                            std::f32::consts::FRAC_PI_2
-                        )).with_translation(
-                            Vec3::new(3.0, -1.0, 0.0)
-                        ),
-                        ..default()
-                    },
-                    Collider::cone(3.0, 4.5),
-                    RigidBody::Fixed,
-                    Sensor,
-                ));
-            });
+            b.spawn((SpatialBundle { ..default() }, PlayerCollector))
+                .with_children(|b| {
+                    b.spawn((
+                        SpatialBundle {
+                            transform: Transform::from_rotation(Quat::from_rotation_z(
+                                std::f32::consts::FRAC_PI_2,
+                            ))
+                            .with_translation(Vec3::new(3.0, -1.0, 0.0)),
+                            ..default()
+                        },
+                        Collider::cone(3.0, 4.5),
+                        RigidBody::Fixed,
+                        Sensor,
+                    ));
+                });
         });
 }
 
@@ -96,17 +96,22 @@ pub fn mouse_tap(
     mut dir: ResMut<PlayerDirection>,
     mut minion: ResMut<MinionInput>,
 ) {
-    let Ok(window) = window.get_single()
-        else { return; };
-    let Some(pos) = window.cursor_position()
-        else { return; };
-    let Some((cam_tf, cam)) = cam.iter()
-            .filter(|(_, cam)| {
-                matches!(cam.target, RenderTarget::Window(WindowRef::Primary))
-            }).next()
-        else { return; };
-    let Some(cursor_ray) = cam.viewport_to_world(cam_tf, pos)
-        else { return; };
+    let Ok(window) = window.get_single() else {
+        return;
+    };
+    let Some(pos) = window.cursor_position() else {
+        return;
+    };
+    let Some((cam_tf, cam)) = cam
+        .iter()
+        .filter(|(_, cam)| matches!(cam.target, RenderTarget::Window(WindowRef::Primary)))
+        .next()
+    else {
+        return;
+    };
+    let Some(cursor_ray) = cam.viewport_to_world(cam_tf, pos) else {
+        return;
+    };
 
     // gizmos.circle(
     //     cursor_ray.origin + 10.0 * cursor_ray.direction.as_vec3(),
@@ -120,12 +125,14 @@ pub fn mouse_tap(
         cursor_ray.direction.as_vec3(),
         1000.0,
         true,
-        default()
-    ) else { return; };
+        default(),
+    ) else {
+        return;
+    };
 
-
-    let Ok(hit_dir) = Dir3::new(ray_hit.normal)
-        else { return; };
+    let Ok(hit_dir) = Dir3::new(ray_hit.normal) else {
+        return;
+    };
 
     gizmos.arrow(
         ray_hit.point + ray_hit.normal * 10.0,
@@ -200,13 +207,12 @@ fn setup_physics(mut commands: Commands) {
                 let z = k as f32 * shift - centerz + offset;
                 color += 1;
 
-                commands
-                    .spawn((
-                        TransformBundle::from(Transform::from_xyz(x, y, z)),
-                        RigidBody::Dynamic,
-                        Collider::cuboid(rad, rad, rad),
-                        ColliderDebugColor(colors[color % 3]),
-                    ));
+                commands.spawn((
+                    TransformBundle::from(Transform::from_xyz(x, y, z)),
+                    RigidBody::Dynamic,
+                    Collider::cuboid(rad, rad, rad),
+                    ColliderDebugColor(colors[color % 3]),
+                ));
             }
         }
 
@@ -242,8 +248,7 @@ fn setup_physics(mut commands: Commands) {
 fn main() -> AppExit {
     let mut app = runner::create_app();
 
-    app
-        .insert_resource(PlayerDirection(Dir3::X))
+    app.insert_resource(PlayerDirection(Dir3::X))
         .insert_resource(MinionInput {
             chosen_ty: MinionKind::Doink,
             want_to_throw: false,
@@ -270,7 +275,7 @@ fn main() -> AppExit {
         // .add_plugins(PointerCaptureCheckPlugin)
         // .add_plugins(FreeCameraPlugin)
         .add_plugins(FpsCounterPlugin);
-        // .add_plugins(ScenePreviewPlugin);
+    // .add_plugins(ScenePreviewPlugin);
 
     runner::run_app(&mut app)
 }
