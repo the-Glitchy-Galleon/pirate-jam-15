@@ -1,8 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use bevy::{input::{mouse::MouseButtonInput, InputSystem}, prelude::*, render::camera::RenderTarget, window::{PrimaryWindow, WindowRef}};
-use bevy_egui::{egui::epaint::text::cursor, EguiPlugin};
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy::{input::InputSystem, prelude::*, render::camera::RenderTarget, window::{PrimaryWindow, WindowRef}};
+// use bevy_egui::{egui::epaint::text::cursor, EguiPlugin};
+// use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 use tooling::prelude::*;
 
@@ -15,7 +15,6 @@ const JUMP_SPEED: f32 = 20.0;
 const GRAVITY: f32 = -9.81;
 
 fn mouse_tap(
-    time: Res<Time>,
     window: Query<&Window, With<PrimaryWindow>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     rap_ctx: ResMut<RapierContext>,
@@ -72,10 +71,9 @@ fn mouse_tap(
         Color::linear_rgb(1.0, 0.0, 0.0),
     );
 
-    let Ok((player_tf, mut controller, output)) = player.get_single_mut() else {
+    let Ok((player_tf, _, _)) = player.get_single_mut() else {
         return;
     };
-    let delta_time = time.delta_seconds();
     let walk_dir = (ray_hit.point - player_tf.translation).normalize_or_zero();
 
     if mouse_buttons.pressed(MouseButton::Left) {
