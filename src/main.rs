@@ -1,5 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+
+
+mod player_minion;
+mod player_movement;
+use crate::framework::prelude::AudioPlugin;
 use bevy::{
     input::InputSystem,
     prelude::*,
@@ -10,9 +15,12 @@ use bevy::{
 // use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 use tooling::prelude::*;
+use bevy_egui::EguiPlugin;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use framework::prelude::*;
+use tooling::prelude::*;
 
-mod player_minion;
-mod player_movement;
+pub mod framework;
 mod runner;
 pub mod tooling;
 
@@ -276,6 +284,9 @@ fn main() -> AppExit {
         // .add_plugins(FreeCameraPlugin)
         .add_plugins(FpsCounterPlugin);
     // .add_plugins(ScenePreviewPlugin);
+
+    app.add_plugins((EguiPlugin, WorldInspectorPlugin::new()))
+        .add_plugins(AudioPlugin);
 
     runner::run_app(&mut app)
 }
