@@ -3,6 +3,12 @@ use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
 use bevy_rapier3d::rapier::pipeline::DebugColor;
 
+use crate::player_movement::PlayerDirection;
+
+#[derive(Clone, Copy, Debug)]
+#[derive(Component, Reflect)]
+pub struct PlayerCollector;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[derive(Component, Reflect)]
 pub enum MinionKind {
@@ -79,7 +85,49 @@ pub fn player_minion(
 }
 
 pub fn player_minion_pickup(
-
+    rap_ctx: ResMut<RapierContext>,
+    player_dir: Res<PlayerDirection>,
+    dropped_mins: Query<(Entity, &MinionKind)>,
+    mut collector: Query<(&mut Transform, &Children), With<PlayerCollector>>,
+    mut player_q: Query<&mut MinionStorage>,
+    mut commands: Commands,
 ) {
+    let Ok(mut mins) = player_q.get_single_mut()
+        else { return; };
+    let Ok((mut coll_tf, children)) = collector.get_single_mut()
+        else { return; };
+    let Some(&collider) = children.first()
+        else { return; };
+    let angle = player_dir.0.xz().to_angle();
 
+    if angle.is_nan() {
+        return;
+    }
+
+    *coll_tf = Transform::from_rotation(
+        Quat::from_rotation_y(-angle)
+    );
+
+    for (min, ty) in dropped_mins.iter() {
+        info!("Checking {min:?}");
+
+        let Some(coll) = rap_ctx.intersection_pair(min, collider)
+            else {
+                // error!("Could not construct contact");
+                continue;
+            };
+
+        if !coll {
+            // info!("Not colliding");
+            continue;
+        }
+
+        mins.add_minion(*ty);
+
+        commands.entity(min).despawn_recursive();
+    }
+    /*
+    1. Player has a cone, that updates its rotation
+    2. The cone is like a vacuum
+    */
 }

@@ -56,14 +56,29 @@ pub fn setup_player(mut commands: Commands) {
                 ..default()
             },
             minion_st,
-        ));
-        // .with_children(|b| {
-        //     // FPS Camera
-        //     b.spawn(Camera3dBundle {
-        //         transform: Transform::from_xyz(0.0, 0.2, -0.1),
-        //         ..Default::default()
-        //     });
-        // });
+        ))
+        .with_children(|b| {
+            b.spawn((
+                SpatialBundle {
+                    ..default()
+                },
+                PlayerCollector,
+            )).with_children(|b| {
+                b.spawn((
+                    SpatialBundle {
+                        transform: Transform::from_rotation(Quat::from_rotation_z(
+                            std::f32::consts::FRAC_PI_2
+                        )).with_translation(
+                            Vec3::new(3.0, -1.0, 0.0)
+                        ),
+                        ..default()
+                    },
+                    Collider::cone(3.0, 4.5),
+                    RigidBody::Fixed,
+                    Sensor,
+                ));
+            });
+        });
 }
 
 pub fn mouse_tap(
@@ -250,6 +265,7 @@ fn main() -> AppExit {
         // .add_systems(Update, mouse_tap)
         .add_systems(FixedUpdate, player_movement)
         .add_systems(Update, player_minion)
+        .add_systems(Update, player_minion_pickup)
         // .add_plugins(CursorGrabAndCenterPlugin)
         // .add_plugins(PointerCaptureCheckPlugin)
         // .add_plugins(FreeCameraPlugin)
