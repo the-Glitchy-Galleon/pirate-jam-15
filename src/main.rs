@@ -1,7 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-
-
 mod player_minion;
 mod player_movement;
 use crate::framework::prelude::AudioPlugin;
@@ -13,11 +11,11 @@ use bevy::{
 };
 // use bevy_egui::{egui::epaint::text::cursor, EguiPlugin};
 // use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_rapier3d::prelude::*;
-use tooling::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_rapier3d::prelude::*;
 use framework::prelude::*;
+use tooling::prelude::*;
 use tooling::prelude::*;
 
 pub mod framework;
