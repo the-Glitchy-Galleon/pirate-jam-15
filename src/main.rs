@@ -7,14 +7,66 @@ use bevy_rapier3d::prelude::*;
 use tooling::prelude::*;
 
 mod runner;
+mod player_movement;
+mod player_minion;
 pub mod tooling;
 
-const GROUND_TIMER: f32 = 0.5;
-const MOVEMENT_SPEED: f32 = 8.0;
-const JUMP_SPEED: f32 = 20.0;
-const GRAVITY: f32 = -9.81;
+use player_minion::*;
+use player_movement::*;
 
-fn mouse_tap(
+fn spawn_gameplay_camera(mut commands: Commands) {
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(-30.0, 30.0, 100.0)
+            .looking_at(Vec3::new(0.0, 10.0, 0.0), Vec3::Y),
+        ..Default::default()
+    });
+}
+
+pub fn setup_player(mut commands: Commands) {
+    let mut minion_st = MinionStorage::new();
+
+    minion_st.add_minion(MinionKind::Doink);
+    minion_st.add_minion(MinionKind::Doink);
+    minion_st.add_minion(MinionKind::Doink);
+    minion_st.add_minion(MinionKind::Doink);
+
+    commands
+        .spawn((
+            SpatialBundle {
+                transform: Transform::from_xyz(0.0, 5.0, 0.0),
+                ..default()
+            },
+            Collider::round_cylinder(0.9, 0.3, 0.2),
+            KinematicCharacterController {
+                custom_mass: Some(5.0),
+                up: Vec3::Y,
+                offset: CharacterLength::Absolute(0.01),
+                slide: true,
+                autostep: Some(CharacterAutostep {
+                    max_height: CharacterLength::Relative(0.3),
+                    min_width: CharacterLength::Relative(0.5),
+                    include_dynamic_bodies: false,
+                }),
+                // Don’t allow climbing slopes larger than 45 degrees.
+                max_slope_climb_angle: 45.0_f32.to_radians(),
+                // Automatically slide down on slopes smaller than 30 degrees.
+                min_slope_slide_angle: 30.0_f32.to_radians(),
+                apply_impulse_to_dynamic_bodies: true,
+                snap_to_ground: None,
+                ..default()
+            },
+            minion_st,
+        ));
+        // .with_children(|b| {
+        //     // FPS Camera
+        //     b.spawn(Camera3dBundle {
+        //         transform: Transform::from_xyz(0.0, 0.2, -0.1),
+        //         ..Default::default()
+        //     });
+        // });
+}
+
+pub fn mouse_tap(
     window: Query<&Window, With<PrimaryWindow>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     rap_ctx: ResMut<RapierContext>,
@@ -26,6 +78,8 @@ fn mouse_tap(
         Option<&KinematicCharacterControllerOutput>,
     )>,
     mut movement: ResMut<MovementInput>,
+    mut dir: ResMut<PlayerDirection>,
+    mut minion: ResMut<MinionInput>,
 ) {
     let Ok(window) = window.get_single()
         else { return; };
@@ -76,53 +130,18 @@ fn mouse_tap(
     };
     let walk_dir = (ray_hit.point - player_tf.translation).normalize_or_zero();
 
+    if let Ok(walk_dir) = Dir3::new(walk_dir) {
+        dir.0 = walk_dir;
+    }
+
     if mouse_buttons.pressed(MouseButton::Left) {
         movement.0 = walk_dir;
     }
-}
 
-fn spawn_gameplay_camera(mut commands: Commands) {
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-30.0, 30.0, 100.0)
-            .looking_at(Vec3::new(0.0, 10.0, 0.0), Vec3::Y),
-        ..Default::default()
-    });
-}
-
-pub fn setup_player(mut commands: Commands) {
-    commands
-        .spawn((
-            SpatialBundle {
-                transform: Transform::from_xyz(0.0, 5.0, 0.0),
-                ..default()
-            },
-            Collider::round_cylinder(0.9, 0.3, 0.2),
-            KinematicCharacterController {
-                custom_mass: Some(5.0),
-                up: Vec3::Y,
-                offset: CharacterLength::Absolute(0.01),
-                slide: true,
-                autostep: Some(CharacterAutostep {
-                    max_height: CharacterLength::Relative(0.3),
-                    min_width: CharacterLength::Relative(0.5),
-                    include_dynamic_bodies: false,
-                }),
-                // Don’t allow climbing slopes larger than 45 degrees.
-                max_slope_climb_angle: 45.0_f32.to_radians(),
-                // Automatically slide down on slopes smaller than 30 degrees.
-                min_slope_slide_angle: 30.0_f32.to_radians(),
-                apply_impulse_to_dynamic_bodies: true,
-                snap_to_ground: None,
-                ..default()
-            },
-        ));
-        // .with_children(|b| {
-        //     // FPS Camera
-        //     b.spawn(Camera3dBundle {
-        //         transform: Transform::from_xyz(0.0, 0.2, -0.1),
-        //         ..Default::default()
-        //     });
-        // });
+    if mouse_buttons.just_pressed(MouseButton::Right) {
+        minion.to_where = ray_hit.point;
+        minion.want_to_throw = true;
+    }
 }
 
 // fn move_player
@@ -180,10 +199,6 @@ fn setup_physics(mut commands: Commands) {
     }
 }
 
-/// Keyboard input vector
-#[derive(Default, Resource, Deref, DerefMut)]
-struct MovementInput(Vec3);
-
 // fn handle_input(
 //     keyboard: Res<ButtonInput<KeyCode>>,
 //     mut movement: ResMut<MovementInput>,
@@ -209,47 +224,16 @@ struct MovementInput(Vec3);
 //     }
 // }
 
-fn player_movement(
-    time: Res<Time>,
-    mut input: ResMut<MovementInput>,
-    mut player: Query<(
-        &mut Transform,
-        &mut KinematicCharacterController,
-        Option<&KinematicCharacterControllerOutput>,
-    )>,
-    mut vertical_movement: Local<f32>,
-    mut grounded_timer: Local<f32>,
-) {
-    let Ok((transform, mut controller, output)) = player.get_single_mut() else {
-        return;
-    };
-    let delta_time = time.delta_seconds();
-    // Retrieve input
-    let mut movement = Vec3::new(input.x, 0.0, input.z) * MOVEMENT_SPEED;
-    let jump_speed = input.y * JUMP_SPEED;
-    // Clear input
-    **input = Vec3::ZERO;
-    // Check physics ground check
-    if output.map(|o| o.grounded).unwrap_or(false) {
-        *grounded_timer = GROUND_TIMER;
-        *vertical_movement = 0.0;
-    }
-    // If we are grounded we can jump
-    if *grounded_timer > 0.0 {
-        *grounded_timer -= delta_time;
-        // If we jump we clear the grounded tolerance
-        if jump_speed > 0.0 {
-            *vertical_movement = jump_speed;
-            *grounded_timer = 0.0;
-        }
-    }
-    movement.y = *vertical_movement;
-    *vertical_movement += GRAVITY * delta_time * controller.custom_mass.unwrap_or(1.0);
-    controller.translation = Some(transform.rotation * (movement * delta_time));
-}
-
 fn main() -> AppExit {
     let mut app = runner::create_app();
+
+    app
+        .insert_resource(PlayerDirection(Dir3::X))
+        .insert_resource(MinionInput {
+            chosen_ty: MinionKind::Doink,
+            want_to_throw: false,
+            to_where: Vec3::ZERO,
+        });
 
     app
         //.add_plugins((EguiPlugin, WorldInspectorPlugin::new()))
@@ -265,6 +249,7 @@ fn main() -> AppExit {
         .add_systems(PreUpdate, mouse_tap.after(InputSystem))
         // .add_systems(Update, mouse_tap)
         .add_systems(FixedUpdate, player_movement)
+        .add_systems(Update, player_minion)
         // .add_plugins(CursorGrabAndCenterPlugin)
         // .add_plugins(PointerCaptureCheckPlugin)
         // .add_plugins(FreeCameraPlugin)
