@@ -54,8 +54,6 @@ features = [
 [target.'cfg(target_family="wasm")'.dependencies]
 web-sys = { version="0.3.69", features=["Document", "Window"] }
 
-bevy_web_file_drop = "0.0.5"
-
 [profile.dev.package."*"]
 opt-level = 3 # optimize all dependencies even in debug
 
