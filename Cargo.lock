@@ -480,20 +480,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_blob_loader"
-version = "0.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bfa1ed33d5fd5ff10b92839e411147a7ffee5d29015f844b4e1c9dc8d437418"
-dependencies = [
- "base64 0.22.1",
- "bevy",
- "js-sys",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
 name = "bevy_color"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1180,18 +1166,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.71",
-]
-
-[[package]]
-name = "bevy_web_file_drop"
-version = "0.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b42f3fda16360b1442499918be6f75ef9939609749d405ed74de8e8fc88f4e40"
-dependencies = [
- "bevy",
- "bevy_blob_loader",
- "js-sys",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -2544,17 +2518,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
-name = "lewton"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "777b48df9aaab155475a83a7df3070395ea1ac6902f5cd062b8f2b028075c030"
-dependencies = [
- "byteorder",
- "ogg",
- "tinyvec",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.155"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3217,15 +3180,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ogg"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6951b4e8bf21c8193da321bcce9c9dd2e13c858fe078bf9054a288b419ae5d6e"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3388,7 +3342,6 @@ dependencies = [
  "bevy_egui",
  "bevy_kira_audio",
  "bevy_rapier3d",
- "bevy_web_file_drop",
  "cfg-if",
  "itertools 0.13.0",
  "rand",
@@ -3672,7 +3625,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1fceb9d127d515af1586d8d0cc601e1245bdb0af38e75c865a156290184f5b3"
 dependencies = [
  "cpal",
- "lewton",
  "thiserror",
 ]
 

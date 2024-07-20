@@ -14,8 +14,6 @@ fn set_window_title(title: &str) {
 pub fn create_app() -> App {
     let mut app = App::new();
 
-    app.add_plugins(bevy_web_file_drop::WebFileDropPlugin);
-
     app.add_plugins(
         DefaultPlugins
             .set(AssetPlugin {
