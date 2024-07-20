@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
-use bevy_rapier3d::rapier::pipeline::DebugColor;
 
-use crate::player_movement::PlayerDirection;
+use super::player_movement::PlayerDirection;
 
 #[derive(Clone, Copy, Debug, Component, Reflect)]
 pub struct PlayerCollector;

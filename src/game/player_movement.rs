@@ -1,9 +1,4 @@
-use bevy::{
-    input::InputSystem,
-    prelude::*,
-    render::camera::RenderTarget,
-    window::{PrimaryWindow, WindowRef},
-};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 const GROUND_TIMER: f32 = 0.5;
