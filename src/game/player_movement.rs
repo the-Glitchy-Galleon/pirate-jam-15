@@ -7,10 +7,10 @@ const JUMP_SPEED: f32 = 20.0;
 const GRAVITY: f32 = -9.81;
 
 /// Keyboard input vector
-#[derive(Default, Resource, Deref, DerefMut)]
+#[derive(Default, Resource, Deref, DerefMut, Reflect)]
 pub struct MovementInput(pub Vec3);
 
-#[derive(Resource, Deref, DerefMut)]
+#[derive(Resource, Deref, DerefMut, Reflect)]
 pub struct PlayerDirection(pub Dir3);
 
 pub fn player_movement(

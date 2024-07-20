@@ -15,6 +15,13 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
+        app
+            .register_type::<PlayerDirection>()
+            .register_type::<PlayerCollector>()
+            .register_type::<MovementInput>()
+            .register_type::<MinionKind>()
+            .register_type::<MinionStorage>();
+
         app.insert_resource(PlayerDirection(Dir3::X))
             .insert_resource(MinionInput {
                 chosen_ty: MinionKind::Doink,
