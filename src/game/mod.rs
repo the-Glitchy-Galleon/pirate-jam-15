@@ -1,5 +1,8 @@
 use bevy::{
-    input::InputSystem, prelude::*, render::camera::RenderTarget, window::{PrimaryWindow, WindowRef}
+    input::InputSystem,
+    prelude::*,
+    render::camera::RenderTarget,
+    window::{PrimaryWindow, WindowRef},
 };
 use bevy_rapier3d::prelude::*;
 
@@ -15,8 +18,7 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .register_type::<PlayerDirection>()
+        app.register_type::<PlayerDirection>()
             .register_type::<PlayerCollector>()
             .register_type::<MovementInput>()
             .register_type::<MinionKind>()
@@ -29,19 +31,18 @@ impl Plugin for GamePlugin {
                 to_where: Vec3::ZERO,
             });
 
-        app
-            .add_plugins((
-                RapierPhysicsPlugin::<NoUserData>::default(),
-                RapierDebugRenderPlugin::default(),
-            ))
-            .init_resource::<MovementInput>()
-            .add_systems(Startup, spawn_gameplay_camera)
-            .add_systems(Startup, setup_physics)
-            .add_systems(Startup, setup_player)
-            .add_systems(PreUpdate, mouse_tap.after(InputSystem))
-            .add_systems(FixedUpdate, player_movement)
-            .add_systems(Update, player_minion)
-            .add_systems(Update, player_minion_pickup);
+        app.add_plugins((
+            RapierPhysicsPlugin::<NoUserData>::default(),
+            RapierDebugRenderPlugin::default(),
+        ))
+        .init_resource::<MovementInput>()
+        .add_systems(Startup, spawn_gameplay_camera)
+        .add_systems(Startup, setup_physics)
+        .add_systems(Startup, setup_player)
+        .add_systems(PreUpdate, mouse_tap.after(InputSystem))
+        .add_systems(FixedUpdate, player_movement)
+        .add_systems(Update, player_minion)
+        .add_systems(Update, player_minion_pickup);
 
         app.add_plugins(AudioPlugin);
     }
