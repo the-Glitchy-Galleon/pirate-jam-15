@@ -30,7 +30,6 @@ impl Plugin for GamePlugin {
             });
 
         app
-            //.add_plugins((EguiPlugin, WorldInspectorPlugin::new()))
             .add_plugins((
                 RapierPhysicsPlugin::<NoUserData>::default(),
                 RapierDebugRenderPlugin::default(),
@@ -142,13 +141,6 @@ pub fn mouse_tap(
         return;
     };
 
-    // gizmos.circle(
-    //     cursor_ray.origin + 10.0 * cursor_ray.direction.as_vec3(),
-    //     cursor_ray.direction,
-    //     1.0,
-    //     Color::linear_rgb(1.0, 0.0, 0.0),
-    // );
-
     let Some((_, ray_hit)) = rap_ctx.cast_ray_and_get_normal(
         cursor_ray.origin,
         cursor_ray.direction.as_vec3(),
@@ -194,8 +186,6 @@ pub fn mouse_tap(
         minion.want_to_throw = true;
     }
 }
-
-// fn move_player
 
 fn setup_physics(mut commands: Commands) {
     /*

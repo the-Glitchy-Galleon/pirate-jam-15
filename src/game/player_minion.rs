@@ -108,15 +108,11 @@ pub fn player_minion_pickup(
     *coll_tf = Transform::from_rotation(Quat::from_rotation_y(-angle));
 
     for (min, ty) in dropped_mins.iter() {
-        info!("Checking {min:?}");
-
         let Some(coll) = rap_ctx.intersection_pair(min, collider) else {
-            // error!("Could not construct contact");
             continue;
         };
 
         if !coll {
-            // info!("Not colliding");
             continue;
         }
 
@@ -124,8 +120,4 @@ pub fn player_minion_pickup(
 
         commands.entity(min).despawn_recursive();
     }
-    /*
-    1. Player has a cone, that updates its rotation
-    2. The cone is like a vacuum
-    */
 }
