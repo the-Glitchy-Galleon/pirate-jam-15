@@ -11,6 +11,21 @@ pub use bevy_kira_audio::prelude::AudioSource as AudioAsset;
 pub use bevy_kira_audio::prelude::AudioControl;
 pub use bevy_kira_audio::prelude::{AudioReceiver, PlaybackState, Volume};
 
+#[derive(Resource)]
+pub struct GlobalVolume {
+    volume: Volume,
+    tween: Option<VolumeTween>,
+}
+
+impl GlobalVolume {
+    pub fn new(volume: f64) -> Self {
+        Self {
+            volume: Volume::Amplitude(volume),
+            tween: None,
+        }
+    }
+}
+
 pub struct AudioPlugin;
 impl Plugin for AudioPlugin {
     fn build(&self, app: &mut App) {
@@ -23,8 +38,9 @@ impl Plugin for AudioPlugin {
             .add_systems(
                 PreUpdate,
                 (
-                    update_audio_channel_volumes,
-                    update_audio_instances.after(update_audio_channel_volumes),
+                    update_global_tween.before(update_audio_instances),
+                    update_channel_tweens.before(update_audio_instances),
+                    update_audio_instances,
                 ),
             )
             .add_systems(PostUpdate, exec_audio_commands);
@@ -155,7 +171,7 @@ fn exec_audio_commands(
     channels: ResMut<AudioChannels>,
     global_vol: Res<GlobalVolume>,
 ) {
-    let global_vol = *global_vol.volume as f64;
+    let global_vol = global_vol.volume.as_amplitude();
 
     for cmd in audio.commands.drain(..) {
         match cmd {
@@ -267,7 +283,7 @@ impl AudioChannels {
 pub struct VolumeTween {
     source: f64,
     target: f64,
-    time: Time<Real>,
+    timer: Timer,
     duration: Duration,
     easing: Easing,
 }
@@ -286,23 +302,50 @@ impl AudioChannels {
         target: Volume,
         duration: Duration,
         easing: Easing,
-        current_time: Time<Real>,
     ) {
         self.tweens[channel as usize] = Some(VolumeTween {
             source: self.volumes[channel as usize].as_amplitude(),
             target: target.as_amplitude(),
-            time: Time::new(current_time.last_update().unwrap()),
+            timer: Timer::new(duration, TimerMode::Once),
             duration,
             easing,
         });
     }
 }
 
-fn update_audio_channel_volumes(mut channel_volumes: ResMut<AudioChannels>) {
+fn update_global_tween(mut global: ResMut<GlobalVolume>, time: Res<Time<Real>>) {
+    let Some(tween) = &mut global.tween else {
+        return;
+    };
+    let res = {
+        tween.timer.tick(time.delta());
+        let t = tween.timer.elapsed();
+        if t >= tween.duration {
+            (Volume::Amplitude(tween.target), true)
+        } else {
+            let t = t.as_secs_f64() / tween.duration.as_secs_f64();
+            let t = tween.easing.apply(t);
+            assert!(t >= 0.0 && t <= 1.0);
+            (
+                Volume::Amplitude(
+                    tween.source + tween.easing.apply(t) * (tween.target - tween.source),
+                ),
+                false,
+            )
+        }
+    };
+    let (vol, clear) = res;
+    global.volume = vol;
+    if clear {
+        global.tween.take();
+    }
+}
+
+fn update_channel_tweens(mut channel_volumes: ResMut<AudioChannels>, time: Res<Time<Real>>) {
     for i in 0..AudioChannel::COUNT {
         let res = channel_volumes.tweens[i].as_mut().map(|tween| {
-            tween.time.update();
-            let t = tween.time.elapsed();
+            tween.timer.tick(time.delta());
+            let t = tween.timer.elapsed();
             if t >= tween.duration {
                 (Volume::Amplitude(tween.target), true)
             } else {
@@ -353,7 +396,7 @@ fn update_audio_instances(
     channels: Res<AudioChannels>,
 ) {
     let receiver_transform = spatial_receiver.get_single().ok();
-    let global_vol = *global_vol.volume as f64;
+    let global_vol = global_vol.volume.as_amplitude();
 
     for instance in instances.0.iter() {
         // Todo: Check if there needs to be some cleanup for stopped audio instances

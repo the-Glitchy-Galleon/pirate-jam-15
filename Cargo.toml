@@ -49,7 +49,6 @@ features = [
     "hdr",
     "x11",
     "bevy_gizmos",
-    "android_shared_stdcxx",
     "tonemapping_luts",
     "default_font",
     "webgl2",
