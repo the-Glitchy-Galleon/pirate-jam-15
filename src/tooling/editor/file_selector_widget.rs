@@ -13,6 +13,7 @@ pub struct FileSelectorWidgetSettings {
     pub warn_overwrite: bool,
     pub select_text: &'static str,
     pub base_path_is_changeable: bool,
+    pub file_extension: &'static str,
 }
 impl FileSelectorWidgetSettings {
     pub const LOAD: Self = Self {
@@ -20,12 +21,14 @@ impl FileSelectorWidgetSettings {
         warn_overwrite: false,
         select_text: "Load",
         base_path_is_changeable: true,
+        file_extension: "ron",
     };
     pub const SAVE: Self = Self {
         must_exist: false,
         warn_overwrite: true,
         select_text: "Save",
         base_path_is_changeable: true,
+        file_extension: "ron",
     };
 }
 
@@ -143,18 +146,40 @@ enum ValidFileSelect {
     Existing(PathBuf),
 }
 impl ValidFileSelect {
-    pub fn from<P: AsRef<Path>>(path: P, must_exist: bool) -> Option<Self> {
-        // let parent = parent.map(|p| p.as_ref().to_owned());
-        path::absolute(path)
-            .ok()
-            .filter(|p| !p.is_dir() && (!must_exist || p.is_file()))
-            .map(|p| {
-                if p.exists() {
-                    Self::Existing(p)
+    pub fn from<P: AsRef<Path>>(
+        path: P,
+        must_exist: bool,
+        extension: &'static str,
+    ) -> Option<Self> {
+        let path = path::absolute(path).ok()?;
+        if path.is_dir() {
+            return None;
+        }
+        let path = if let Some(ext) = path.extension() {
+            if let Some(ext) = ext.to_str() {
+                if ext == extension {
+                    path
                 } else {
-                    Self::New(p)
+                    path.with_extension(extension)
                 }
-            })
+            } else {
+                path.with_extension(extension)
+            }
+        } else {
+            path.with_extension(extension)
+        };
+        let path = path::absolute(path).ok()?;
+
+        match path.is_file() {
+            true => Some(Self::Existing(path)),
+            false => {
+                if must_exist || path.is_dir() {
+                    None
+                } else {
+                    Some(Self::New(path))
+                }
+            }
+        }
     }
 }
 
@@ -222,6 +247,7 @@ impl FileSelectorWidget {
                                 match ValidFileSelect::from(
                                     nav.path.join(&self.path_input),
                                     self.settings.must_exist,
+                                    self.settings.file_extension,
                                 ) {
                                     Some(ValidFileSelect::Existing(path)) => {
                                         if self.settings.warn_overwrite {
