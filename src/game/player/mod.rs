@@ -16,14 +16,6 @@ use super::{spawn_kinematic_character, CharacterWalkControl};
 #[reflect(Component)]
 pub struct PlayerTag;
 
-pub fn spawn_gameplay_camera(mut commands: Commands) {
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-30.0, 30.0, 100.0)
-            .looking_at(Vec3::new(0.0, 10.0, 0.0), Vec3::Y),
-        ..Default::default()
-    });
-}
-
 pub fn setup_player(mut commands: Commands) {
     let mut minion_st = MinionStorage::new();
 
