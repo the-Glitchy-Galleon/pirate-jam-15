@@ -11,8 +11,7 @@ const MOVEMENT_SPEED: f32 = 8.0;
 const GRAVITY: f32 = -9.81;
 
 /// Controls how the character shall move.
-#[derive(Clone, Copy)]
-#[derive(Component, Reflect, Default)]
+#[derive(Clone, Copy, Component, Reflect, Default)]
 #[reflect(Component)]
 pub struct CharacterWalkControl {
     /// Move direction. Doesn't need to be normalised.
@@ -24,8 +23,7 @@ pub struct CharacterWalkControl {
     pub do_move: bool,
 }
 
-#[derive(Clone, Copy)]
-#[derive(Component, Reflect, Default)]
+#[derive(Clone, Copy, Component, Reflect, Default)]
 #[reflect(Component)]
 pub struct CharacterWalkState {
     pub grounded_timer: f32,
@@ -37,34 +35,33 @@ pub fn spawn_kinematic_character(
     transform: Transform,
     collider: Collider,
 ) {
-    cmds
-        .insert((
-            collider,
-            SpatialBundle {
-                transform,
-                ..default()
-            },
-            KinematicCharacterController {
-                custom_mass: Some(5.0),
-                up: Vec3::Y,
-                offset: CharacterLength::Absolute(0.01),
-                slide: true,
-                autostep: Some(CharacterAutostep {
-                    max_height: CharacterLength::Relative(0.3),
-                    min_width: CharacterLength::Relative(0.5),
-                    include_dynamic_bodies: false,
-                }),
-                // Don’t allow climbing slopes larger than 45 degrees.
-                max_slope_climb_angle: 45.0_f32.to_radians(),
-                // Automatically slide down on slopes smaller than 30 degrees.
-                min_slope_slide_angle: 30.0_f32.to_radians(),
-                apply_impulse_to_dynamic_bodies: true,
-                snap_to_ground: None,
-                ..default()
-            },
-            CharacterWalkControl::default(),
-            CharacterWalkState::default(),
-        ));
+    cmds.insert((
+        collider,
+        SpatialBundle {
+            transform,
+            ..default()
+        },
+        KinematicCharacterController {
+            custom_mass: Some(5.0),
+            up: Vec3::Y,
+            offset: CharacterLength::Absolute(0.01),
+            slide: true,
+            autostep: Some(CharacterAutostep {
+                max_height: CharacterLength::Relative(0.3),
+                min_width: CharacterLength::Relative(0.5),
+                include_dynamic_bodies: false,
+            }),
+            // Don’t allow climbing slopes larger than 45 degrees.
+            max_slope_climb_angle: 45.0_f32.to_radians(),
+            // Automatically slide down on slopes smaller than 30 degrees.
+            min_slope_slide_angle: 30.0_f32.to_radians(),
+            apply_impulse_to_dynamic_bodies: true,
+            snap_to_ground: None,
+            ..default()
+        },
+        CharacterWalkControl::default(),
+        CharacterWalkState::default(),
+    ));
 }
 
 pub fn update_kinematic_character(
@@ -83,19 +80,15 @@ pub fn update_kinematic_character(
         /* Retrieve input */
         let mut movement = Vec3::ZERO;
         if walk.do_move {
-            movement = Vec3::new(
-                walk.direction.x,
-                0.0,
-                walk.direction.z
-            ).normalize_or_zero() * MOVEMENT_SPEED;
+            movement = Vec3::new(walk.direction.x, 0.0, walk.direction.z).normalize_or_zero()
+                * MOVEMENT_SPEED;
         }
         walk.do_move = false;
         // no jumping
         // let jump_speed = walk.direction.y * JUMP_SPEED;
         let jump_speed = 0.0;
         /* Check physics ground check */
-        let grounded = output.map(|o| o.grounded)
-            .unwrap_or_default();
+        let grounded = output.map(|o| o.grounded).unwrap_or_default();
         if grounded {
             state.grounded_timer = GROUND_TIMER;
             state.vertical_movement = 0.0;

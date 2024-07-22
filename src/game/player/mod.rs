@@ -11,8 +11,7 @@ use bevy_rapier3d::prelude::*;
 
 use super::{spawn_kinematic_character, CharacterWalkControl, MinionKind};
 
-#[derive(Clone, Copy, Debug, Default)]
-#[derive(Component, Reflect)]
+#[derive(Clone, Copy, Debug, Default, Component, Reflect)]
 #[reflect(Component)]
 pub struct PlayerTag;
 
@@ -25,10 +24,7 @@ pub fn setup_player(mut commands: Commands) {
     minion_st.add_minion(MinionKind::Doink);
 
     let player_ent = commands
-        .spawn((
-            PlayerTag,
-            minion_st,
-        ))
+        .spawn((PlayerTag, minion_st))
         .with_children(|b| {
             b.spawn((SpatialBundle { ..default() }, PlayerCollector))
                 .with_children(|b| {
@@ -61,10 +57,7 @@ pub fn player_controls(
     rap_ctx: ResMut<RapierContext>,
     cam: Query<(&GlobalTransform, &Camera)>,
     mut gizmos: Gizmos,
-    mut player: Query<(
-        &mut Transform,
-        &mut CharacterWalkControl,
-    ), With<PlayerTag>>,
+    mut player: Query<(&mut Transform, &mut CharacterWalkControl), With<PlayerTag>>,
     mut minion: ResMut<MinionInput>,
 ) {
     let Ok(window) = window.get_single() else {

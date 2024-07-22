@@ -1,16 +1,13 @@
-use bevy::{
-    input::InputSystem,
-    prelude::*,
-};
+use bevy::{input::InputSystem, prelude::*};
 use bevy_rapier3d::prelude::*;
 
+mod kinematic_char;
 mod minion;
 mod player;
-mod kinematic_char;
 
-pub use player::*;
 pub use kinematic_char::*;
 pub use minion::*;
+pub use player::*;
 
 use crate::framework::prelude::AudioPlugin;
 
@@ -19,10 +16,10 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-                RapierPhysicsPlugin::<NoUserData>::default(),
-                RapierDebugRenderPlugin::default(),
-                AudioPlugin,
-            ));
+            RapierPhysicsPlugin::<NoUserData>::default(),
+            RapierDebugRenderPlugin::default(),
+            AudioPlugin,
+        ));
 
         app.register_type::<CharacterWalkControl>()
             .register_type::<PlayerCollector>()
@@ -33,10 +30,10 @@ impl Plugin for GamePlugin {
             .register_type::<MinionTarget>();
 
         app.insert_resource(MinionInput {
-                chosen_ty: MinionKind::Doink,
-                want_to_throw: false,
-                to_where: Vec3::ZERO,
-            });
+            chosen_ty: MinionKind::Doink,
+            want_to_throw: false,
+            to_where: Vec3::ZERO,
+        });
 
         /* Setup */
         app.add_systems(Startup, spawn_gameplay_camera)
@@ -47,16 +44,14 @@ impl Plugin for GamePlugin {
         app.add_systems(FixedUpdate, update_kinematic_character);
 
         /* Minion systems */
-        app
-            .add_systems(Update, cleanup_minion_state)
+        app.add_systems(Update, cleanup_minion_state)
             .add_systems(Update, cleanup_minion_target)
             .add_systems(Update, update_minion_state);
 
         /* Player systems */
-        app
-        .add_systems(PreUpdate, player_controls.after(InputSystem))
-        .add_systems(Update, player_minion)
-        .add_systems(Update, player_minion_pickup);
+        app.add_systems(PreUpdate, player_controls.after(InputSystem))
+            .add_systems(Update, player_minion)
+            .add_systems(Update, player_minion_pickup);
     }
 }
 
