@@ -125,8 +125,8 @@ pub fn player_controls(
     let walk_dir = (ray_hit.point - player_tf.translation).normalize_or_zero();
 
     walk.direction = walk_dir;
-    walk.do_move = mouse_buttons.pressed(MouseButton::Left);
+    walk.do_move = mouse_buttons.pressed(MouseButton::Right);
 
     minion.to_where = ray_hit.point;
-    minion.want_to_throw = mouse_buttons.just_pressed(MouseButton::Right);
+    minion.want_to_throw = mouse_buttons.just_pressed(MouseButton::Left);
 }
