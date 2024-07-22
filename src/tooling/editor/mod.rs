@@ -1,6 +1,7 @@
 #![cfg(not(target_family = "wasm"))]
 use crate::{
-    framework::logical_cursor::LogicalCursorPlugin, FreeCameraPlugin, PointerCaptureCheckPlugin,
+    framework::{logical_cursor::LogicalCursorPlugin, prelude::GlobalUiStatePlugin},
+    FreeCameraPlugin,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::{
@@ -22,7 +23,7 @@ impl Plugin for LevelEditorPlugin {
         app.add_plugins((
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
-            PointerCaptureCheckPlugin,
+            GlobalUiStatePlugin,
             LogicalCursorPlugin,
             FreeCameraPlugin,
             TilemapEditorPlugin,

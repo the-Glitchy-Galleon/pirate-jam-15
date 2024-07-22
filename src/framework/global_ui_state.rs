@@ -2,9 +2,9 @@ use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_egui::EguiContexts;
 
 #[derive(Default)]
-pub struct PointerCaptureCheckPlugin;
+pub struct GlobalUiStatePlugin;
 
-impl Plugin for PointerCaptureCheckPlugin {
+impl Plugin for GlobalUiStatePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GlobalUiState>()
             .add_systems(PreUpdate, update_pointer_capture_var);

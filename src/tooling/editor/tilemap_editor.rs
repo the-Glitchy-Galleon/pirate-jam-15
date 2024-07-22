@@ -3,7 +3,6 @@ use super::tilemap_mesh::{self, RawMeshBuilder};
 use crate::framework::prelude::*;
 use crate::framework::tilemap::{Pnormal3, SLOPE_HEIGHT, WALL_HEIGHT};
 use crate::framework::tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL, TILESET_TILE_NUM};
-use crate::tooling::prelude::*;
 use bevy::color::palettes::tailwind::*;
 use bevy::{ecs::system::SystemId, prelude::*};
 use bevy_rapier3d::geometry::{CollisionGroups, Group};
