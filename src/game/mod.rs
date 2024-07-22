@@ -6,11 +6,9 @@ use bevy::{
 };
 use bevy_rapier3d::prelude::*;
 
-pub mod player_minion;
-pub mod player_movement;
+mod player;
 
-pub use player_minion::*;
-pub use player_movement::*;
+pub use player::*;
 
 use crate::framework::prelude::AudioPlugin;
 
