@@ -35,7 +35,7 @@ impl Plugin for GamePlugin {
         .add_systems(Startup, spawn_gameplay_camera)
         .add_systems(Startup, setup_physics)
         .add_systems(Startup, setup_player)
-        .add_systems(PreUpdate, mouse_tap.after(InputSystem))
+        .add_systems(PreUpdate, player_controls.after(InputSystem))
         .add_systems(FixedUpdate, player_movement)
         .add_systems(Update, player_minion)
         .add_systems(Update, player_minion_pickup);

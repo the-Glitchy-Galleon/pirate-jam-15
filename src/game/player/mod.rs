@@ -73,7 +73,7 @@ pub fn setup_player(mut commands: Commands) {
         });
 }
 
-pub fn mouse_tap(
+pub fn player_controls(
     window: Query<&Window, With<PrimaryWindow>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     rap_ctx: ResMut<RapierContext>,
