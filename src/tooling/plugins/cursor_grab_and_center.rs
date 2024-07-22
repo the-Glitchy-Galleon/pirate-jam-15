@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow, WindowFocused};
 
-use super::pointer_capture_check::IsPointerOverUi;
+use super::pointer_capture_check::GlobalUiState;
 
 /// Depends on `PointerCaptureCheckPlugin`
 #[derive(Default)]
@@ -49,7 +49,7 @@ fn apply_cursor_grab(
     keys: Res<ButtonInput<KeyCode>>,
     mouse: Res<ButtonInput<MouseButton>>,
     mut window: Query<&mut Window, With<PrimaryWindow>>,
-    is_pointer_over_ui: Res<IsPointerOverUi>,
+    global_ui_state: Res<GlobalUiState>,
     focus: Res<CurrentPrimaryWindowFocus>,
 ) {
     let Ok(mut window) = window.get_single_mut() else {
@@ -62,7 +62,8 @@ fn apply_cursor_grab(
         window.cursor.grab_mode = CursorGrabMode::None;
         window.cursor.visible = true;
     } else {
-        if !is_pointer_over_ui.0 && mouse.just_pressed(MouseButton::Left) && focus.0 {
+        if !global_ui_state.is_pointer_captured && mouse.just_pressed(MouseButton::Left) && focus.0
+        {
             window.cursor.grab_mode = CursorGrabMode::Locked;
             window.cursor.visible = false;
         }

@@ -1,8 +1,5 @@
-use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy::{input::mouse::MouseMotion, prelude::*};
 use std::f32::consts::PI;
-
-use super::cursor_grab_and_center::CursorGrabAndCenterPlugin;
 
 #[derive(Component)]
 pub struct FreeCameraTag;
@@ -12,13 +9,8 @@ pub struct FreeCameraPlugin;
 
 impl Plugin for FreeCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreStartup, (setup, ui::setup))
+        app.add_systems(PreStartup, setup)
             .add_systems(Update, camera_controller);
-
-        // Enable crosshair toggle when available. must be added before this plugin
-        if app.is_plugin_added::<CursorGrabAndCenterPlugin>() {
-            app.add_systems(Update, ui::toggle_crosshair_focus);
-        }
     }
 }
 
@@ -67,7 +59,7 @@ impl Default for CameraController {
             key_up: KeyCode::KeyE,
             key_down: KeyCode::KeyQ,
             key_run: KeyCode::ShiftLeft,
-            mouse_key_enable_mouse: None,
+            mouse_key_enable_mouse: Some(MouseButton::Right),
             walk_speed: 6.0,
             run_speed: 24.0,
             friction: 0.5,
@@ -80,16 +72,12 @@ impl Default for CameraController {
 
 pub fn camera_controller(
     time: Res<Time>,
-    mut mouse_events: EventReader<MouseMotion>,
-    mouse_button_input: Res<ButtonInput<MouseButton>>,
-    key_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<(&mut Transform, &mut CameraController), With<Camera>>,
-    primary_window: Query<&Window, With<PrimaryWindow>>,
+    mut mouse_evs: EventReader<MouseMotion>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut camera: Query<(&mut Transform, &mut CameraController), With<Camera>>,
 ) {
-    let Ok(window) = primary_window.get_single() else {
-        return;
-    };
-    let Ok((mut transform, mut controller)) = query.get_single_mut() else {
+    let Ok((mut transform, mut controller)) = camera.get_single_mut() else {
         return;
     };
 
@@ -108,17 +96,17 @@ pub fn camera_controller(
     #[rustfmt::skip]
     let axis_input = {
         let mut axis_input = Vec3::ZERO;
-        if key_input.pressed(controller.key_forward) { axis_input.z += 1.0; }
-        if key_input.pressed(controller.key_back)    { axis_input.z -= 1.0; }
-        if key_input.pressed(controller.key_right)   { axis_input.x += 1.0; }
-        if key_input.pressed(controller.key_left)    { axis_input.x -= 1.0; }
-        if key_input.pressed(controller.key_up)      { axis_input.y += 1.0; }
-        if key_input.pressed(controller.key_down)    { axis_input.y -= 1.0; }
+        if keys.pressed(controller.key_forward) { axis_input.z += 1.0; }
+        if keys.pressed(controller.key_back)    { axis_input.z -= 1.0; }
+        if keys.pressed(controller.key_right)   { axis_input.x += 1.0; }
+        if keys.pressed(controller.key_left)    { axis_input.x -= 1.0; }
+        if keys.pressed(controller.key_up)      { axis_input.y += 1.0; }
+        if keys.pressed(controller.key_down)    { axis_input.y -= 1.0; }
         axis_input
     };
 
     if axis_input != Vec3::ZERO {
-        let max_speed = key_input
+        let max_speed = keys
             .pressed(controller.key_run)
             .then_some(controller.run_speed)
             .unwrap_or(controller.walk_speed);
@@ -141,14 +129,13 @@ pub fn camera_controller(
     // Handle mouse input
     let mouse_input = {
         let mut mouse_delta = Vec2::ZERO;
-        let enabled = window.cursor.grab_mode == CursorGrabMode::Locked
-            && match controller.mouse_key_enable_mouse {
-                Some(button) => mouse_button_input.pressed(button),
-                None => true,
-            };
+        let enabled = match controller.mouse_key_enable_mouse {
+            Some(button) => mouse.pressed(button),
+            None => true,
+        };
 
         if enabled {
-            for mouse_event in mouse_events.read() {
+            for mouse_event in mouse_evs.read() {
                 mouse_delta += mouse_event.delta;
             }
         }
@@ -160,69 +147,5 @@ pub fn camera_controller(
             .clamp(-PI / 2., PI / 2.);
         controller.yaw -= mouse_input.x * controller.sensitivity * dt;
         transform.rotation = Quat::from_euler(EulerRot::ZYX, 0.0, controller.yaw, controller.pitch);
-    }
-}
-
-pub mod ui {
-    use super::super::pointer_capture_check::NoPointerCapture;
-    use bevy::{
-        prelude::*,
-        ui::Val,
-        window::{CursorGrabMode, PrimaryWindow},
-    };
-
-    #[derive(Component)]
-    pub struct Crosshair;
-
-    pub fn setup(mut cmd: Commands, ass: Res<AssetServer>) {
-        let crosshair = ass.load("tooling/scene_preview/crosshair.png");
-
-        cmd.spawn((
-            Crosshair,
-            NoPointerCapture,
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        ))
-        .with_children(|p| {
-            p.spawn((
-                NoPointerCapture,
-                ImageBundle {
-                    image: UiImage::new(crosshair.clone()),
-                    style: Style {
-                        width: Val::Px(64.0),
-                        height: Val::Px(64.0),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-            ));
-        });
-    }
-
-    pub fn toggle_crosshair_focus(
-        mut crosshair: Query<&mut Visibility, With<Crosshair>>,
-        window: Query<&Window, With<PrimaryWindow>>,
-    ) {
-        let Ok(mut visibility) = crosshair.get_single_mut() else {
-            warn!("Couldn't find crosshair.");
-            return;
-        };
-
-        let Ok(window) = window.get_single() else {
-            return;
-        };
-        match window.cursor.grab_mode {
-            CursorGrabMode::Locked => *visibility = Visibility::Visible,
-            CursorGrabMode::Confined => *visibility = Visibility::Visible,
-            CursorGrabMode::None => *visibility = Visibility::Hidden,
-        }
     }
 }

@@ -54,6 +54,11 @@ features = [
 [target.'cfg(target_family="wasm")'.dependencies]
 web-sys = { version="0.3.69", features=["Document", "Window"] }
 
+[target.'cfg(not(target_family="wasm"))'.dependencies]
+clap = { version = "4.5.9", features = ["derive"] }
+serde = "1.0.204"
+ron = "0.8.1"
+
 [profile.dev.package."*"]
 opt-level = 3 # optimize all dependencies even in debug
 

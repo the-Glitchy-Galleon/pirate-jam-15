@@ -1,5 +1,6 @@
 //! contains a lot of duplicate implementations from `kira` and `bevy_kira_audio`
 //! because people think pub(crate) is a reasonable thing to do. might just have forked it...
+use super::prelude::Easing;
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 use std::time::Duration;
@@ -7,7 +8,8 @@ use std::time::Duration;
 // Use `AudioAsset` to disambiguate from the `AudioSource` exported by bevy::prelude
 pub use bevy_kira_audio::prelude::AudioSource as AudioAsset;
 
-use super::prelude::Easing;
+pub use bevy_kira_audio::prelude::AudioControl;
+pub use bevy_kira_audio::prelude::{AudioReceiver, PlaybackState, Volume};
 
 pub struct AudioPlugin;
 impl Plugin for AudioPlugin {
