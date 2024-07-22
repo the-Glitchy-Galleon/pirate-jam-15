@@ -44,7 +44,6 @@ features = [
     "hdr",
     "x11",
     "bevy_gizmos",
-    "android_shared_stdcxx",
     "tonemapping_luts",
     "default_font",
     "webgl2",
@@ -52,7 +51,7 @@ features = [
 ]
 
 [target.'cfg(target_family="wasm")'.dependencies]
-web-sys = { version="0.3.69", features=["Document", "Window"] }
+web-sys = { version = "0.3.69", features = ["Document", "Window"] }
 
 [profile.dev.package."*"]
 opt-level = 3 # optimize all dependencies even in debug

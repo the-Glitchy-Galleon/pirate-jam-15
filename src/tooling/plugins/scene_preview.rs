@@ -1,4 +1,5 @@
 use crate::framework::prelude::*;
+use crate::FreeCameraPlugin;
 use bevy::{asset::LoadState, prelude::*};
 use bevy_rapier3d::geometry::Collider;
 use bevy_rapier3d::pipeline::QueryFilter;
@@ -14,7 +15,10 @@ pub struct ScenePreviewPlugin;
 
 impl Plugin for ScenePreviewPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+        app.add_plugins(AudioPlugin)
+            .add_plugins(LogicalCursorPlugin)
+            .add_plugins(FreeCameraPlugin)
+            .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
             .init_resource::<LoadQueue>()
             .insert_resource(AmbientLight {
                 color: Color::WHITE,
@@ -142,7 +146,6 @@ fn setup_audio_emitters(
 fn initial_channel_fade_in(
     input: Res<ButtonInput<MouseButton>>,
     mut channels: ResMut<AudioChannels>,
-    time: Res<Time<Real>>,
     mut initialized: Local<bool>,
 ) {
     if !*initialized && input.just_pressed(MouseButton::Left) {
@@ -151,21 +154,18 @@ fn initial_channel_fade_in(
             Volume::Amplitude(0.4),
             Duration::from_secs_f32(2.0),
             Easing::InPowf(3.0),
-            time.clone(),
         );
         channels.fade_to(
             AudioChannel::AMB,
             Volume::Amplitude(0.4),
             Duration::from_secs_f32(2.0),
             Easing::InPowf(3.0),
-            time.clone(),
         );
         channels.fade_to(
             AudioChannel::SFX,
             Volume::Amplitude(0.6),
             Duration::from_secs_f32(2.0),
             Easing::InPowf(3.0),
-            time.clone(),
         );
         *initialized = true;
     }

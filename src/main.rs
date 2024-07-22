@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use game::GamePlugin;
+// use game::GamePlugin;
 use tooling::prelude::*;
 
 pub mod framework;
@@ -18,7 +18,7 @@ fn main() -> AppExit {
     app.add_plugins((EguiPlugin, FpsCounterPlugin, WorldInspectorPlugin::new()));
 
     /* Add the plugins depending on our config */
-    app.add_plugins(GamePlugin);
+    app.add_plugins(ScenePreviewPlugin);
 
     runner::run_app(&mut app)
 }
