@@ -2,7 +2,7 @@
 //! provided by `bevy_rapier3d`.
 //! The API supports jumping.
 
-use bevy::{ecs::system::EntityCommands, prelude::*};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 const GROUND_TIMER: f32 = 0.5;
@@ -11,7 +11,7 @@ const MOVEMENT_SPEED: f32 = 8.0;
 const GRAVITY: f32 = -9.81;
 
 /// Controls how the character shall move.
-#[derive(Clone, Copy, Component, Reflect, Default)]
+#[derive(Clone, Copy, Component, Reflect, Default, Debug)]
 #[reflect(Component)]
 pub struct CharacterWalkControl {
     /// Move direction. Doesn't need to be normalised.
@@ -23,45 +23,45 @@ pub struct CharacterWalkControl {
     pub do_move: bool,
 }
 
-#[derive(Clone, Copy, Component, Reflect, Default)]
+#[derive(Clone, Copy, Component, Reflect, Default, Debug)]
 #[reflect(Component)]
 pub struct CharacterWalkState {
     pub grounded_timer: f32,
     pub vertical_movement: f32,
 }
 
-pub fn spawn_kinematic_character(
-    cmds: &mut EntityCommands,
-    transform: Transform,
-    collider: Collider,
-) {
-    cmds.insert((
-        collider,
-        SpatialBundle {
-            transform,
-            ..default()
-        },
-        KinematicCharacterController {
-            custom_mass: Some(5.0),
-            up: Vec3::Y,
-            offset: CharacterLength::Absolute(0.01),
-            slide: true,
-            autostep: Some(CharacterAutostep {
-                max_height: CharacterLength::Relative(0.3),
-                min_width: CharacterLength::Relative(0.5),
-                include_dynamic_bodies: false,
-            }),
-            // Don’t allow climbing slopes larger than 45 degrees.
-            max_slope_climb_angle: 45.0_f32.to_radians(),
-            // Automatically slide down on slopes smaller than 30 degrees.
-            min_slope_slide_angle: 30.0_f32.to_radians(),
-            apply_impulse_to_dynamic_bodies: true,
-            snap_to_ground: None,
-            ..default()
-        },
-        CharacterWalkControl::default(),
-        CharacterWalkState::default(),
-    ));
+#[derive(Clone, Bundle, Debug)]
+pub struct KinematicCharacterBundle {
+    pub controller: KinematicCharacterController,
+    pub control: CharacterWalkControl,
+    pub state: CharacterWalkState,
+}
+
+impl Default for KinematicCharacterBundle {
+    fn default() -> Self {
+        Self {
+            controller: KinematicCharacterController {
+                custom_mass: Some(5.0),
+                up: Vec3::Y,
+                offset: CharacterLength::Absolute(0.01),
+                slide: true,
+                autostep: Some(CharacterAutostep {
+                    max_height: CharacterLength::Relative(0.3),
+                    min_width: CharacterLength::Relative(0.5),
+                    include_dynamic_bodies: false,
+                }),
+                // Don’t allow climbing slopes larger than 45 degrees.
+                max_slope_climb_angle: 45.0_f32.to_radians(),
+                // Automatically slide down on slopes smaller than 30 degrees.
+                min_slope_slide_angle: 30.0_f32.to_radians(),
+                apply_impulse_to_dynamic_bodies: true,
+                snap_to_ground: None,
+                ..default()
+            },
+            control: CharacterWalkControl::default(),
+            state: CharacterWalkState::default(),
+        }
+    }
 }
 
 pub fn update_kinematic_character(

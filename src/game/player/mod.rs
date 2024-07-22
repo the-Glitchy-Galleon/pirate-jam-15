@@ -9,7 +9,7 @@ use bevy::{
 };
 use bevy_rapier3d::prelude::*;
 
-use super::{spawn_kinematic_character, CharacterWalkControl, MinionKind};
+use super::{CharacterWalkControl, KinematicCharacterBundle, MinionKind};
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
 #[reflect(Component)]
@@ -23,8 +23,17 @@ pub fn setup_player(mut commands: Commands) {
     minion_st.add_minion(MinionKind::Doink);
     minion_st.add_minion(MinionKind::Doink);
 
-    let player_ent = commands
-        .spawn((PlayerTag, minion_st))
+    commands
+        .spawn((
+            PlayerTag,
+            minion_st,
+            Collider::round_cylinder(0.9, 0.3, 0.2),
+            SpatialBundle {
+                transform: Transform::from_xyz(0.0, 5.0, 0.0),
+                ..default()
+            },
+            KinematicCharacterBundle::default(),
+        ))
         .with_children(|b| {
             b.spawn((SpatialBundle { ..default() }, PlayerCollector))
                 .with_children(|b| {
@@ -41,14 +50,7 @@ pub fn setup_player(mut commands: Commands) {
                         Sensor,
                     ));
                 });
-        })
-        .id();
-
-    spawn_kinematic_character(
-        &mut commands.entity(player_ent),
-        Transform::from_xyz(0.0, 5.0, 0.0),
-        Collider::round_cylinder(0.9, 0.3, 0.2),
-    );
+        });
 }
 
 pub fn player_controls(
