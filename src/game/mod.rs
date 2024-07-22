@@ -30,6 +30,11 @@ impl Plugin for GamePlugin {
                 to_where: Vec3::ZERO,
             });
 
+        app
+            .add_systems(Update, cleanup_minion_state)
+            .add_systems(Update, cleanup_minion_target)
+            .add_systems(Update, update_minion_state);
+
         app.add_plugins((
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
