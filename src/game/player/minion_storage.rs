@@ -15,7 +15,7 @@ pub struct MinionStorage {
 }
 
 #[derive(Clone, Copy, Debug, Resource, Reflect)]
-pub struct MinionInput {
+pub struct MinionStorageInput {
     pub chosen_ty: MinionKind,
     pub want_to_throw: bool,
     pub to_where: Vec3,
@@ -45,8 +45,8 @@ impl MinionStorage {
     }
 }
 
-pub fn player_minion(
-    mut min_inp: ResMut<MinionInput>,
+pub fn minion_storage_throw(
+    mut min_inp: ResMut<MinionStorageInput>,
     mut player_q: Query<&mut MinionStorage>,
     mut commands: Commands,
 ) {
@@ -77,7 +77,7 @@ pub fn player_minion(
     ));
 }
 
-pub fn player_minion_pickup(
+pub fn minion_storage_pickup(
     rap_ctx: ResMut<RapierContext>,
     dropped_mins: Query<(Entity, &MinionKind)>,
     mut collector: Query<(&mut Transform, &Children), With<PlayerCollector>>,

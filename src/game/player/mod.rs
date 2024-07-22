@@ -1,6 +1,6 @@
-pub mod player_minion;
+pub mod minion_storage;
 
-pub use player_minion::*;
+pub use minion_storage::*;
 
 use bevy::{
     prelude::*,
@@ -58,7 +58,7 @@ pub fn player_controls(
     cam: Query<(&GlobalTransform, &Camera)>,
     mut gizmos: Gizmos,
     mut player: Query<(&mut Transform, &mut CharacterWalkControl), With<PlayerTag>>,
-    mut minion: ResMut<MinionInput>,
+    mut minion: ResMut<MinionStorageInput>,
 ) {
     let Ok(window) = window.get_single() else {
         return;

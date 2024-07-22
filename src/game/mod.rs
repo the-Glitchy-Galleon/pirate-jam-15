@@ -29,7 +29,7 @@ impl Plugin for GamePlugin {
             .register_type::<MinionState>()
             .register_type::<MinionTarget>();
 
-        app.insert_resource(MinionInput {
+        app.insert_resource(MinionStorageInput {
             chosen_ty: MinionKind::Doink,
             want_to_throw: false,
             to_where: Vec3::ZERO,
@@ -50,8 +50,8 @@ impl Plugin for GamePlugin {
 
         /* Player systems */
         app.add_systems(PreUpdate, player_controls.after(InputSystem))
-            .add_systems(Update, player_minion)
-            .add_systems(Update, player_minion_pickup);
+            .add_systems(Update, minion_storage_throw)
+            .add_systems(Update, minion_storage_pickup);
     }
 }
 
