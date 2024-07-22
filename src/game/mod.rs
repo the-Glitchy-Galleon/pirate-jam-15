@@ -5,8 +5,10 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 
 mod player;
+mod kinematic_char;
 
 pub use player::*;
+pub use kinematic_char::*;
 
 use crate::framework::prelude::AudioPlugin;
 
@@ -14,14 +16,13 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<PlayerDirection>()
+        app.register_type::<CharacterWalkControl>()
             .register_type::<PlayerCollector>()
-            .register_type::<MovementInput>()
+            .register_type::<CharacterWalkState>()
             .register_type::<MinionKind>()
             .register_type::<MinionStorage>();
 
-        app.insert_resource(PlayerDirection(Dir3::X))
-            .insert_resource(MinionInput {
+        app.insert_resource(MinionInput {
                 chosen_ty: MinionKind::Doink,
                 want_to_throw: false,
                 to_where: Vec3::ZERO,
@@ -31,12 +32,11 @@ impl Plugin for GamePlugin {
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
         ))
-        .init_resource::<MovementInput>()
         .add_systems(Startup, spawn_gameplay_camera)
         .add_systems(Startup, setup_physics)
         .add_systems(Startup, setup_player)
         .add_systems(PreUpdate, player_controls.after(InputSystem))
-        .add_systems(FixedUpdate, player_movement)
+        .add_systems(FixedUpdate, update_kinematic_character)
         .add_systems(Update, player_minion)
         .add_systems(Update, player_minion_pickup);
 

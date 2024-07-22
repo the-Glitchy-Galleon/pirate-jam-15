@@ -1,8 +1,6 @@
 pub mod player_minion;
-pub mod player_movement;
 
 pub use player_minion::*;
-pub use player_movement::*;
 
 use bevy::{
     prelude::*,
@@ -10,6 +8,13 @@ use bevy::{
     window::{PrimaryWindow, WindowRef},
 };
 use bevy_rapier3d::prelude::*;
+
+use super::{spawn_kinematic_character, CharacterWalkControl};
+
+#[derive(Clone, Copy, Debug, Default)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub struct PlayerTag;
 
 pub fn spawn_gameplay_camera(mut commands: Commands) {
     commands.spawn(Camera3dBundle {
@@ -27,31 +32,9 @@ pub fn setup_player(mut commands: Commands) {
     minion_st.add_minion(MinionKind::Doink);
     minion_st.add_minion(MinionKind::Doink);
 
-    commands
+    let player_ent = commands
         .spawn((
-            SpatialBundle {
-                transform: Transform::from_xyz(0.0, 5.0, 0.0),
-                ..default()
-            },
-            Collider::round_cylinder(0.9, 0.3, 0.2),
-            KinematicCharacterController {
-                custom_mass: Some(5.0),
-                up: Vec3::Y,
-                offset: CharacterLength::Absolute(0.01),
-                slide: true,
-                autostep: Some(CharacterAutostep {
-                    max_height: CharacterLength::Relative(0.3),
-                    min_width: CharacterLength::Relative(0.5),
-                    include_dynamic_bodies: false,
-                }),
-                // Don’t allow climbing slopes larger than 45 degrees.
-                max_slope_climb_angle: 45.0_f32.to_radians(),
-                // Automatically slide down on slopes smaller than 30 degrees.
-                min_slope_slide_angle: 30.0_f32.to_radians(),
-                apply_impulse_to_dynamic_bodies: true,
-                snap_to_ground: None,
-                ..default()
-            },
+            PlayerTag,
             minion_st,
         ))
         .with_children(|b| {
@@ -70,7 +53,14 @@ pub fn setup_player(mut commands: Commands) {
                         Sensor,
                     ));
                 });
-        });
+        })
+        .id();
+
+    spawn_kinematic_character(
+        &mut commands.entity(player_ent),
+        Transform::from_xyz(0.0, 5.0, 0.0),
+        Collider::round_cylinder(0.9, 0.3, 0.2),
+    );
 }
 
 pub fn player_controls(
@@ -81,11 +71,8 @@ pub fn player_controls(
     mut gizmos: Gizmos,
     mut player: Query<(
         &mut Transform,
-        &mut KinematicCharacterController,
-        Option<&KinematicCharacterControllerOutput>,
-    )>,
-    mut movement: ResMut<MovementInput>,
-    mut dir: ResMut<PlayerDirection>,
+        &mut CharacterWalkControl,
+    ), With<PlayerTag>>,
     mut minion: ResMut<MinionInput>,
 ) {
     let Ok(window) = window.get_single() else {
@@ -132,18 +119,13 @@ pub fn player_controls(
         Color::linear_rgb(1.0, 0.0, 0.0),
     );
 
-    let Ok((player_tf, _, _)) = player.get_single_mut() else {
+    let Ok((player_tf, mut walk)) = player.get_single_mut() else {
         return;
     };
     let walk_dir = (ray_hit.point - player_tf.translation).normalize_or_zero();
 
-    if let Ok(walk_dir) = Dir3::new(walk_dir) {
-        dir.0 = walk_dir;
-    }
-
-    if mouse_buttons.pressed(MouseButton::Left) {
-        movement.0 = walk_dir;
-    }
+    walk.direction = walk_dir;
+    walk.do_move = mouse_buttons.pressed(MouseButton::Left);
 
     if mouse_buttons.just_pressed(MouseButton::Right) {
         minion.to_where = ray_hit.point;

@@ -2,7 +2,9 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
 
-use super::player_movement::PlayerDirection;
+use crate::game::CharacterWalkControl;
+
+use super::PlayerTag;
 
 #[derive(Clone, Copy, Debug, Component, Reflect)]
 pub struct PlayerCollector;
@@ -84,13 +86,12 @@ pub fn player_minion(
 
 pub fn player_minion_pickup(
     rap_ctx: ResMut<RapierContext>,
-    player_dir: Res<PlayerDirection>,
     dropped_mins: Query<(Entity, &MinionKind)>,
     mut collector: Query<(&mut Transform, &Children), With<PlayerCollector>>,
-    mut player_q: Query<&mut MinionStorage>,
+    mut player_q: Query<(&mut MinionStorage, &CharacterWalkControl), With<PlayerTag>>,
     mut commands: Commands,
 ) {
-    let Ok(mut mins) = player_q.get_single_mut() else {
+    let Ok((mut mins, walk)) = player_q.get_single_mut() else {
         return;
     };
     let Ok((mut coll_tf, children)) = collector.get_single_mut() else {
@@ -99,7 +100,7 @@ pub fn player_minion_pickup(
     let Some(&collider) = children.first() else {
         return;
     };
-    let angle = player_dir.0.xz().to_angle();
+    let angle = walk.direction.xz().to_angle();
 
     if angle.is_nan() {
         return;
