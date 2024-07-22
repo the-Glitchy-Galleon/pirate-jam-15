@@ -89,6 +89,7 @@ pub fn update_kinematic_character(
                 walk.direction.z
             ).normalize_or_zero() * MOVEMENT_SPEED;
         }
+        walk.do_move = false;
         // no jumping
         // let jump_speed = walk.direction.y * JUMP_SPEED;
         let jump_speed = 0.0;
