@@ -4,11 +4,13 @@ use bevy::{
 };
 use bevy_rapier3d::prelude::*;
 
+mod minion;
 mod player;
 mod kinematic_char;
 
 pub use player::*;
 pub use kinematic_char::*;
+pub use minion::*;
 
 use crate::framework::prelude::AudioPlugin;
 

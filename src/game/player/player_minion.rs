@@ -2,19 +2,12 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
 
-use crate::game::CharacterWalkControl;
+use crate::game::{CharacterWalkControl, MinionKind};
 
 use super::PlayerTag;
 
 #[derive(Clone, Copy, Debug, Component, Reflect)]
 pub struct PlayerCollector;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Component, Reflect)]
-pub enum MinionKind {
-    Spoink,
-    Doink,
-    Woink,
-}
 
 #[derive(Component, Reflect)]
 pub struct MinionStorage {
