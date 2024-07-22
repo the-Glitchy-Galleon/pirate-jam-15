@@ -127,8 +127,6 @@ pub fn player_controls(
     walk.direction = walk_dir;
     walk.do_move = mouse_buttons.pressed(MouseButton::Left);
 
-    if mouse_buttons.just_pressed(MouseButton::Right) {
-        minion.to_where = ray_hit.point;
-        minion.want_to_throw = true;
-    }
+    minion.to_where = ray_hit.point;
+    minion.want_to_throw = mouse_buttons.just_pressed(MouseButton::Right);
 }

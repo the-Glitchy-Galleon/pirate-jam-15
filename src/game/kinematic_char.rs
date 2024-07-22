@@ -7,7 +7,7 @@ use bevy_rapier3d::prelude::*;
 
 const GROUND_TIMER: f32 = 0.5;
 const MOVEMENT_SPEED: f32 = 8.0;
-const JUMP_SPEED: f32 = 20.0;
+// const JUMP_SPEED: f32 = 20.0;
 const GRAVITY: f32 = -9.81;
 
 /// Controls how the character shall move.
