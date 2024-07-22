@@ -33,6 +33,7 @@ impl Plugin for GamePlugin {
             chosen_ty: MinionKind::Doink,
             want_to_throw: false,
             to_where: Vec3::ZERO,
+            do_pickup: false,
         });
 
         /* Setup */

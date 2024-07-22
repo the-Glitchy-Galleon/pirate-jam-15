@@ -54,6 +54,7 @@ pub fn setup_player(mut commands: Commands) {
 pub fn player_controls(
     window: Query<&Window, With<PrimaryWindow>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
     rap_ctx: ResMut<RapierContext>,
     cam: Query<(&GlobalTransform, &Camera)>,
     mut gizmos: Gizmos,
@@ -114,4 +115,5 @@ pub fn player_controls(
 
     minion.to_where = ray_hit.point;
     minion.want_to_throw = mouse_buttons.just_pressed(MouseButton::Left);
+    minion.do_pickup = keyboard.pressed(KeyCode::KeyQ);
 }

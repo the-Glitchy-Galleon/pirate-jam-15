@@ -19,6 +19,7 @@ pub struct MinionStorageInput {
     pub chosen_ty: MinionKind,
     pub want_to_throw: bool,
     pub to_where: Vec3,
+    pub do_pickup: bool,
 }
 
 impl MinionStorage {
@@ -78,6 +79,7 @@ pub fn minion_storage_throw(
 }
 
 pub fn minion_storage_pickup(
+    mut min_inp: ResMut<MinionStorageInput>,
     rap_ctx: ResMut<RapierContext>,
     dropped_mins: Query<(Entity, &MinionKind)>,
     mut collector: Query<(&mut Transform, &Children), With<PlayerCollector>>,
@@ -100,6 +102,12 @@ pub fn minion_storage_pickup(
     }
 
     *coll_tf = Transform::from_rotation(Quat::from_rotation_y(-angle));
+
+    if !min_inp.do_pickup {
+        return;
+    }
+
+    min_inp.do_pickup = false;
 
     for (min, ty) in dropped_mins.iter() {
         let Some(coll) = rap_ctx.intersection_pair(min, collider) else {
