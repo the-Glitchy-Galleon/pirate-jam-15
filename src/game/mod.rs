@@ -28,7 +28,9 @@ impl Plugin for GamePlugin {
             .register_type::<PlayerCollector>()
             .register_type::<CharacterWalkState>()
             .register_type::<MinionKind>()
-            .register_type::<MinionStorage>();
+            .register_type::<MinionStorage>()
+            .register_type::<MinionState>()
+            .register_type::<MinionTarget>();
 
         app.insert_resource(MinionInput {
                 chosen_ty: MinionKind::Doink,
