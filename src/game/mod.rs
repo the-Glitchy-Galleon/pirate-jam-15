@@ -18,6 +18,12 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins((
+                RapierPhysicsPlugin::<NoUserData>::default(),
+                RapierDebugRenderPlugin::default(),
+                AudioPlugin,
+            ));
+
         app.register_type::<CharacterWalkControl>()
             .register_type::<PlayerCollector>()
             .register_type::<CharacterWalkState>()
@@ -30,24 +36,25 @@ impl Plugin for GamePlugin {
                 to_where: Vec3::ZERO,
             });
 
+        /* Setup */
+        app.add_systems(Startup, spawn_gameplay_camera)
+            .add_systems(Startup, setup_physics)
+            .add_systems(Startup, setup_player);
+
+        /* Common systems */
+        app.add_systems(FixedUpdate, update_kinematic_character);
+
+        /* Minion systems */
         app
             .add_systems(Update, cleanup_minion_state)
             .add_systems(Update, cleanup_minion_target)
             .add_systems(Update, update_minion_state);
 
-        app.add_plugins((
-            RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin::default(),
-        ))
-        .add_systems(Startup, spawn_gameplay_camera)
-        .add_systems(Startup, setup_physics)
-        .add_systems(Startup, setup_player)
+        /* Player systems */
+        app
         .add_systems(PreUpdate, player_controls.after(InputSystem))
-        .add_systems(FixedUpdate, update_kinematic_character)
         .add_systems(Update, player_minion)
         .add_systems(Update, player_minion_pickup);
-
-        app.add_plugins(AudioPlugin);
     }
 }
 
