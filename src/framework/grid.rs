@@ -3,7 +3,7 @@ use bevy::prelude::*;
 #[cfg(not(target_family = "wasm"))]
 use serde::{Deserialize, Serialize};
 
-#[derive(Asset, Reflect, Debug, Clone, Copy)]
+#[derive(Asset, Debug, Clone, Copy, Reflect)]
 #[cfg_attr(not(target_family = "wasm"), derive(Serialize, Deserialize))]
 pub struct Grid {
     dims: UVec2,

@@ -1,4 +1,4 @@
-use crate::framework::prelude::*;
+use crate::{framework::prelude::*, game::object_def::ObjectDef};
 use bevy::{
     asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},
     prelude::*,
@@ -18,8 +18,12 @@ pub struct LevelAsset {
     data: LevelAssetData,
 }
 impl LevelAsset {
+    pub const CURRENT_VERSION: u32 = 2;
     pub fn new(data: LevelAssetData) -> Self {
-        Self { version: 1, data }
+        Self {
+            version: Self::CURRENT_VERSION,
+            data,
+        }
     }
 
     #[cfg(not(target_family = "wasm"))]
@@ -40,7 +44,7 @@ impl LevelAsset {
         let data = decompress_size_prepended(&data)?;
         let version = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
 
-        assert_eq!(version, 1);
+        assert_eq!(version, Self::CURRENT_VERSION);
         let data = bincode::deserialize::<LevelAssetData>(&data[4..])?;
 
         Ok(Self { version, data })
@@ -70,6 +74,7 @@ pub struct LevelAssetData {
     pub ground_collider: Collider,
     pub ground_mesh: RawMesh,
     pub walls: Vec<WallData>,
+    pub objects: Vec<ObjectDef>,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -11,6 +11,8 @@ use bevy_rapier3d::{
 use tilemap_editor::TilemapEditorPlugin;
 
 pub mod file_selector_widget;
+pub mod object_def_widget;
+pub mod tilemap;
 pub mod tilemap_asset;
 pub mod tilemap_controls;
 pub mod tilemap_editor;

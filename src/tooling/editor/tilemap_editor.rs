@@ -1,16 +1,17 @@
+use super::tilemap::{Pnormal3, Tilemap, SLOPE_HEIGHT, WALL_HEIGHT};
 use super::tilemap_controls::TilemapControls;
 use super::tilemap_mesh_builder::{self, RawMeshBuilder};
 use crate::framework::level_asset::{LevelAsset, LevelAssetData, WallData};
 use crate::framework::prelude::*;
-use crate::framework::tilemap::{Pnormal3, SLOPE_HEIGHT, WALL_HEIGHT};
 use crate::framework::tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL, TILESET_TILE_NUM};
-use bevy::color::palettes::tailwind::*;
+use bevy::color::palettes::tailwind::{self, *};
 use bevy::{ecs::system::SystemId, prelude::*};
 use bevy_rapier3d::geometry::{CollisionGroups, Group};
 use bevy_rapier3d::math::Real;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::plugin::RapierContext;
 use std::f32::consts::PI;
+use ui::EguiState;
 
 const DEFAULT_EDITOR_SAVE_PATH: &str = "./level_editor_scenes";
 const DEFAULT_EDITOR_EXPORT_PATH: &str = "./assets/level";
@@ -29,7 +30,8 @@ pub struct EditorState {
     hovered_wall_ground: Option<u32>,
     hovered_wall_height: Option<u32>,
     hovered_wall_normal: Option<Pnormal3>,
-    selected_tile_coords: Option<UVec2>,
+    selected_tileset_coords: Option<UVec2>,
+    hovered_map_coord: Option<UVec2>,
 }
 
 #[derive(Resource)]
@@ -60,6 +62,7 @@ impl Plugin for TilemapEditorPlugin {
         app.init_resource::<Systems>()
             .init_state::<ControlMode>()
             .init_resource::<ExportLevelScenePath>()
+            .init_resource::<ObjectMarkerData>()
             .insert_resource(EditorState {
                 tilemap,
                 tileset,
@@ -67,7 +70,8 @@ impl Plugin for TilemapEditorPlugin {
                 hovered_wall_ground: None,
                 hovered_wall_height: None,
                 hovered_wall_normal: None,
-                selected_tile_coords: None,
+                hovered_map_coord: None,
+                selected_tileset_coords: None,
             })
             .insert_resource(ui::EguiState {
                 ..Default::default()
@@ -94,24 +98,27 @@ impl Plugin for TilemapEditorPlugin {
 
 #[derive(Resource)]
 struct Systems {
-    recreate_ground_mesh: SystemId,
+    recreate_scene: SystemId,
+    recreate_object_markers: SystemId,
     export_level_scene: SystemId,
 }
 
 impl FromWorld for Systems {
     fn from_world(world: &mut World) -> Self {
         Self {
-            recreate_ground_mesh: world.register_system(recreate_ground_and_wall_meshes),
+            recreate_scene: world.register_system(recreate_scene),
+            recreate_object_markers: world.register_system(recreate_object_markers),
             export_level_scene: world.register_system(export_level_scene),
         }
     }
 }
 
 fn setup(mut cmd: Commands, sys: Res<Systems>) {
-    cmd.run_system(sys.recreate_ground_mesh);
+    cmd.run_system(sys.recreate_scene);
+    cmd.run_system(sys.recreate_object_markers);
 }
 
-fn recreate_ground_and_wall_meshes(
+fn recreate_scene(
     mut cmd: Commands,
     ass: Res<AssetServer>,
     state: Res<EditorState>,
@@ -181,6 +188,81 @@ fn recreate_ground_and_wall_meshes(
 
     if let Some(widget) = &mut egui_state.resize_widget {
         widget.set_dims(state.tilemap.dims());
+    }
+}
+
+#[derive(Resource)]
+pub struct ObjectMarkerData {
+    mesh: Handle<Mesh>,
+    material: Handle<StandardMaterial>,
+    selected_material: Handle<StandardMaterial>,
+}
+
+impl FromWorld for ObjectMarkerData {
+    fn from_world(world: &mut World) -> Self {
+        let mesh = { world.resource_mut::<Assets<Mesh>>().add(Cuboid::default()) };
+        let material = {
+            world
+                .resource_mut::<Assets<StandardMaterial>>()
+                .add(StandardMaterial::from_color(tailwind::AMBER_400))
+        };
+        let selected_material = {
+            world
+                .resource_mut::<Assets<StandardMaterial>>()
+                .add(StandardMaterial::from_color(tailwind::RED_400))
+        };
+        Self {
+            mesh,
+            material,
+            selected_material,
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct ObjectMarker {
+    #[allow(dead_code)]
+    id: u32,
+}
+
+fn recreate_object_markers(
+    mut cmd: Commands,
+    markers: Query<Entity, With<ObjectMarker>>,
+    egui_state: ResMut<ui::EguiState>,
+    data: Res<ObjectMarkerData>,
+    state: Res<EditorState>,
+) {
+    for ex in markers.iter() {
+        cmd.entity(ex).despawn_recursive();
+    }
+
+    let Some(ref widget) = egui_state.object_def_widget else {
+        return;
+    };
+    for (id, def) in widget.defs().iter().enumerate() {
+        if let Some(pos) = state
+            .tilemap
+            .face_id_to_center_pos_3d(state.tilemap.face_grid().coord_to_id(def.coord))
+        {
+            let material = if Some(id) == widget.selected_id() {
+                data.selected_material.clone()
+            } else {
+                data.material.clone()
+            };
+            cmd.spawn((
+                ObjectMarker { id: id as u32 },
+                PbrBundle {
+                    mesh: data.mesh.clone(),
+                    material,
+                    transform: Transform::IDENTITY
+                        .with_translation(pos + Vec3::Y * 0.4)
+                        .with_scale(Vec3::splat(0.4)),
+                    ..Default::default()
+                },
+            ));
+        } else {
+            warn!("No valid position for object {id}: {def:?}");
+        }
     }
 }
 
@@ -272,6 +354,13 @@ fn update_hovered_states(
             }
         }
     }
+    state.hovered_map_coord = None;
+    if let Some(fid) = state.hovered_ground_face {
+        state.hovered_map_coord = Some(state.tilemap.face_grid().id_to_coord(fid));
+    }
+    if let Some(fid) = state.hovered_wall_ground {
+        state.hovered_map_coord = Some(state.tilemap.face_grid().id_to_coord(fid));
+    }
 }
 
 fn change_control_mode(
@@ -290,12 +379,14 @@ fn change_control_mode(
         keys.just_pressed(KeyCode::Digit1),
         keys.just_pressed(KeyCode::Digit2),
         keys.just_pressed(KeyCode::Digit3),
+        keys.just_pressed(KeyCode::Digit4),
         keys.just_pressed(KeyCode::Digit0),
     ) {
-        (X, _, _, _) => next_mode.set(ControlMode::ShapeTerrain),
-        (_, X, _, _) => next_mode.set(ControlMode::ShapeWalls),
-        (_, _, X, _) => next_mode.set(ControlMode::Paint2D),
-        (_, _, _, X) => next_mode.set(ControlMode::AdminStuff),
+        (X, _, _, _, _) => next_mode.set(ControlMode::ShapeTerrain),
+        (_, X, _, _, _) => next_mode.set(ControlMode::ShapeWalls),
+        (_, _, X, _, _) => next_mode.set(ControlMode::Paint2D),
+        (_, _, _, X, _) => next_mode.set(ControlMode::PlaceGameObjects),
+        (_, _, _, _, X) => next_mode.set(ControlMode::AdminStuff),
         _ => {}
     }
 }
@@ -309,9 +400,10 @@ fn perform_click_actions(
     global_ui_state: Res<GlobalUiState>,
     mouse: Res<ButtonInput<MouseButton>>,
     keys: Res<ButtonInput<KeyCode>>,
-    systems: Res<Systems>,
+    sys: Res<Systems>,
 ) {
     let over_ui = global_ui_state.is_pointer_captured || global_ui_state.is_any_focused;
+    let mut is_dirty = false;
     match control_mode.get() {
         ControlMode::ShapeTerrain => {
             let Some(fid) = state.hovered_ground_face else {
@@ -323,13 +415,13 @@ fn perform_click_actions(
                         controls
                             .tilemap
                             .raise_face_elevation(&mut state.tilemap, fid, 1);
-                        cmd.run_system(systems.recreate_ground_mesh);
+                        is_dirty = true;
                     }
                     true => {
                         controls
                             .tilemap
                             .lower_face_elevation(&mut state.tilemap, fid, 1);
-                        cmd.run_system(systems.recreate_ground_mesh);
+                        is_dirty = true;
                     }
                 }
             }
@@ -347,11 +439,11 @@ fn perform_click_actions(
                 match keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight) {
                     false => {
                         controls.tilemap.raise_wall_height(&mut state.tilemap, fid);
-                        cmd.run_system(systems.recreate_ground_mesh);
+                        is_dirty = true;
                     }
                     true => {
                         controls.tilemap.lower_wall_height(&mut state.tilemap, fid);
-                        cmd.run_system(systems.recreate_ground_mesh);
+                        is_dirty = true;
                     }
                 }
             }
@@ -373,7 +465,7 @@ fn perform_click_actions(
                         let Some(height) = state.hovered_wall_height else {
                             return;
                         };
-                        if let Some(coord) = state.selected_tile_coords {
+                        if let Some(coord) = state.selected_tileset_coords {
                             let tid = state.tileset.grid().coord_to_id(coord);
                             controls.tilemap.paint_wall_face(
                                 &mut state.tilemap,
@@ -382,7 +474,7 @@ fn perform_click_actions(
                                 height,
                                 tid,
                             );
-                            cmd.run_system(systems.recreate_ground_mesh);
+                            is_dirty = true;
                         }
                     } else {
                         // paint terrain
@@ -390,20 +482,34 @@ fn perform_click_actions(
                             return;
                         };
 
-                        if let Some(coord) = state.selected_tile_coords {
+                        if let Some(coord) = state.selected_tileset_coords {
                             let tid = state.tileset.grid().coord_to_id(coord);
                             controls
                                 .tilemap
                                 .paint_ground_face(&mut state.tilemap, fid, tid);
-                            cmd.run_system(systems.recreate_ground_mesh);
+                            is_dirty = true;
                         }
                     }
                 }
             }
         }
         ControlMode::PaintWalls3D => todo!(),
-        ControlMode::PlaceGameObjects => todo!(),
+        ControlMode::PlaceGameObjects => {
+            if !over_ui && mouse.just_pressed(MouseButton::Left) {
+                let Some(fid) = state.hovered_ground_face else {
+                    return;
+                };
+                let Some(widget) = &mut egui_state.object_def_widget else {
+                    return;
+                };
+                widget.on_coord_select(state.tilemap.face_grid().id_to_coord(fid));
+            }
+        }
         ControlMode::AdminStuff => {}
+    }
+    if is_dirty {
+        cmd.run_system(sys.recreate_scene);
+        cmd.run_system(sys.recreate_object_markers);
     }
 }
 
@@ -418,19 +524,20 @@ fn draw_hovered_tile_gizmo(
     let Some(hovered) = state.hovered_ground_face else {
         return;
     };
-    let Some(pos) = map.face_id_to_center_pos(hovered) else {
+    let Some(pos) = map.face_id_to_center_pos_3d(hovered) else {
         return;
     };
     gizmos.rect(
-        Vec3::new(pos.x, 0.0, pos.y) + offset,
+        Vec3::new(pos.x, pos.y, pos.z) + offset,
         Quat::from_rotation_x(PI * 0.5),
         Vec2::splat(1.),
         LIME_300,
     );
-    let from = Vec3::new(pos.x, 0.5, pos.y) + offset;
-    let to = Vec3::new(pos.x, 0.0, pos.y) + offset;
 
-    gizmos.arrow(from, to, YELLOW_800);
+    let from = Vec3::new(pos.x, pos.y + 0.5, pos.z) + offset;
+    let to = Vec3::new(pos.x, pos.y, pos.z) + offset;
+
+    gizmos.arrow(from, to, BLUE_100);
 }
 
 pub(super) mod ui {
@@ -440,17 +547,22 @@ pub(super) mod ui {
     };
     use crate::{
         framework::tileset::{TILESET_TEXTURE_DIMS, TILESET_TILE_DIMS},
+        game::object_def::ObjectDefKind,
         tooling::editor::{
             file_selector_widget::{
                 FileSelectorWidget, FileSelectorWidgetResult, FileSelectorWidgetSettings,
             },
+            object_def_widget::ObjectDefWidget,
             tilemap_asset::TilemapRon,
             tilemap_size_widget::TilemapSizeWidget,
             tileset_widget::TilesetWidget,
         },
     };
     use bevy::{prelude::*, window::PrimaryWindow};
-    use bevy_egui::{egui, EguiContexts};
+    use bevy_egui::{
+        egui::{self, TextureId},
+        EguiContexts,
+    };
     use std::path::Path;
 
     #[derive(Component)]
@@ -462,6 +574,7 @@ pub(super) mod ui {
         pub paint_widget_open: bool,
         pub file_widget: Option<FileWidget>,
         pub resize_widget: Option<TilemapSizeWidget>,
+        pub object_def_widget: Option<ObjectDefWidget>,
     }
 
     pub(super) struct FileWidget {
@@ -521,14 +634,53 @@ pub(super) mod ui {
         ExportLevel,
     }
 
+    #[rustfmt::skip]
+    pub const fn object_image_path(kind: ObjectDefKind) -> &'static str {
+        match kind {
+            ObjectDefKind::Cauldron        => "editor-only/cauldron.png",
+            ObjectDefKind::Camera          => "editor-only/camera.png",
+            ObjectDefKind::LaserGrid       => "editor-only/lasergrid.png",
+            // ObjectDefKind::ControlPanel    => "editor-only/404.png",
+            // ObjectDefKind::PressurePlate   => "editor-only/404.png",
+            // ObjectDefKind::Key             => "editor-only/404.png",
+            // ObjectDefKind::KeyDoor         => "editor-only/404.png",
+            // ObjectDefKind::Barrier         => "editor-only/404.png",
+            // ObjectDefKind::PowerOutlet     => "editor-only/404.png",
+            // ObjectDefKind::EmptySocket     => "editor-only/404.png",
+            // ObjectDefKind::ExplosiveBarrel => "editor-only/404.png",
+            // ObjectDefKind::Anglerfish      => "editor-only/404.png",
+            // ObjectDefKind::Ventilation     => "editor-only/404.png",
+            // ObjectDefKind::Well            => "editor-only/404.png",
+            // ObjectDefKind::BigHole         => "editor-only/404.png",
+            // ObjectDefKind::LaserDrill      => "editor-only/404.png",
+            // ObjectDefKind::VaultDoor       => "editor-only/404.png",
+            // ObjectDefKind::Painting        => "editor-only/404.png",
+            // ObjectDefKind::Vase            => "editor-only/404.png",
+            // ObjectDefKind::Ingot           => "editor-only/404.png",
+            // ObjectDefKind::Sculpture       => "editor-only/404.png",
+            // ObjectDefKind::Book            => "editor-only/404.png",
+            // ObjectDefKind::Relic           => "editor-only/404.png",
+            // ObjectDefKind::WineBottle      => "editor-only/404.png",
+        }
+    }
+
+    #[derive(Resource)]
+    pub struct ObjectTextures {
+        textures: [TextureId; ObjectDefKind::COUNT],
+    }
     pub(super) fn setup(
         mut cmd: Commands,
         mut ui_state: ResMut<EguiState>,
-        mut contexts: EguiContexts,
+        mut ctxs: EguiContexts,
         ass: Res<AssetServer>,
     ) {
-        let handle = ass.load(TILESET_PATH_DIFFUSE);
-        let id = contexts.add_image(handle);
+        cmd.insert_resource(ObjectTextures {
+            textures: ObjectDefKind::VARIANTS
+                .map(|kind| ctxs.add_image(ass.load(object_image_path(kind)))),
+        });
+        ui_state.object_def_widget = Some(ObjectDefWidget::new(vec![]));
+
+        let id = ctxs.add_image(ass.load(TILESET_PATH_DIFFUSE));
         ui_state.paint_widget = Some(TilesetWidget::new(
             id,
             TILESET_TEXTURE_DIMS.into(),
@@ -584,6 +736,7 @@ pub(super) mod ui {
         mut cmd: Commands,
         sys: Res<Systems>,
         mut export_level_scene_path: ResMut<ExportLevelScenePath>,
+        object_textures: Res<ObjectTextures>,
     ) {
         let win = win.single();
         let ctx = ctxs.ctx_for_window_mut(win);
@@ -610,16 +763,25 @@ pub(super) mod ui {
                             FileWidgetMode::LoadTilemap => match TilemapRon::read(&path) {
                                 Ok(ron) => {
                                     editor_state.tilemap = ron.tilemap;
-                                    cmd.run_system(sys.recreate_ground_mesh);
+                                    cmd.run_system(sys.recreate_scene);
+                                    state.object_def_widget =
+                                        Some(ObjectDefWidget::new(ron.objects));
+                                    cmd.run_system(sys.recreate_object_markers);
                                 }
                                 Err(e) => {
                                     error!("Failed to load tilemap {path:?}: {e:?}",)
                                 }
                             },
                             FileWidgetMode::SaveTilemap => {
-                                if let Err(e) =
-                                    TilemapRon::new(editor_state.tilemap.clone()).write(&path)
-                                {
+                                let Some(ref object_def_widget) = state.object_def_widget else {
+                                    error!("No Object def widget");
+                                    return;
+                                };
+                                let ron = TilemapRon::new(
+                                    editor_state.tilemap.clone(),
+                                    object_def_widget.defs().to_owned(),
+                                );
+                                if let Err(e) = ron.write(&path) {
                                     error!("Failed to save tilemap to {path:?}. {e:?}",);
                                 }
                             }
@@ -652,7 +814,8 @@ pub(super) mod ui {
                 .show(ctx, |ui| {
                     if let Some((anchor, dims)) = widget.show(ui) {
                         editor_state.tilemap.resize_anchored(dims, anchor);
-                        cmd.run_system(sys.recreate_ground_mesh);
+                        cmd.run_system(sys.recreate_scene);
+                        cmd.run_system(sys.recreate_object_markers);
                     }
                 });
             if keys.just_pressed(KeyCode::Escape) {
@@ -669,41 +832,56 @@ pub(super) mod ui {
                     egui::CentralPanel::default().show(ctx, |ui| {
                         if let Some(widget) = &mut state.paint_widget {
                             if let Some(new_tile_coord) = widget.show(ui) {
-                                editor_state.selected_tile_coords = Some(new_tile_coord);
+                                editor_state.selected_tileset_coords = Some(new_tile_coord);
                                 state.paint_widget_open = false;
                             }
                         }
                     });
                 } else {
-                    egui::SidePanel::left("tileset_widget_panel").show(ctx, |ui| {
+                    egui::SidePanel::left("left_side").show(ctx, |ui| {
                         if let Some(widget) = &mut state.paint_widget {
                             if let Some(new_tile_coord) = widget.show(ui) {
-                                editor_state.selected_tile_coords = Some(new_tile_coord);
+                                editor_state.selected_tileset_coords = Some(new_tile_coord);
                                 state.paint_widget_open = false;
                             }
                         }
                     });
                 }
             }
-            ControlMode::AdminStuff => {}
+            ControlMode::PlaceGameObjects => {
+                if let Some(widget) = &mut state.object_def_widget {
+                    egui::SidePanel::left("left_side").show(ctx, |ui| {
+                        if widget.show(ui, &editor_state.tilemap, &object_textures.textures) {
+                            cmd.run_system(sys.recreate_object_markers);
+                        }
+                    });
+                }
+            }
             _ => {}
         }
     }
 
+    #[rustfmt::skip]
     pub(super) fn update_info_text(
         mode: Res<State<ControlMode>>,
+        state: Res<EditorState>,
         mut text: Query<&mut Text, With<LevelEditorInfoText>>,
     ) {
         let text = &mut text.single_mut().sections[0].value;
+        let coords = if let Some(coords) = state.hovered_map_coord {
+            format!("{}:{}", coords.x, coords.y)
+        } else {
+            String::new()
+        };
         match mode.get() {
-            ControlMode::AdminStuff => *text = ["Admin Stuff"].join("\n"),
-            ControlMode::ShapeTerrain => *text = ["Shape Terrain"].join("\n"),
-            ControlMode::FlattenTerrain => *text = ["Flatten Terrain"].join("\n"),
-            ControlMode::ShapeWalls => *text = ["Shape Walls"].join("\n"),
-            ControlMode::Paint2D => *text = ["Paint 2D"].join("\n"),
-            ControlMode::PaintTerrain3D => *text = ["Paint Terrain 3D"].join("\n"),
-            ControlMode::PaintWalls3D => *text = ["Shape Walls 3D"].join("\n"),
-            ControlMode::PlaceGameObjects => *text = ["Place Game Objects"].join("\n"),
+            ControlMode::AdminStuff       => *text = ["Admin Stuff",        &coords].join("\n"),
+            ControlMode::ShapeTerrain     => *text = ["Shape Terrain",      &coords].join("\n"),
+            ControlMode::FlattenTerrain   => *text = ["Flatten Terrain",    &coords].join("\n"),
+            ControlMode::ShapeWalls       => *text = ["Shape Walls",        &coords].join("\n"),
+            ControlMode::Paint2D          => *text = ["Paint 2D",           &coords].join("\n"),
+            ControlMode::PaintTerrain3D   => *text = ["Paint Terrain 3D",   &coords].join("\n"),
+            ControlMode::PaintWalls3D     => *text = ["Shape Walls 3D",     &coords].join("\n"),
+            ControlMode::PlaceGameObjects => *text = ["Place Game Objects", &coords].join("\n"),
         }
     }
 }
@@ -732,10 +910,23 @@ fn export_level_scene(world: &mut World) {
         })
         .collect();
 
+    let objects = {
+        let egui_state = world.resource::<EguiState>();
+        let Some(ref widget) = egui_state.object_def_widget else {
+            error!("No Object def widget");
+            return;
+        };
+        widget
+            .defs()
+            .iter()
+            .map(|d| d.build(&state.tilemap))
+            .collect::<Vec<_>>()
+    };
     let level_asset = LevelAsset::new(LevelAssetData {
         ground_collider: collider,
         ground_mesh: mesh,
         walls,
+        objects,
     });
 
     match level_asset.save(path.as_str()) {

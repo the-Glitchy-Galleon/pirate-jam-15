@@ -1,8 +1,5 @@
-use std::fs::OpenOptions;
-use std::io::{BufWriter, Read};
-use std::path::Path;
-
-use crate::framework::prelude::*;
+use super::object_def_widget::ObjectDefBuilder;
+use super::tilemap::Tilemap;
 use bevy::asset::io::Reader;
 use bevy::asset::AsyncReadExt;
 use bevy::{
@@ -11,6 +8,9 @@ use bevy::{
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
+use std::fs::OpenOptions;
+use std::io::{BufWriter, Read};
+use std::path::Path;
 
 pub struct TilemapAssetPlugin;
 
@@ -25,15 +25,19 @@ impl Plugin for TilemapAssetPlugin {
 pub struct TilemapRon {
     pub version: u32,
     pub tilemap: Tilemap,
+    pub objects: Vec<ObjectDefBuilder>,
     // dependencies: Vec<String>,
     // embedded_dependencies: Vec<String>,
     // dependencies_with_settings: Vec<(String, ())>,
 }
 impl TilemapRon {
-    pub fn new(tilemap: Tilemap) -> Self {
+    pub const CURRENT_VERSION: u32 = 2;
+
+    pub fn new(tilemap: Tilemap, objects: Vec<ObjectDefBuilder>) -> Self {
         Self {
-            version: 1,
+            version: Self::CURRENT_VERSION,
             tilemap,
+            objects,
         }
     }
 

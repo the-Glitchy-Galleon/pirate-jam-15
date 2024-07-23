@@ -5,7 +5,6 @@ pub mod grid;
 pub mod level_asset;
 pub mod logical_cursor;
 pub mod raw_mesh;
-pub mod tilemap;
 pub mod tileset;
 
 pub mod prelude {
@@ -21,7 +20,6 @@ pub mod prelude {
         level_asset::{LevelAsset, LevelAssetData, LevelAssetLoader},
         logical_cursor::{LogicalCursorPlugin, LogicalCursorPosition},
         raw_mesh::RawMesh,
-        tilemap::Tilemap,
         tileset::Tileset,
     };
 }

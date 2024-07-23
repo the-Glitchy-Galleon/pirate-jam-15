@@ -1,7 +1,7 @@
-use super::grid::{Anchor2, Grid};
+use crate::framework::grid::Anchor2;
+use crate::framework::grid::Grid;
+use crate::game::object_def::ObjectDef;
 use bevy::prelude::*;
-
-#[cfg(not(target_family = "wasm"))]
 use serde::{Deserialize, Serialize};
 
 pub const TILE_SIZE_X: f32 = 1.0;
@@ -11,13 +11,13 @@ pub const SLOPE_HEIGHT: f32 = 0.5;
 pub const WALL_HEIGHT: f32 = 1.0;
 pub const MAX_NUM_WALLS: usize = 6;
 
-#[derive(Debug, Reflect, Default, Clone)]
-#[cfg_attr(not(target_family = "wasm"), derive(Serialize, Deserialize))]
+#[derive(Default, Clone, Reflect, Serialize, Deserialize)]
 pub struct FaceData {
     pub wall_height: u32,
     pub wall_top_tile_id: u32,
     pub wall_side_tile_ids: [u32; 4 * MAX_NUM_WALLS],
     pub tile_id: u32,
+    pub object: Option<ObjectDef>,
 }
 impl FaceData {
     pub const DEFAULT: FaceData = FaceData {
@@ -25,8 +25,10 @@ impl FaceData {
         tile_id: 0,
         wall_top_tile_id: 0,
         wall_side_tile_ids: [0; 4 * MAX_NUM_WALLS],
+        object: None,
     };
 }
+
 #[derive(Default, Reflect, Debug, Clone)]
 #[cfg_attr(not(target_family = "wasm"), derive(Serialize, Deserialize))]
 pub struct VertData {
@@ -37,16 +39,12 @@ impl VertData {
     pub const DEFAULT: VertData = VertData { elevation: 0 };
 }
 
-#[derive(Asset, Reflect, Debug, Clone)]
-#[cfg_attr(not(target_family = "wasm"), derive(Serialize, Deserialize))]
+#[derive(Asset, Clone, Reflect, Serialize, Deserialize)]
 pub struct Tilemap {
     face_grid: Grid,
     vert_grid: Grid,
     face_data: Vec<FaceData>,
     vert_data: Vec<VertData>,
-
-    #[cfg_attr(not(target_family = "wasm"), serde(default))]
-    random_value: bool,
 }
 
 impl Tilemap {
@@ -57,7 +55,6 @@ impl Tilemap {
             vert_grid: Grid::new(vert_dims)?,
             face_data: vec![FaceData::DEFAULT; (dims.element_product()) as usize],
             vert_data: vec![VertData::DEFAULT; (vert_dims.element_product()) as usize],
-            random_value: false,
         })
     }
 
@@ -127,13 +124,20 @@ impl Tilemap {
         let y = (offset.y + z / TILE_SIZE_Y) as u32;
         (x < dims.x && y < dims.y).then_some((y * dims.x) + x)
     }
-    pub fn face_id_to_center_pos(&self, fid: u32) -> Option<Vec2> {
+    pub fn face_id_to_center_pos_2d(&self, fid: u32) -> Option<Vec2> {
         let dims = self.face_grid.dims();
-        let offset = -(self.size() * 0.5);
-        let x = fid % dims.x;
-        let y = fid / dims.x;
-        (x < dims.x && y < dims.y)
-            .then_some(Vec2::new(offset.x + x as f32 + 0.5, offset.y + y as f32 + 0.5) * TILE_DIMS)
+        let coord = self.face_grid.id_to_coord(fid);
+        (coord.x < dims.x && coord.y < dims.y)
+            .then_some((self.to_pos_offset() + coord.as_vec2() + 0.5) * TILE_DIMS)
+    }
+
+    pub fn face_id_to_center_pos_3d(&self, fid: u32) -> Option<Vec3> {
+        let pos = self.face_id_to_center_pos_2d(fid)?;
+        Some(Vec3::new(pos.x, self.face_center_height(fid), pos.y))
+    }
+
+    pub fn to_pos_offset(&self) -> Vec2 {
+        -(self.size() * 0.5)
     }
 
     pub fn face_id_to_vert_ids(&self, fid: u32) -> [u32; 4] {
@@ -155,6 +159,16 @@ impl Tilemap {
             .into_iter()
             .map(|vid| self.vert_data[vid as usize].elevation)
             .fold(u32::MAX, |acc, x| acc.min(x))
+    }
+
+    pub fn face_center_height(&self, fid: u32) -> f32 {
+        (self
+            .face_id_to_vert_ids(fid)
+            .into_iter()
+            .map(|vid| self.vert_data[vid as usize].elevation)
+            .fold(0, |acc, x| acc + x) as f32
+            / 4.0)
+            * SLOPE_HEIGHT
     }
 
     pub fn vert_neighbor_elevations(&mut self, vid: u32) -> impl Iterator<Item = u32> + '_ {
@@ -232,7 +246,6 @@ impl<'a> Iterator for VertIter<'a> {
     }
 }
 
-#[derive(Debug)]
 pub struct Face<'a> {
     pub fid: u32,
     pub data: &'a FaceData,

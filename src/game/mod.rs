@@ -1,18 +1,19 @@
 use bevy::{
+    color::palettes::tailwind,
     input::InputSystem,
     prelude::*,
     render::camera::RenderTarget,
     window::{PrimaryWindow, WindowRef},
 };
 use bevy_rapier3d::prelude::*;
-
-pub mod player_minion;
-pub mod player_movement;
-
+use object_def::ColorDef;
 pub use player_minion::*;
 pub use player_movement::*;
-
 use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
+
+pub mod object_def;
+pub mod player_minion;
+pub mod player_movement;
 
 pub struct GamePlugin;
 
@@ -295,6 +296,8 @@ fn init_level(
                 collider,
             ))
             .with_children(|parent| {
+                // as children because the map is scaled for now
+
                 for wall in &level.data().walls {
                     let mesh = wall.mesh.clone();
                     let collider = wall.collider.clone();
@@ -315,7 +318,41 @@ fn init_level(
                         collider,
                     ));
                 }
+                for object in &level.data().objects {
+                    info!(
+                        "Spawning {} {}",
+                        object.color.as_str(),
+                        object.kind.as_str()
+                    );
+                    parent.spawn(PbrBundle {
+                        mesh: meshes.add(Cuboid::default()),
+                        material: mats.add(StandardMaterial {
+                            base_color_texture: Some(diffuse.clone()),
+                            normal_map_texture: normal.clone(),
+                            perceptual_roughness: 0.9,
+                            metallic: 0.0,
+                            base_color: match object.color {
+                                ColorDef::Void => tailwind::GRAY_500,
+                                ColorDef::Red => tailwind::RED_500,
+                                ColorDef::Green => tailwind::GREEN_500,
+                                ColorDef::Blue => tailwind::BLUE_500,
+                                ColorDef::Yellow => tailwind::YELLOW_500,
+                                ColorDef::Magenta => tailwind::PURPLE_500,
+                                ColorDef::Cyan => tailwind::CYAN_500,
+                                ColorDef::White => tailwind::GREEN_100,
+                            }
+                            .into(),
+                            ..default()
+                        }),
+                        transform: Transform::IDENTITY
+                            .with_translation(object.position)
+                            .with_scale(Vec3::splat(2.0))
+                            .with_rotation(Quat::from_rotation_y(object.rotation)),
+                        ..default()
+                    });
+                }
             });
+
             info!("Done");
         }
     }
