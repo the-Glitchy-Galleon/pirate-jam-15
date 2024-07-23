@@ -7,7 +7,7 @@ pub use walk_target::*;
 
 use super::{CharacterWalkControl, KinematicCharacterBundle, PlayerTag};
 
-const MINION_TARGET_RANGE: f32 = 0.1;
+const MINION_TARGET_RANGE: f32 = 0.5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Component, Reflect, Default)]
 pub enum MinionKind {
