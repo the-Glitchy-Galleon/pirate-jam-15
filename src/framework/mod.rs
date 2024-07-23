@@ -4,8 +4,8 @@ pub mod global_ui_state;
 pub mod grid;
 pub mod level_asset;
 pub mod logical_cursor;
-pub mod tilemap;
 pub mod raw_mesh;
+pub mod tilemap;
 pub mod tileset;
 
 pub mod prelude {
@@ -18,10 +18,10 @@ pub mod prelude {
         },
         easing::Easing,
         global_ui_state::{GlobalUiState, GlobalUiStatePlugin, NoPointerCapture},
+        level_asset::{LevelAsset, LevelAssetData, LevelAssetLoader},
         logical_cursor::{LogicalCursorPlugin, LogicalCursorPosition},
+        raw_mesh::RawMesh,
         tilemap::Tilemap,
         tileset::Tileset,
-        raw_mesh::RawMesh,
-        level_asset::{LevelAsset, LevelAssetData, LevelAssetLoader},
     };
 }

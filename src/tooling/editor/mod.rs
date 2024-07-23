@@ -14,9 +14,9 @@ pub mod file_selector_widget;
 pub mod tilemap_asset;
 pub mod tilemap_controls;
 pub mod tilemap_editor;
+pub mod tilemap_mesh_builder;
 pub mod tilemap_size_widget;
 pub mod tileset_widget;
-pub mod tilemap_mesh_builder;
 
 pub struct LevelEditorPlugin;
 
