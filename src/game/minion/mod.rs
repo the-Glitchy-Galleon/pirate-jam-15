@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::Collider;
 
+mod walk_target;
+
+pub use walk_target::*;
+
 use super::{CharacterWalkControl, KinematicCharacterBundle, PlayerTag};
 
 const MINION_TARGET_RANGE: f32 = 0.1;

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
 
-use crate::game::{CharacterWalkControl, MinionBundle, MinionKind};
+use crate::game::{CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionTarget, WalkTargetBundle};
 
 use super::PlayerTag;
 
@@ -48,10 +48,10 @@ impl MinionStorage {
 
 pub fn minion_storage_throw(
     mut min_inp: ResMut<MinionStorageInput>,
-    mut player_q: Query<&mut MinionStorage>,
+    mut player_q: Query<(&GlobalTransform, &mut MinionStorage)>,
     mut commands: Commands,
 ) {
-    let Ok(mut mins) = player_q.get_single_mut() else {
+    let Ok((tf, mut mins)) = player_q.get_single_mut() else {
         return;
     };
 
@@ -66,13 +66,27 @@ pub fn minion_storage_throw(
         return;
     }
 
+    let target_id = commands.spawn(WalkTargetBundle {
+        spatial: SpatialBundle {
+            transform: Transform::from_translation(min_inp.to_where),
+            ..default()
+        },
+        target_tag: MinionTarget,
+    }).id();
+
+    let minion_pos =
+        tf.translation() +
+        2.0 * (min_inp.to_where - tf.translation()).normalize_or_zero() +
+        3.0 * Vec3::Y;
+
     commands.spawn(MinionBundle {
         spatial: SpatialBundle {
-            transform: Transform::from_translation(min_inp.to_where + 3.0 * Vec3::Y),
+            transform: Transform::from_translation(minion_pos),
             ..default()
         },
         collider: Collider::cuboid(0.3, 0.3, 0.3),
         kind: min_inp.chosen_ty,
+        state: MinionState::GoingTo(target_id),
         ..default()
     });
 }
