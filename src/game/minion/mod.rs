@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::PlayerTag;
+use super::{CharacterWalkControl, PlayerTag};
 
 const MINION_TARGET_RANGE: f32 = 0.1;
 
@@ -23,6 +23,33 @@ pub enum MinionState {
     GoingToPlayer,
     GoingTo(Entity),
     Interracting(Entity),
+}
+
+pub fn minion_walk(
+    mut minion_q: Query<(&GlobalTransform, &mut CharacterWalkControl, &MinionState)>,
+    target_q: Query<&GlobalTransform, With<MinionTarget>>,
+    player_q: Query<&GlobalTransform, With<PlayerTag>>,
+) {
+    let Ok(player_tf) = player_q.get_single() else {
+        return;
+    };
+
+    for (tf, mut walk, state) in minion_q.iter_mut() {
+        let target_pos = match state {
+            MinionState::GoingToPlayer => player_tf.translation(),
+            MinionState::GoingTo(target) => match target_q.get(*target) {
+                Ok(tf) => tf.translation(),
+                Err(e) => {
+                    warn!("Failed to get target pos: {e}");
+                    continue
+                },
+            },
+            _ => continue,
+        };
+
+        walk.do_move = true;
+        walk.direction = target_pos - tf.translation();
+    }
 }
 
 pub fn update_minion_state(
