@@ -20,9 +20,9 @@ pub struct Tileset {
 }
 
 impl Tileset {
-    pub fn new(width: u32, height: u32) -> Option<Self> {
+    pub fn new(dims: UVec2) -> Option<Self> {
         Some(Self {
-            grid: Grid::new(width, height)?,
+            grid: Grid::new(dims)?,
         })
     }
 

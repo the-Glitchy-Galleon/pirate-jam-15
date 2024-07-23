@@ -1,4 +1,4 @@
-use super::grid::Grid;
+use super::grid::{Anchor2, Grid};
 use bevy::prelude::*;
 
 #[cfg(not(target_family = "wasm"))]
@@ -50,12 +50,13 @@ pub struct Tilemap {
 }
 
 impl Tilemap {
-    pub fn new(width: u32, height: u32) -> Option<Self> {
+    pub fn new(dims: UVec2) -> Option<Self> {
+        let vert_dims = dims + UVec2::ONE;
         Some(Self {
-            face_grid: Grid::new(width, height)?,
-            vert_grid: Grid::new(width + 1, height + 1)?,
-            face_data: vec![FaceData::DEFAULT; (width * height) as usize],
-            vert_data: vec![VertData::DEFAULT; ((width + 1) * (height + 1)) as usize],
+            face_grid: Grid::new(dims)?,
+            vert_grid: Grid::new(vert_dims)?,
+            face_data: vec![FaceData::DEFAULT; (dims.element_product()) as usize],
+            vert_data: vec![VertData::DEFAULT; (vert_dims.element_product()) as usize],
             random_value: false,
         })
     }
@@ -170,6 +171,30 @@ impl Tilemap {
 
     pub fn vert_grid(&self) -> &Grid {
         &self.vert_grid
+    }
+
+    pub fn resize_anchored(&mut self, dims: UVec2, anchor: Anchor2) {
+        let mut face_data = Vec::with_capacity(dims.element_product() as usize);
+        let vert_dims = dims + UVec2::ONE;
+        let mut vert_data = Vec::with_capacity(vert_dims.element_product() as usize);
+
+        for fid in self.face_grid.resize_anchored(dims, anchor) {
+            let val = match fid {
+                Some(fid) => self.face_data[fid as usize].clone(),
+                None => FaceData::default(),
+            };
+            face_data.push(val);
+        }
+
+        for vid in self.vert_grid.resize_anchored(vert_dims, anchor) {
+            let val = match vid {
+                Some(vid) => self.vert_data[vid as usize].clone(),
+                None => VertData::default(),
+            };
+            vert_data.push(val);
+        }
+        self.face_data = face_data;
+        self.vert_data = vert_data;
     }
 }
 

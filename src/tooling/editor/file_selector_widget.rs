@@ -198,103 +198,81 @@ impl FileSelectorWidget {
             navigator,
         }
     }
-    pub fn show(&mut self, ctx: &mut Context) -> Option<FileSelectorWidgetResult> {
+    pub fn show(&mut self, ui: &mut Ui) -> Option<FileSelectorWidgetResult> {
         let mut result = None;
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            let space = ui.available_size();
+        ui.vertical(|ui| {
+            ui.heading("File Selector");
 
-            egui::Frame::popup(&Style::default())
-                .inner_margin(Margin {
-                    left: f32::max(0.0, (space.x - 480.0) * 0.5),
-                    right: f32::max(0.0, (space.x - 480.0) * 0.5),
-                    top: 100.,
-                    bottom: 0.,
-                })
-                // .frame(egui::Frame::dark_canvas(&Style::default()).inner_margin(Margin::same(20.0)))
-                .show(ui, |ui| {
-                    ui.centered_and_justified(|ui| {
-                        ui.vertical(|ui| {
-                            ui.heading("File Selector");
+            let Some(nav) = &mut self.navigator else {
+                ui.colored_label(Color32::RED, "Invalid base path");
+                return;
+            };
+            ui.separator();
+            ui.label(&nav.path.to_string_lossy().to_string());
+            ui.separator();
 
-                            let Some(nav) = &mut self.navigator else {
-                                ui.colored_label(Color32::RED, "Invalid base path");
-                                return;
-                            };
-                            ui.separator();
-                            ui.label(&nav.path.to_string_lossy().to_string());
-                            ui.separator();
+            if nav.show(ui) {
+                self.path_input = match &nav.selected_file {
+                    Some(p) => p.file_name().unwrap().to_str().unwrap().to_owned(),
+                    None => String::new(),
+                }
+            }
 
-                            if nav.show(ui) {
-                                self.path_input = match &nav.selected_file {
-                                    Some(p) => p.file_name().unwrap().to_str().unwrap().to_owned(),
-                                    None => String::new(),
-                                }
-                            }
+            ui.separator();
 
-                            ui.separator();
+            ui.horizontal(|ui| {
+                ui.label("File Name:");
+                if ui.text_edit_singleline(&mut self.path_input).changed() {
+                    nav.set_selected(&self.path_input);
+                }
+            });
 
-                            ui.horizontal(|ui| {
-                                ui.label("File Name:");
-                                if ui.text_edit_singleline(&mut self.path_input).changed() {
-                                    nav.set_selected(&self.path_input);
-                                }
-                            });
+            ui.separator();
 
-                            ui.separator();
-
-                            ui.horizontal(|ui| {
-                                match ValidFileSelect::from(
-                                    nav.path.join(&self.path_input),
-                                    self.settings.must_exist,
-                                    self.settings.file_extension,
-                                ) {
-                                    Some(ValidFileSelect::Existing(path)) => {
-                                        if self.settings.warn_overwrite {
-                                            ui.colored_label(
-                                                Color32::YELLOW,
-                                                "File will be overwritten",
-                                            );
-                                        }
-                                        let btn = ui.add_enabled(
-                                            true,
-                                            egui::Button::new(&format!(
-                                                "{} {}",
-                                                self.settings.select_text,
-                                                path.file_name().unwrap().to_string_lossy()
-                                            )),
-                                        );
-                                        if btn.clicked() {
-                                            result =
-                                                Some(FileSelectorWidgetResult::FileSelected(path));
-                                        }
-                                    }
-                                    Some(ValidFileSelect::New(path)) => {
-                                        let btn = ui.add_enabled(
-                                            true,
-                                            egui::Button::new(&format!(
-                                                "{} {}",
-                                                self.settings.select_text,
-                                                path.file_name().unwrap().to_string_lossy()
-                                            )),
-                                        );
-                                        if btn.clicked() {
-                                            result =
-                                                Some(FileSelectorWidgetResult::FileSelected(path));
-                                        }
-                                    }
-                                    None => {
-                                        ui.add_enabled(false, egui::Button::new("Select a file"));
-                                    }
-                                }
-                                if ui.button("Close").clicked() {
-                                    result = Some(FileSelectorWidgetResult::CloseRequested);
-                                }
-                            });
-                            ui.separator();
-                        });
-                    });
-                });
+            ui.horizontal(|ui| {
+                match ValidFileSelect::from(
+                    nav.path.join(&self.path_input),
+                    self.settings.must_exist,
+                    self.settings.file_extension,
+                ) {
+                    Some(ValidFileSelect::Existing(path)) => {
+                        if self.settings.warn_overwrite {
+                            ui.colored_label(Color32::YELLOW, "File will be overwritten");
+                        }
+                        let btn = ui.add_enabled(
+                            true,
+                            egui::Button::new(&format!(
+                                "{} {}",
+                                self.settings.select_text,
+                                path.file_name().unwrap().to_string_lossy()
+                            )),
+                        );
+                        if btn.clicked() {
+                            result = Some(FileSelectorWidgetResult::FileSelected(path));
+                        }
+                    }
+                    Some(ValidFileSelect::New(path)) => {
+                        let btn = ui.add_enabled(
+                            true,
+                            egui::Button::new(&format!(
+                                "{} {}",
+                                self.settings.select_text,
+                                path.file_name().unwrap().to_string_lossy()
+                            )),
+                        );
+                        if btn.clicked() {
+                            result = Some(FileSelectorWidgetResult::FileSelected(path));
+                        }
+                    }
+                    None => {
+                        ui.add_enabled(false, egui::Button::new("Select a file"));
+                    }
+                }
+                if ui.button("Close").clicked() {
+                    result = Some(FileSelectorWidgetResult::CloseRequested);
+                }
+            });
         });
         result
     }

@@ -52,8 +52,8 @@ pub struct TilemapEditorPlugin;
 
 impl Plugin for TilemapEditorPlugin {
     fn build(&self, app: &mut App) {
-        let tilemap = Tilemap::new(32, 32).unwrap();
-        let tileset = Tileset::new(TILESET_TILE_NUM[0], TILESET_TILE_NUM[1]).unwrap();
+        let tilemap = Tilemap::new(UVec2::new(32, 32)).unwrap();
+        let tileset = Tileset::new(UVec2::new(TILESET_TILE_NUM[0], TILESET_TILE_NUM[1])).unwrap();
 
         app.init_resource::<Systems>()
             .init_state::<ControlMode>()
@@ -110,6 +110,7 @@ fn recreate_ground_and_wall_meshes(
     mut cmd: Commands,
     ass: Res<AssetServer>,
     state: Res<EditorState>,
+    mut egui_state: ResMut<ui::EguiState>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut mats: ResMut<Assets<StandardMaterial>>,
     grounds: Query<Entity, With<TilemapGroundMesh>>,
@@ -122,13 +123,12 @@ fn recreate_ground_and_wall_meshes(
     for ex in walls.iter() {
         cmd.entity(ex).despawn_recursive();
     }
-    //
-    let map = &state.tilemap;
     let diffuse: Handle<Image> = ass.load(TILESET_PATH_DIFFUSE);
     let normal: Option<Handle<Image>> = TILESET_PATH_NORMAL.map(|f| ass.load(f));
 
-    let builder = RawMeshBuilder::new(&map);
+    let builder = RawMeshBuilder::new(&state.tilemap);
     let mesh = builder.make_ground_mesh(&state.tileset).into_bevy_mesh();
+    // let collider = builder.build_rapier_heightfield_collider();
     let collider = tilemap_mesh::build_rapier_convex_collider_for_preview(&mesh);
     let handle: Handle<Mesh> = meshes.add(mesh);
 
@@ -172,6 +172,10 @@ fn recreate_ground_and_wall_meshes(
             CollisionGroups::new(Group::GROUP_16, Group::GROUP_16),
             TilemapWallMesh,
         ));
+    }
+
+    if let Some(widget) = &mut egui_state.resize_widget {
+        widget.set_dims(state.tilemap.dims());
     }
 }
 
@@ -435,6 +439,7 @@ pub(super) mod ui {
                 FileSelectorWidget, FileSelectorWidgetResult, FileSelectorWidgetSettings,
             },
             tilemap_asset::TilemapRon,
+            tilemap_size_widget::TilemapSizeWidget,
             tileset_widget::TilesetWidget,
         },
     };
@@ -450,6 +455,7 @@ pub(super) mod ui {
         pub paint_widget: Option<TilesetWidget>,
         pub paint_widget_open: bool,
         pub file_widget: Option<FileWidget>,
+        pub resize_widget: Option<TilemapSizeWidget>,
     }
 
     pub(super) struct FileWidget {
@@ -524,10 +530,8 @@ pub(super) mod ui {
     pub(super) fn check_open_file_dialog(
         mut state: ResMut<EguiState>,
         keys: Res<ButtonInput<KeyCode>>,
+        editor_state: Res<EditorState>,
     ) {
-        if state.file_widget.is_some() {
-            return;
-        }
         if keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight) {
             if keys.just_pressed(KeyCode::KeyS) {
                 state.file_widget = Some(FileWidget::save_tilemap());
@@ -537,6 +541,12 @@ pub(super) mod ui {
             }
             if keys.just_pressed(KeyCode::KeyL) {
                 state.file_widget = Some(FileWidget::load_tilemap_autosave());
+            }
+            if keys.just_pressed(KeyCode::KeyR) {
+                state.resize_widget = match state.resize_widget.is_some() {
+                    true => None,
+                    false => Some(TilemapSizeWidget::new(editor_state.tilemap.dims())),
+                }
             }
         }
     }
@@ -554,13 +564,22 @@ pub(super) mod ui {
         let win = win.single();
         let ctx = ctxs.ctx_for_window_mut(win);
 
-        let mut clear_widget = false;
+        let mut file_select_open = true;
         match &mut state.file_widget {
             Some(widget) => {
-                if keys.just_pressed(KeyCode::Escape) {
-                    clear_widget = true;
-                }
-                match widget.widget.show(ctx) {
+                let mut response = None;
+                let title = match widget.mode {
+                    FileWidgetMode::LoadTilemap => "Load Tilemap",
+                    FileWidgetMode::SaveTilemap => "Save Tilemap",
+                };
+                egui::Window::new(title)
+                    .id("file_selector_widget_window".into())
+                    .open(&mut file_select_open)
+                    .show(ctx, |ui| {
+                        response = widget.widget.show(ui);
+                    });
+
+                match response {
                     Some(FileSelectorWidgetResult::FileSelected(path)) => {
                         match widget.mode {
                             FileWidgetMode::LoadTilemap => match TilemapRon::read(&path) {
@@ -580,18 +599,39 @@ pub(super) mod ui {
                                 }
                             }
                         }
-                        clear_widget = true;
+                        file_select_open = false;
                     }
                     Some(FileSelectorWidgetResult::CloseRequested) => {
-                        clear_widget = true;
+                        file_select_open = false;
                     }
                     None => {}
+                }
+                if keys.just_pressed(KeyCode::Escape) {
+                    file_select_open = false;
                 }
             }
             None => {}
         }
-        if clear_widget {
+        if !file_select_open {
             let _ = state.file_widget.take();
+        }
+
+        let mut resize_widget_open = true;
+        if let Some(widget) = &mut state.resize_widget {
+            egui::Window::new("Resize Tilemap")
+                .open(&mut resize_widget_open)
+                .show(ctx, |ui| {
+                    if let Some((anchor, dims)) = widget.show(ui) {
+                        editor_state.tilemap.resize_anchored(dims, anchor);
+                        cmd.run_system(systems.recreate_ground_mesh);
+                    }
+                });
+            if keys.just_pressed(KeyCode::Escape) {
+                resize_widget_open = false;
+            }
+        }
+        if !resize_widget_open {
+            let _ = state.resize_widget.take();
         }
 
         match editor_mode.get() {

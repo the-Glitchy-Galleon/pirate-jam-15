@@ -27,7 +27,6 @@ impl<'a> RawMeshBuilder<'a> {
         let mut vertices = vec![];
         let mut indices = vec![];
         let mut uvs = vec![];
-        let mut normals = vec![];
         let map = self.tilemap;
 
         let offset = -(map.size() * 0.5);
@@ -58,16 +57,10 @@ impl<'a> RawMeshBuilder<'a> {
                     [tile.min.x, tile.max.y],
                 ]);
 
-                // Todo: fix normal based on slope
-                normals.extend(&[
-                    [0.0, 1.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                ]);
                 indices.extend(&[0, 3, 2, 2, 1, 0].map(|i| i + fid * 4));
             }
         }
+        let normals = vertex_normals(&vertices, &indices);
 
         RawMesh {
             vertices,
@@ -173,7 +166,7 @@ impl<'a> RawMeshBuilder<'a> {
                     let nz = z + dz;
 
                     vertices.extend(&[[x, y, z], [nx, y, nz], [nx, ny, nz], [x, ny, z]]);
-                    normals.extend(&[[nx, 0.0, nz]; 4]);
+                    normals.extend(&[[dx, 0.0, dz]; 4]);
 
                     let tile =
                         tileset.id_to_uvs_or_default(face.wall_side_tile_ids[t + (h * 4) as usize]);
@@ -296,9 +289,56 @@ pub fn build_rapier_convex_collider_for_export(mesh: &Mesh) -> Collider {
     .unwrap()
 }
 
+fn triangle_normal(verts: [[f32; 3]; 3]) -> [f32; 3] {
+    let (v0, v1, v2) = (verts[0], verts[1], verts[2]);
+    let e1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+    let e2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+    normalize_or_zero(cross_product(e1, e2))
+}
+
+#[rustfmt::skip]
+fn cross_product(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {[
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+]}
+
+fn normalize_or_zero(v: [f32; 3]) -> [f32; 3] {
+    match (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt() {
+        0.0 => [0.0, 0.0, 0.0],
+        len => [v[0] / len, v[1] / len, v[2] / len],
+    }
+}
+
+fn vertex_normals(vertices: &[[f32; 3]], indices: &[u32]) -> Vec<[f32; 3]> {
+    let mut normals = vec![[0.0, 0.0, 0.0]; vertices.len()];
+    let mut counts = vec![0; vertices.len()];
+
+    for i in (0..indices.len()).step_by(3) {
+        let idx = [indices[i + 0], indices[i + 1], indices[i + 2]].map(|i| i as usize);
+        let verts = [vertices[idx[0]], vertices[idx[1]], vertices[idx[2]]];
+        let normal = triangle_normal(verts);
+        for idx in idx {
+            normals[idx][0] += normal[0];
+            normals[idx][1] += normal[1];
+            normals[idx][2] += normal[2];
+            counts[idx] += 1;
+        }
+    }
+    for i in 0..normals.len() {
+        if counts[i] > 0 {
+            normals[i][0] /= counts[i] as f32;
+            normals[i][1] /= counts[i] as f32;
+            normals[i][2] /= counts[i] as f32;
+            normals[i] = normalize_or_zero(normals[i]);
+        }
+    }
+    normals
+}
+
 #[test]
 fn checking() {
-    let tilemap = Tilemap::new(3, 3).unwrap();
+    let tilemap = Tilemap::new(UVec2::new(3, 3)).unwrap();
     assert_eq!(
         tilemap.face_grid().neighbor_coords_4(UVec2::new(0, 0)),
         [None, Some(UVec2::new(1, 0)), None, Some(UVec2::new(0, 1)),]
