@@ -35,6 +35,7 @@ pub struct KinematicCharacterBundle {
     pub controller: KinematicCharacterController,
     pub control: CharacterWalkControl,
     pub state: CharacterWalkState,
+    pub rigid_body: RigidBody,
 }
 
 impl Default for KinematicCharacterBundle {
@@ -58,6 +59,7 @@ impl Default for KinematicCharacterBundle {
                 snap_to_ground: None,
                 ..default()
             },
+            rigid_body: RigidBody::KinematicPositionBased,
             control: CharacterWalkControl::default(),
             state: CharacterWalkState::default(),
         }
