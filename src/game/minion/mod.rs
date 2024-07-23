@@ -7,7 +7,7 @@ pub use walk_target::*;
 
 use super::{CharacterWalkControl, KinematicCharacterBundle, PlayerTag};
 
-const MINION_TARGET_RANGE: f32 = 0.5;
+const MINION_INTERRACTION_RANGE: f32 = 0.5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Component, Reflect, Default)]
 pub enum MinionKind {
@@ -77,7 +77,7 @@ pub fn update_minion_state(
     };
 
     for (tf, mut state) in minion_q.iter_mut() {
-        let dist_check = |p| tf.translation().distance(p) < MINION_TARGET_RANGE;
+        let dist_check = |p| tf.translation().distance(p) < MINION_INTERRACTION_RANGE;
 
         match *state {
             MinionState::GoingToPlayer => {
