@@ -1,5 +1,5 @@
 use super::tilemap_controls::TilemapControls;
-use super::tilemap_mesh::{self, RawMeshBuilder};
+use super::tilemap_mesh_builder::{self, RawMeshBuilder};
 use crate::framework::level_asset::{LevelAsset, LevelAssetData, WallData};
 use crate::framework::prelude::*;
 use crate::framework::tilemap::{Pnormal3, SLOPE_HEIGHT, WALL_HEIGHT};
@@ -10,7 +10,6 @@ use bevy_rapier3d::geometry::{CollisionGroups, Group};
 use bevy_rapier3d::math::Real;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::plugin::RapierContext;
-use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
 
 const DEFAULT_EDITOR_SAVE_PATH: &str = "./level_editor_scenes";
@@ -135,7 +134,7 @@ fn recreate_ground_and_wall_meshes(
     let builder = RawMeshBuilder::new(&state.tilemap);
     let mesh = builder.make_ground_mesh(&state.tileset).into();
     // let collider = builder.build_rapier_heightfield_collider();
-    let collider = tilemap_mesh::build_rapier_convex_collider_for_preview(&mesh);
+    let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(&mesh);
     let handle: Handle<Mesh> = meshes.add(mesh);
 
     cmd.spawn((
@@ -158,7 +157,7 @@ fn recreate_ground_and_wall_meshes(
 
     for mesh in builder.make_wall_meshes(&state.tileset) {
         let mesh = mesh.into();
-        let collider = tilemap_mesh::build_rapier_convex_collider_for_preview(&mesh);
+        let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(&mesh);
         // let collider = Collider::from_bevy_mesh(&mesh, &ComputedColliderShape::TriMesh).unwrap();
         let handle: Handle<Mesh> = meshes.add(mesh);
         cmd.spawn((
@@ -719,14 +718,16 @@ fn export_level_scene(world: &mut World) {
 
     let builder = RawMeshBuilder::new(&state.tilemap);
     let mesh = builder.make_ground_mesh(&state.tileset);
-    let collider = tilemap_mesh::build_rapier_convex_collider_for_preview(&mesh.clone().into());
+    let collider =
+        tilemap_mesh_builder::build_rapier_convex_collider_for_preview(&mesh.clone().into());
 
     let walls = builder
         .make_wall_meshes(&state.tileset)
         .into_iter()
         .map(|mesh| {
-            let collider =
-                tilemap_mesh::build_rapier_convex_collider_for_preview(&mesh.clone().into());
+            let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(
+                &mesh.clone().into(),
+            );
             WallData { mesh, collider }
         })
         .collect();
