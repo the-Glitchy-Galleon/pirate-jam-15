@@ -123,7 +123,9 @@ pub fn minion_storage_pickup(
     min_inp.do_pickup = false;
 
     for (min, ty) in dropped_mins.iter() {
-        let Some(coll) = rap_ctx.intersection_pair(min, collider) else {
+        let result = rap_ctx.intersection_pair(min, collider);
+        info!("{min:?} {collider:?}: {:?}", result);
+        let Some(coll) = result else {
             continue;
         };
 

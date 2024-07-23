@@ -45,6 +45,7 @@ pub fn setup_player(mut commands: Commands) {
                             .with_translation(Vec3::new(3.0, -1.0, 0.0)),
                             ..default()
                         },
+                        ActiveCollisionTypes::KINEMATIC_STATIC,
                         Collider::cone(3.0, 4.5),
                         RigidBody::Fixed,
                         Sensor,
