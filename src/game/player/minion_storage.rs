@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
 
-use crate::game::{CharacterWalkControl, MinionKind};
+use crate::game::{CharacterWalkControl, MinionBundle, MinionKind};
 
 use super::PlayerTag;
 
@@ -66,16 +66,15 @@ pub fn minion_storage_throw(
         return;
     }
 
-    commands.spawn((
-        SpatialBundle {
+    commands.spawn(MinionBundle {
+        spatial: SpatialBundle {
             transform: Transform::from_translation(min_inp.to_where + 3.0 * Vec3::Y),
             ..default()
         },
-        RigidBody::Dynamic,
-        Collider::cuboid(0.3, 0.3, 0.3),
-        ColliderDebugColor(Color::linear_rgb(0.0, 1.0, 0.0).into()),
-        min_inp.chosen_ty,
-    ));
+        collider: Collider::cuboid(0.3, 0.3, 0.3),
+        kind: min_inp.chosen_ty,
+        ..default()
+    });
 }
 
 pub fn minion_storage_pickup(

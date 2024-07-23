@@ -1,11 +1,13 @@
 use bevy::prelude::*;
+use bevy_rapier3d::prelude::Collider;
 
-use super::{CharacterWalkControl, PlayerTag};
+use super::{CharacterWalkControl, KinematicCharacterBundle, PlayerTag};
 
 const MINION_TARGET_RANGE: f32 = 0.1;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Component, Reflect)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Component, Reflect, Default)]
 pub enum MinionKind {
+    #[default]
     Spoink,
     Doink,
     Woink,
@@ -23,6 +25,15 @@ pub enum MinionState {
     GoingToPlayer,
     GoingTo(Entity),
     Interracting(Entity),
+}
+
+#[derive(Bundle, Default)]
+pub struct MinionBundle {
+    pub spatial: SpatialBundle,
+    pub collider: Collider,
+    pub character: KinematicCharacterBundle,
+    pub kind: MinionKind,
+    pub state: MinionState,
 }
 
 pub fn minion_walk(
