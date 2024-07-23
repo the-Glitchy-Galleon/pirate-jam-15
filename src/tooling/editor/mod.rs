@@ -17,6 +17,7 @@ pub mod tilemap_editor;
 pub mod tilemap_mesh;
 pub mod tilemap_size_widget;
 pub mod tileset_widget;
+
 pub struct LevelEditorPlugin;
 
 impl Plugin for LevelEditorPlugin {

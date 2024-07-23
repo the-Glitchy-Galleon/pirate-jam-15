@@ -44,6 +44,8 @@ impl Plugin for GamePlugin {
         .add_systems(Update, player_minion)
         .add_systems(Update, player_minion_pickup);
 
+        app.add_systems(Startup, load_preview_scene);
+
         app.add_plugins(AudioPlugin);
     }
 }
@@ -238,4 +240,61 @@ fn setup_physics(mut commands: Commands) {
 
         offset -= 0.05 * rad * (num as f32 - 1.0);
     }
+}
+
+fn load_preview_scene(
+    mut cmd: Commands,
+    ass: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut mats: ResMut<Assets<StandardMaterial>>,
+) {
+    use crate::framework::level_asset::LevelAsset;
+    use crate::framework::tileset::TILESET_PATH_DIFFUSE;
+    use crate::framework::tileset::TILESET_PATH_NORMAL;
+
+    let diffuse: Handle<Image> = ass.load(TILESET_PATH_DIFFUSE);
+    let normal: Option<Handle<Image>> = TILESET_PATH_NORMAL.map(|f| ass.load(f));
+
+    let level_asset = LevelAsset::load("./assets/level/preview.level").unwrap();
+
+    let handle: Handle<Mesh> = meshes.add(level_asset.data().ground_mesh.clone());
+    let collider = level_asset.data().ground_collider.clone();
+
+    cmd.spawn((
+        PbrBundle {
+            mesh: handle,
+            material: mats.add(StandardMaterial {
+                base_color_texture: Some(diffuse.clone()),
+                normal_map_texture: normal.clone(),
+                perceptual_roughness: 0.9,
+                metallic: 0.0,
+                ..default()
+            }),
+            transform: Transform::IDENTITY.with_scale(Vec3::ONE * 2.0),
+            ..default()
+        },
+        collider,
+    ))
+    .with_children(|parent| {
+        for wall in &level_asset.data().walls {
+            let mesh = wall.mesh.clone();
+            let collider = wall.collider.clone();
+            let handle: Handle<Mesh> = meshes.add(mesh);
+            parent.spawn((
+                PbrBundle {
+                    mesh: handle,
+                    material: mats.add(StandardMaterial {
+                        base_color_texture: Some(diffuse.clone()),
+                        normal_map_texture: normal.clone(),
+                        perceptual_roughness: 0.9,
+                        metallic: 0.0,
+                        ..default()
+                    }),
+                    transform: Transform::IDENTITY,
+                    ..default()
+                },
+                collider,
+            ));
+        }
+    });
 }

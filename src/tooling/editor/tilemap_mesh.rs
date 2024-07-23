@@ -13,6 +13,7 @@ use bevy::{
 };
 use bevy_rapier3d::geometry::{Collider, ComputedColliderShape, VHACDParameters};
 use itertools::izip;
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
 pub struct RawMeshBuilder<'a> {
@@ -252,7 +253,7 @@ impl<'a> RawMeshBuilder<'a> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct RawMesh {
     pub vertices: Vec<[f32; 3]>,
     pub indices: Vec<u32>,
@@ -260,8 +261,8 @@ pub struct RawMesh {
     pub uvs: Vec<[f32; 2]>,
 }
 
-impl RawMesh {
-    pub fn into_bevy_mesh(self) -> Mesh {
+impl Into<Mesh> for RawMesh {
+    fn into(self) -> Mesh {
         Mesh::new(
             PrimitiveTopology::TriangleList,
             RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,

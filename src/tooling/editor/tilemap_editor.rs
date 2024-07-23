@@ -1,5 +1,6 @@
 use super::tilemap_controls::TilemapControls;
 use super::tilemap_mesh::{self, RawMeshBuilder};
+use crate::framework::level_asset::{LevelAsset, LevelAssetData, WallData};
 use crate::framework::prelude::*;
 use crate::framework::tilemap::{Pnormal3, SLOPE_HEIGHT, WALL_HEIGHT};
 use crate::framework::tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL, TILESET_TILE_NUM};
@@ -9,9 +10,11 @@ use bevy_rapier3d::geometry::{CollisionGroups, Group};
 use bevy_rapier3d::math::Real;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::plugin::RapierContext;
+use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
 
 const DEFAULT_EDITOR_SAVE_PATH: &str = "./level_editor_scenes";
+const DEFAULT_EDITOR_EXPORT_PATH: &str = "./assets/level";
 
 #[derive(Component, Reflect)]
 pub struct TilemapGroundMesh;
@@ -57,6 +60,7 @@ impl Plugin for TilemapEditorPlugin {
 
         app.init_resource::<Systems>()
             .init_state::<ControlMode>()
+            .init_resource::<ExportLevelScenePath>()
             .insert_resource(EditorState {
                 tilemap,
                 tileset,
@@ -92,12 +96,14 @@ impl Plugin for TilemapEditorPlugin {
 #[derive(Resource)]
 struct Systems {
     recreate_ground_mesh: SystemId,
+    export_level_scene: SystemId,
 }
 
 impl FromWorld for Systems {
     fn from_world(world: &mut World) -> Self {
         Self {
             recreate_ground_mesh: world.register_system(recreate_ground_and_wall_meshes),
+            export_level_scene: world.register_system(export_level_scene),
         }
     }
 }
@@ -127,7 +133,7 @@ fn recreate_ground_and_wall_meshes(
     let normal: Option<Handle<Image>> = TILESET_PATH_NORMAL.map(|f| ass.load(f));
 
     let builder = RawMeshBuilder::new(&state.tilemap);
-    let mesh = builder.make_ground_mesh(&state.tileset).into_bevy_mesh();
+    let mesh = builder.make_ground_mesh(&state.tileset).into();
     // let collider = builder.build_rapier_heightfield_collider();
     let collider = tilemap_mesh::build_rapier_convex_collider_for_preview(&mesh);
     let handle: Handle<Mesh> = meshes.add(mesh);
@@ -151,7 +157,7 @@ fn recreate_ground_and_wall_meshes(
     ));
 
     for mesh in builder.make_wall_meshes(&state.tileset) {
-        let mesh = mesh.into_bevy_mesh();
+        let mesh = mesh.into();
         let collider = tilemap_mesh::build_rapier_convex_collider_for_preview(&mesh);
         // let collider = Collider::from_bevy_mesh(&mesh, &ComputedColliderShape::TriMesh).unwrap();
         let handle: Handle<Mesh> = meshes.add(mesh);
@@ -430,7 +436,8 @@ fn draw_hovered_tile_gizmo(
 
 pub(super) mod ui {
     use super::{
-        ControlMode, EditorState, Systems, DEFAULT_EDITOR_SAVE_PATH, TILESET_PATH_DIFFUSE,
+        ControlMode, EditorState, ExportLevelScenePath, Systems, DEFAULT_EDITOR_EXPORT_PATH,
+        DEFAULT_EDITOR_SAVE_PATH, TILESET_PATH_DIFFUSE,
     };
     use crate::{
         framework::tileset::{TILESET_TEXTURE_DIMS, TILESET_TILE_DIMS},
@@ -494,11 +501,25 @@ pub(super) mod ui {
                 ),
             }
         }
+        pub fn export_tilemap() -> Self {
+            Self {
+                mode: FileWidgetMode::ExportLevel,
+                widget: FileSelectorWidget::new(
+                    Path::new(DEFAULT_EDITOR_EXPORT_PATH),
+                    FileSelectorWidgetSettings {
+                        select_text: "Export",
+                        file_extension: "level",
+                        ..FileSelectorWidgetSettings::SAVE
+                    },
+                ),
+            }
+        }
     }
 
     pub(super) enum FileWidgetMode {
         LoadTilemap,
         SaveTilemap,
+        ExportLevel,
     }
 
     pub(super) fn setup(
@@ -548,6 +569,9 @@ pub(super) mod ui {
                     false => Some(TilemapSizeWidget::new(editor_state.tilemap.dims())),
                 }
             }
+            if keys.just_pressed(KeyCode::KeyE) {
+                state.file_widget = Some(FileWidget::export_tilemap());
+            }
         }
     }
 
@@ -559,7 +583,8 @@ pub(super) mod ui {
         win: Query<Entity, With<PrimaryWindow>>,
         keys: Res<ButtonInput<KeyCode>>,
         mut cmd: Commands,
-        systems: Res<Systems>,
+        sys: Res<Systems>,
+        mut export_level_scene_path: ResMut<ExportLevelScenePath>,
     ) {
         let win = win.single();
         let ctx = ctxs.ctx_for_window_mut(win);
@@ -571,6 +596,7 @@ pub(super) mod ui {
                 let title = match widget.mode {
                     FileWidgetMode::LoadTilemap => "Load Tilemap",
                     FileWidgetMode::SaveTilemap => "Save Tilemap",
+                    FileWidgetMode::ExportLevel => "Export Tilemap",
                 };
                 egui::Window::new(title)
                     .id("file_selector_widget_window".into())
@@ -585,7 +611,7 @@ pub(super) mod ui {
                             FileWidgetMode::LoadTilemap => match TilemapRon::read(&path) {
                                 Ok(ron) => {
                                     editor_state.tilemap = ron.tilemap;
-                                    cmd.run_system(systems.recreate_ground_mesh);
+                                    cmd.run_system(sys.recreate_ground_mesh);
                                 }
                                 Err(e) => {
                                     error!("Failed to load tilemap {path:?}: {e:?}",)
@@ -597,6 +623,10 @@ pub(super) mod ui {
                                 {
                                     error!("Failed to save tilemap to {path:?}. {e:?}",);
                                 }
+                            }
+                            FileWidgetMode::ExportLevel => {
+                                export_level_scene_path.0 = path.to_string_lossy().into();
+                                cmd.run_system(sys.export_level_scene);
                             }
                         }
                         file_select_open = false;
@@ -623,7 +653,7 @@ pub(super) mod ui {
                 .show(ctx, |ui| {
                     if let Some((anchor, dims)) = widget.show(ui) {
                         editor_state.tilemap.resize_anchored(dims, anchor);
-                        cmd.run_system(systems.recreate_ground_mesh);
+                        cmd.run_system(sys.recreate_ground_mesh);
                     }
                 });
             if keys.just_pressed(KeyCode::Escape) {
@@ -676,5 +706,39 @@ pub(super) mod ui {
             ControlMode::PaintWalls3D => *text = ["Shape Walls 3D"].join("\n"),
             ControlMode::PlaceGameObjects => *text = ["Place Game Objects"].join("\n"),
         }
+    }
+}
+
+#[derive(Resource, Default)]
+struct ExportLevelScenePath(String);
+
+fn export_level_scene(world: &mut World) {
+    // let mut ass = world.resource_mut::<AssetServer>();
+    let state = world.resource::<EditorState>();
+    let path = world.resource::<ExportLevelScenePath>().0.clone();
+
+    let builder = RawMeshBuilder::new(&state.tilemap);
+    let mesh = builder.make_ground_mesh(&state.tileset);
+    let collider = tilemap_mesh::build_rapier_convex_collider_for_preview(&mesh.clone().into());
+
+    let walls = builder
+        .make_wall_meshes(&state.tileset)
+        .into_iter()
+        .map(|mesh| {
+            let collider =
+                tilemap_mesh::build_rapier_convex_collider_for_preview(&mesh.clone().into());
+            WallData { mesh, collider }
+        })
+        .collect();
+
+    let level_asset = LevelAsset::new(LevelAssetData {
+        ground_collider: collider,
+        ground_mesh: mesh,
+        walls,
+    });
+
+    match level_asset.save(path.as_str()) {
+        Ok(()) => info!("Export successful!"),
+        Err(e) => error!("error saving level: {e:?}"),
     }
 }

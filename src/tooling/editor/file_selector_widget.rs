@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_egui::egui::{self, Color32, Context, Margin, Style, Ui};
+use bevy_egui::egui::{self, Color32, Ui};
 use std::path::{self, Path, PathBuf};
 
 pub struct FileSelectorWidget {
@@ -12,7 +12,6 @@ pub struct FileSelectorWidgetSettings {
     pub must_exist: bool,
     pub warn_overwrite: bool,
     pub select_text: &'static str,
-    pub base_path_is_changeable: bool,
     pub file_extension: &'static str,
 }
 impl FileSelectorWidgetSettings {
@@ -20,14 +19,12 @@ impl FileSelectorWidgetSettings {
         must_exist: true,
         warn_overwrite: false,
         select_text: "Load",
-        base_path_is_changeable: true,
         file_extension: "ron",
     };
     pub const SAVE: Self = Self {
         must_exist: false,
         warn_overwrite: true,
         select_text: "Save",
-        base_path_is_changeable: true,
         file_extension: "ron",
     };
 }
@@ -202,13 +199,10 @@ impl FileSelectorWidget {
         let mut result = None;
 
         ui.vertical(|ui| {
-            ui.heading("File Selector");
-
             let Some(nav) = &mut self.navigator else {
                 ui.colored_label(Color32::RED, "Invalid base path");
                 return;
             };
-            ui.separator();
             ui.label(&nav.path.to_string_lossy().to_string());
             ui.separator();
 
@@ -218,7 +212,6 @@ impl FileSelectorWidget {
                     None => String::new(),
                 }
             }
-
             ui.separator();
 
             ui.horizontal(|ui| {
