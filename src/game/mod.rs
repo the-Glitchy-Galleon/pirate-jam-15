@@ -1,3 +1,4 @@
+use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
 use bevy::{
     color::palettes::tailwind,
     input::InputSystem,
@@ -9,7 +10,6 @@ use bevy_rapier3d::prelude::*;
 use object_def::ColorDef;
 pub use player_minion::*;
 pub use player_movement::*;
-use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
 
 pub mod object_def;
 pub mod player_minion;
