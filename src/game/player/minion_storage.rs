@@ -2,7 +2,9 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
 
-use crate::game::{CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionTarget, WalkTargetBundle};
+use crate::game::{
+    CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionTarget, WalkTargetBundle,
+};
 
 use super::PlayerTag;
 
@@ -66,18 +68,19 @@ pub fn minion_storage_throw(
         return;
     }
 
-    let target_id = commands.spawn(WalkTargetBundle {
-        spatial: SpatialBundle {
-            transform: Transform::from_translation(min_inp.to_where),
-            ..default()
-        },
-        target_tag: MinionTarget,
-    }).id();
+    let target_id = commands
+        .spawn(WalkTargetBundle {
+            spatial: SpatialBundle {
+                transform: Transform::from_translation(min_inp.to_where),
+                ..default()
+            },
+            target_tag: MinionTarget,
+        })
+        .id();
 
-    let minion_pos =
-        tf.translation() +
-        2.0 * (min_inp.to_where - tf.translation()).normalize_or_zero() +
-        3.0 * Vec3::Y;
+    let minion_pos = tf.translation()
+        + 2.0 * (min_inp.to_where - tf.translation()).normalize_or_zero()
+        + 3.0 * Vec3::Y;
 
     commands.spawn(MinionBundle {
         spatial: SpatialBundle {

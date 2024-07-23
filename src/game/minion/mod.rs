@@ -56,8 +56,8 @@ pub fn minion_walk(
                 Ok(tf) => tf.translation(),
                 Err(e) => {
                     warn!("Failed to get target pos: {e}");
-                    continue
-                },
+                    continue;
+                }
             },
             _ => continue,
         };
