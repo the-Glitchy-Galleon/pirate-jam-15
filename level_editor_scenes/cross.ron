@@ -1,5 +1,5 @@
 (
-    version: 2,
+    version: 3,
     tilemap: (
         face_grid: (
             dims: (32, 32),
@@ -9424,4 +9424,5 @@
         ],
     ),
     objects: [],
+    meshes: [],
 )

@@ -5,11 +5,13 @@ use bevy::{
     reflect::TypePath,
 };
 use bevy_rapier3d::prelude::Collider;
-use lz4_flex::{compress_prepend_size, decompress_size_prepended};
+use lz4_flex::decompress_size_prepended;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs::File,
-    io::{BufReader, BufWriter, Read, Write},
+#[cfg(not(target_family = "wasm"))]
+use {
+    lz4_flex::compress_prepend_size,
+    std::fs::File,
+    std::io::{BufReader, BufWriter, Read, Write},
 };
 
 #[derive(Asset, TypePath, Serialize, Deserialize)]
@@ -18,7 +20,7 @@ pub struct LevelAsset {
     data: LevelAssetData,
 }
 impl LevelAsset {
-    pub const CURRENT_VERSION: u32 = 2;
+    pub const CURRENT_VERSION: u32 = 3;
     pub fn new(data: LevelAssetData) -> Self {
         Self {
             version: Self::CURRENT_VERSION,
@@ -75,6 +77,7 @@ pub struct LevelAssetData {
     pub ground_mesh: RawMesh,
     pub walls: Vec<WallData>,
     pub objects: Vec<ObjectDef>,
+    pub meshes: Vec<OrnamentalMesh>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -104,4 +107,11 @@ impl AssetLoader for LevelAssetLoader {
     fn extensions(&self) -> &[&str] {
         &["level"]
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OrnamentalMesh {
+    pub asset_path: String,
+    pub position: Vec3,
+    pub rotation: Vec3,
 }

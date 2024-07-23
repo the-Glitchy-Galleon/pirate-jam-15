@@ -780,6 +780,7 @@ pub(super) mod ui {
                                 let ron = TilemapRon::new(
                                     editor_state.tilemap.clone(),
                                     object_def_widget.defs().to_owned(),
+                                    vec![], // Todo!
                                 );
                                 if let Err(e) = ron.write(&path) {
                                     error!("Failed to save tilemap to {path:?}. {e:?}",);
@@ -927,6 +928,7 @@ fn export_level_scene(world: &mut World) {
         ground_mesh: mesh,
         walls,
         objects,
+        meshes: vec![], // TODO
     });
 
     match level_asset.save(path.as_str()) {

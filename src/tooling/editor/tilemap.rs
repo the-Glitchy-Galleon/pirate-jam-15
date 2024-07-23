@@ -282,7 +282,7 @@ impl Pnormal3 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Reflect, Serialize, Deserialize)]
 #[repr(u32)]
 #[rustfmt::skip]
 pub enum Pnormal2 {NO,ON,PO,OP}
