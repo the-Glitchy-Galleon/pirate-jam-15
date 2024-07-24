@@ -58,8 +58,10 @@ pub fn update_minion_interaction_requirements(
                 *buffer.entry(kind).or_default() += 1
             );
 
-        req.is_satisfied = req.counts.iter().all(|(k, cnt)| {
-            buffer.get(k).map(|x| *x).unwrap_or_default() >= *cnt
-        });
+        req.is_satisfied = req.counts.iter()
+            .filter(|(_, cnt)| **cnt > 0)
+            .all(|(k, cnt)| {
+                buffer.get(k).map(|x| *x).unwrap_or_default() >= *cnt
+            });
     }
 }
