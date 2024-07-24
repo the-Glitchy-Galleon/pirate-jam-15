@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::game::{
-    CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionStorage, MinionTarget, WalkTargetBundle
+    CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionStorage, MinionTarget, WalkTargetBundle, WalkTargetTag
 };
 
 use super::PlayerTag;
@@ -44,7 +44,7 @@ pub fn minion_storage_throw(
                 transform: Transform::from_translation(min_inp.to_where),
                 ..default()
             },
-            target_tag: MinionTarget,
+            ..default()
         })
         .id();
 
