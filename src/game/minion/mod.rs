@@ -122,27 +122,3 @@ pub fn cleanup_minion_state(
         }
     }
 }
-
-pub fn cleanup_minion_target(
-    minion_q: Query<&MinionState>,
-    target_q: Query<Entity, With<MinionTarget>>,
-    mut commands: Commands,
-) {
-    for target in target_q.iter() {
-        let count = minion_q
-            .iter()
-            .filter_map(|st| match st {
-                MinionState::GoingTo(t) => Some(t),
-                MinionState::Interracting(t) => Some(t),
-                _ => None,
-            })
-            .filter(|t| **t == target)
-            .count();
-
-        if count > 0 {
-            continue;
-        }
-
-        commands.entity(target).remove::<MinionTarget>();
-    }
-}
