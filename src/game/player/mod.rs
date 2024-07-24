@@ -20,10 +20,10 @@ pub struct PlayerTag;
 pub fn setup_player(mut commands: Commands) {
     let mut minion_st = MinionStorage::new();
 
-    minion_st.add_minion(MinionKind::Doink);
-    minion_st.add_minion(MinionKind::Doink);
-    minion_st.add_minion(MinionKind::Doink);
-    minion_st.add_minion(MinionKind::Doink);
+    minion_st.add_minion(MinionKind::Void);
+    minion_st.add_minion(MinionKind::Void);
+    minion_st.add_minion(MinionKind::Void);
+    minion_st.add_minion(MinionKind::Void);
 
     commands
         .spawn((

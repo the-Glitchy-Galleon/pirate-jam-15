@@ -42,7 +42,7 @@ impl Plugin for GamePlugin {
             .register_type::<MinionInteractionRequirement>();
 
         app.insert_resource(MinionStorageInput {
-            chosen_ty: MinionKind::Doink,
+            chosen_ty: MinionKind::Void,
             want_to_throw: false,
             to_where: MinionThrowTarget::Location(Vec3::ZERO),
             do_pickup: false,
@@ -104,7 +104,7 @@ fn setup_physics(mut commands: Commands) {
         DestructibleTargetBundle {
             requirement: {
                 let mut map = HashMap::new();
-                map.insert(MinionKind::Doink, 2);
+                map.insert(MinionKind::Void, 2);
 
                 MinionInteractionRequirement::new(map)
             },

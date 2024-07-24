@@ -16,9 +16,14 @@ const MINION_INTERRACTION_RANGE: f32 = 0.5;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Component, Reflect, Default)]
 pub enum MinionKind {
     #[default]
-    Spoink,
-    Doink,
-    Woink,
+    Void,
+    Red,
+    Green,
+    Blue,
+    Yellow,
+    Magenta,
+    Cyan,
+    White,
 }
 
 /// A component to mark an eligible target for the minions. The presence of that
