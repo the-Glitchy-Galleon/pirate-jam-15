@@ -1,4 +1,4 @@
-use bevy::{input::InputSystem, prelude::*};
+use bevy::{input::InputSystem, prelude::*, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 
 mod kinematic_char;
@@ -77,6 +77,20 @@ fn setup_physics(mut commands: Commands) {
     commands.spawn((
         TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
+    ));
+
+    commands.spawn((
+        DestructibleTargetBundle {
+            requirement: {
+                let mut map = HashMap::new();
+                map.insert(MinionKind::Doink, 2);
+
+                MinionInteractionRequirement::new(map)
+            },
+            ..default()
+        },
+        TransformBundle::from(Transform::from_xyz(4.0, 0.1, 4.0)),
+        Collider::cuboid(1.0, 1.0, 1.0),
     ));
 
     /*

@@ -4,10 +4,10 @@ use bevy::prelude::*;
 
 use super::{MinionInteractionRequirement, MinionTarget};
 
-#[derive(Clone, Copy, Component, Debug, Reflect)]
+#[derive(Clone, Copy, Component, Debug, Reflect, Default)]
 pub struct DestructibleTargetTag;
 
-#[derive(Bundle)]
+#[derive(Bundle, Default)]
 pub struct DestructibleTargetBundle {
     pub destro_tag: DestructibleTargetTag,
     pub requirement: MinionInteractionRequirement,

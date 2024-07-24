@@ -31,10 +31,16 @@ impl MinionStorage {
     }
 }
 
-#[derive(Clone, Debug, Component)]
+#[derive(Clone, Debug, Component, Default)]
 pub struct MinionInteractionRequirement {
     pub counts: HashMap<MinionKind, u32>,
     pub is_satisfied: bool,
+}
+
+impl MinionInteractionRequirement {
+    pub fn new(counts: HashMap<MinionKind, u32>) -> Self {
+        Self { counts, is_satisfied: false }
+    }
 }
 
 pub fn update_minion_interaction_requirements(
