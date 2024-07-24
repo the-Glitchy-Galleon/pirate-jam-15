@@ -1,5 +1,3 @@
-use bevy::{input::InputSystem, prelude::*, utils::HashMap};
-use bevy_rapier3d::prelude::*;
 use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
 use bevy::{
     color::palettes::tailwind,
@@ -7,19 +5,19 @@ use bevy::{
     render::camera::RenderTarget,
     window::{PrimaryWindow, WindowRef},
 };
+use bevy::{input::InputSystem, prelude::*, utils::HashMap};
+use bevy_rapier3d::prelude::*;
 use bevy_rapier3d::prelude::*;
 use object_def::ColorDef;
 
-
 mod kinematic_char;
 mod minion;
-mod player;
 pub mod object_def;
+mod player;
 
 pub use kinematic_char::*;
 pub use minion::*;
 pub use player::*;
-
 
 pub struct GamePlugin;
 
