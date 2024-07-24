@@ -3,9 +3,11 @@ use bevy_rapier3d::prelude::Collider;
 
 mod walk_target;
 mod collector;
+mod destructible_target;
 
 pub use collector::*;
 pub use walk_target::*;
+pub use destructible_target::*;
 
 use super::{CharacterWalkControl, KinematicCharacterBundle, PlayerTag};
 
@@ -23,7 +25,7 @@ pub enum MinionKind {
 #[reflect(Component)]
 pub struct MinionTarget;
 
-#[derive(Clone, Copy, Default, Debug, Component, Reflect)]
+#[derive(Clone, Copy, Default, Debug, Component, Reflect, PartialEq, Eq)]
 #[reflect(Component)]
 pub enum MinionState {
     #[default]
