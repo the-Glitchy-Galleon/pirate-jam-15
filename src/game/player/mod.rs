@@ -9,7 +9,7 @@ use bevy::{
 };
 use bevy_rapier3d::prelude::*;
 
-use super::{CharacterWalkControl, KinematicCharacterBundle, MinionKind, MinionStorage};
+use super::{CharacterWalkControl, KinematicCharacterBundle, MinionKind, MinionStorage, MinionTarget};
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
 #[reflect(Component)]
@@ -63,6 +63,7 @@ pub fn player_controls(
     mut gizmos: Gizmos,
     mut player: Query<(&mut Transform, &mut CharacterWalkControl), With<PlayerTag>>,
     mut minion: ResMut<MinionStorageInput>,
+    mut minion_targets: Query<Entity, With<MinionTarget>>,
 ) {
     let Ok(window) = window.get_single() else {
         return;
@@ -81,7 +82,7 @@ pub fn player_controls(
         return;
     };
 
-    let Some((_, ray_hit)) = rap_ctx.cast_ray_and_get_normal(
+    let Some((ent_hit, ray_hit)) = rap_ctx.cast_ray_and_get_normal(
         cursor_ray.origin,
         cursor_ray.direction.as_vec3(),
         1000.0,
@@ -116,7 +117,11 @@ pub fn player_controls(
     walk.direction = walk_dir;
     walk.do_move = mouse_buttons.pressed(MouseButton::Right);
 
-    minion.to_where = ray_hit.point;
+    minion.to_where = MinionThrowTarget::Location(ray_hit.point);
+    if minion_targets.contains(ent_hit) {
+        minion.to_where = MinionThrowTarget::Ent(ent_hit);
+    }
+
     minion.want_to_throw = mouse_buttons.just_pressed(MouseButton::Left);
     minion.do_pickup = keyboard.pressed(KeyCode::KeyQ);
 }

@@ -2,10 +2,16 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::game::{
-    CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionStorage, MinionTarget, WalkTargetBundle, WalkTargetTag
+    CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionStorage, WalkTargetBundle
 };
 
 use super::PlayerTag;
+
+#[derive(Clone, Copy, Debug, Reflect)]
+pub enum MinionThrowTarget {
+    Location(Vec3),
+    Ent(Entity)
+}
 
 #[derive(Clone, Copy, Debug, Component, Reflect)]
 pub struct PlayerCollector;
@@ -14,7 +20,7 @@ pub struct PlayerCollector;
 pub struct MinionStorageInput {
     pub chosen_ty: MinionKind,
     pub want_to_throw: bool,
-    pub to_where: Vec3,
+    pub to_where: MinionThrowTarget,
     pub do_pickup: bool,
 }
 
@@ -38,18 +44,21 @@ pub fn minion_storage_throw(
         return;
     }
 
-    let target_id = commands
-        .spawn(WalkTargetBundle {
-            spatial: SpatialBundle {
-                transform: Transform::from_translation(min_inp.to_where),
+    let target_id = match min_inp.to_where {
+        MinionThrowTarget::Ent(e) => e,
+        MinionThrowTarget::Location(pos) => commands
+            .spawn(WalkTargetBundle {
+                spatial: SpatialBundle {
+                    transform: Transform::from_translation(pos),
+                    ..default()
+                },
                 ..default()
-            },
-            ..default()
-        })
-        .id();
+            })
+            .id(),
+    };
 
     let minion_pos = tf.translation()
-        + 2.0 * (min_inp.to_where - tf.translation()).normalize_or_zero()
+        + 2.0 * Vec3::X // TODO compute proper pos
         + 3.0 * Vec3::Y;
 
     commands.spawn(MinionBundle {

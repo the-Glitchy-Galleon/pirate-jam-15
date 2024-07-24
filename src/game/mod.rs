@@ -32,7 +32,7 @@ impl Plugin for GamePlugin {
         app.insert_resource(MinionStorageInput {
             chosen_ty: MinionKind::Doink,
             want_to_throw: false,
-            to_where: Vec3::ZERO,
+            to_where: MinionThrowTarget::Location(Vec3::ZERO),
             do_pickup: false,
         });
 
