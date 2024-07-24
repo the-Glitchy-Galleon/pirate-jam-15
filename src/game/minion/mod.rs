@@ -21,6 +21,8 @@ pub enum MinionKind {
     Woink,
 }
 
+/// A component to mark an eligible target for the minions. The presence of that
+/// component does not mean that it is currently being targetted.
 #[derive(Clone, Copy, Default, Debug, Component, Reflect)]
 #[reflect(Component)]
 pub struct MinionTarget;
