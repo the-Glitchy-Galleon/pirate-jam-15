@@ -31,7 +31,8 @@ impl MinionStorage {
     }
 }
 
-#[derive(Clone, Debug, Component, Default)]
+#[derive(Clone, Debug, Component, Default, Reflect)]
+#[reflect(Component)]
 pub struct MinionInteractionRequirement {
     pub counts: HashMap<MinionKind, u32>,
     pub is_satisfied: bool,

@@ -27,7 +27,9 @@ impl Plugin for GamePlugin {
             .register_type::<MinionKind>()
             .register_type::<MinionStorage>()
             .register_type::<MinionState>()
-            .register_type::<MinionTarget>();
+            .register_type::<MinionTarget>()
+            .register_type::<MinionThrowTarget>()
+            .register_type::<MinionInteractionRequirement>();
 
         app.insert_resource(MinionStorageInput {
             chosen_ty: MinionKind::Doink,
