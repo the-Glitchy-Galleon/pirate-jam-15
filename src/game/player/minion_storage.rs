@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::game::{
-    CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionStorage, WalkTargetBundle
+    CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionStorage, WalkTargetBundle,
 };
 
 use super::PlayerTag;
@@ -10,7 +10,7 @@ use super::PlayerTag;
 #[derive(Clone, Copy, Debug, Reflect)]
 pub enum MinionThrowTarget {
     Location(Vec3),
-    Ent(Entity)
+    Ent(Entity),
 }
 
 #[derive(Clone, Copy, Debug, Component, Reflect)]

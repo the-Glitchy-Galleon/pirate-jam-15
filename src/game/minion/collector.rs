@@ -39,7 +39,10 @@ pub struct MinionInteractionRequirement {
 
 impl MinionInteractionRequirement {
     pub fn new(counts: HashMap<MinionKind, u32>) -> Self {
-        Self { counts, is_satisfied: false }
+        Self {
+            counts,
+            is_satisfied: false,
+        }
     }
 }
 
@@ -51,17 +54,16 @@ pub fn update_minion_interaction_requirements(
     for (ent, mut req) in requirements_q.iter_mut() {
         buffer.clear();
 
-        minion_q.iter()
+        minion_q
+            .iter()
             .filter(|(_, st)| **st == MinionState::Interracting(ent))
             .map(|(kind, _)| *kind)
-            .for_each(|kind|
-                *buffer.entry(kind).or_default() += 1
-            );
+            .for_each(|kind| *buffer.entry(kind).or_default() += 1);
 
-        req.is_satisfied = req.counts.iter()
+        req.is_satisfied = req
+            .counts
+            .iter()
             .filter(|(_, cnt)| **cnt > 0)
-            .all(|(k, cnt)| {
-                buffer.get(k).map(|x| *x).unwrap_or_default() >= *cnt
-            });
+            .all(|(k, cnt)| buffer.get(k).map(|x| *x).unwrap_or_default() >= *cnt);
     }
 }

@@ -9,7 +9,9 @@ use bevy::{
 };
 use bevy_rapier3d::prelude::*;
 
-use super::{CharacterWalkControl, KinematicCharacterBundle, MinionKind, MinionStorage, MinionTarget};
+use super::{
+    CharacterWalkControl, KinematicCharacterBundle, MinionKind, MinionStorage, MinionTarget,
+};
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
 #[reflect(Component)]

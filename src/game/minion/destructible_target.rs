@@ -16,7 +16,7 @@ pub struct DestructibleTargetBundle {
 
 pub fn update_destructble_target(
     mut commands: Commands,
-    destro_q: Query<(Entity, &MinionInteractionRequirement), With<DestructibleTargetTag>>
+    destro_q: Query<(Entity, &MinionInteractionRequirement), With<DestructibleTargetTag>>,
 ) {
     for (ent, req) in destro_q.iter() {
         if !req.is_satisfied {

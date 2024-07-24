@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::Collider;
 
-mod walk_target;
 mod collector;
 mod destructible_target;
+mod walk_target;
 
 pub use collector::*;
-pub use walk_target::*;
 pub use destructible_target::*;
+pub use walk_target::*;
 
 use super::{CharacterWalkControl, KinematicCharacterBundle, PlayerTag};
 
