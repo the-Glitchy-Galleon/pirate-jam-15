@@ -46,7 +46,6 @@ impl Plugin for GamePlugin {
 
         /* Minion systems */
         app.add_systems(Update, cleanup_minion_state)
-            .add_systems(Update, cleanup_minion_target)
             .add_systems(Update, update_minion_state)
             .add_systems(Update, minion_walk.after(update_minion_state))
             .add_systems(Update, walk_target_update.after(update_minion_state))
