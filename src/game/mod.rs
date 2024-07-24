@@ -1,18 +1,19 @@
+use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
 use bevy::{
+    color::palettes::tailwind,
     input::InputSystem,
     prelude::*,
     render::camera::RenderTarget,
     window::{PrimaryWindow, WindowRef},
 };
 use bevy_rapier3d::prelude::*;
-
-pub mod player_minion;
-pub mod player_movement;
-
+use object_def::ColorDef;
 pub use player_minion::*;
 pub use player_movement::*;
 
-use crate::framework::prelude::AudioPlugin;
+pub mod object_def;
+pub mod player_minion;
+pub mod player_movement;
 
 pub struct GamePlugin;
 
@@ -43,6 +44,12 @@ impl Plugin for GamePlugin {
         .add_systems(FixedUpdate, player_movement)
         .add_systems(Update, player_minion)
         .add_systems(Update, player_minion_pickup);
+
+        app.init_asset::<LevelAsset>()
+            .init_asset_loader::<LevelAssetLoader>();
+
+        app.add_systems(Startup, load_preview_scene);
+        app.add_systems(Update, init_level);
 
         app.add_plugins(AudioPlugin);
     }
@@ -237,5 +244,116 @@ fn setup_physics(mut commands: Commands) {
         }
 
         offset -= 0.05 * rad * (num as f32 - 1.0);
+    }
+}
+
+#[derive(Component)]
+struct InitLevel {
+    handle: Handle<LevelAsset>,
+}
+
+fn load_preview_scene(mut cmd: Commands, ass: Res<AssetServer>) {
+    cmd.spawn(InitLevel {
+        handle: ass.load("level/preview.level"),
+    });
+}
+
+fn init_level(
+    mut cmd: Commands,
+    level_q: Query<(Entity, &InitLevel)>,
+    ass: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut mats: ResMut<Assets<StandardMaterial>>,
+    levels: Res<Assets<LevelAsset>>,
+) {
+    use crate::framework::tileset::TILESET_PATH_DIFFUSE;
+    use crate::framework::tileset::TILESET_PATH_NORMAL;
+
+    for (ent, init) in level_q.iter() {
+        if let Some(level) = levels.get(&init.handle) {
+            info!("Initializing Level");
+            cmd.entity(ent).despawn();
+
+            let diffuse: Handle<Image> = ass.load(TILESET_PATH_DIFFUSE);
+            let normal: Option<Handle<Image>> = TILESET_PATH_NORMAL.map(|f| ass.load(f));
+
+            let handle: Handle<Mesh> = meshes.add(level.data().ground_mesh.clone());
+            let collider = level.data().ground_collider.clone();
+
+            cmd.spawn((
+                PbrBundle {
+                    mesh: handle,
+                    material: mats.add(StandardMaterial {
+                        base_color_texture: Some(diffuse.clone()),
+                        normal_map_texture: normal.clone(),
+                        perceptual_roughness: 0.9,
+                        metallic: 0.0,
+                        ..default()
+                    }),
+                    transform: Transform::IDENTITY.with_scale(Vec3::ONE * 2.0),
+                    ..default()
+                },
+                collider,
+            ))
+            .with_children(|parent| {
+                // as children because the map is scaled for now
+
+                for wall in &level.data().walls {
+                    let mesh = wall.mesh.clone();
+                    let collider = wall.collider.clone();
+                    let handle: Handle<Mesh> = meshes.add(mesh);
+                    parent.spawn((
+                        PbrBundle {
+                            mesh: handle,
+                            material: mats.add(StandardMaterial {
+                                base_color_texture: Some(diffuse.clone()),
+                                normal_map_texture: normal.clone(),
+                                perceptual_roughness: 0.9,
+                                metallic: 0.0,
+                                ..default()
+                            }),
+                            transform: Transform::IDENTITY,
+                            ..default()
+                        },
+                        collider,
+                    ));
+                }
+                for object in &level.data().objects {
+                    info!(
+                        "Spawning {} {}",
+                        object.color.as_str(),
+                        object.kind.as_str()
+                    );
+                    parent.spawn(PbrBundle {
+                        mesh: meshes.add(Cuboid::default()),
+                        material: mats.add(StandardMaterial {
+                            base_color_texture: Some(diffuse.clone()),
+                            normal_map_texture: normal.clone(),
+                            perceptual_roughness: 0.9,
+                            metallic: 0.0,
+                            base_color: match object.color {
+                                ColorDef::Void => tailwind::GRAY_500,
+                                ColorDef::Red => tailwind::RED_500,
+                                ColorDef::Green => tailwind::GREEN_500,
+                                ColorDef::Blue => tailwind::BLUE_500,
+                                ColorDef::Yellow => tailwind::YELLOW_500,
+                                ColorDef::Magenta => tailwind::PURPLE_500,
+                                ColorDef::Cyan => tailwind::CYAN_500,
+                                ColorDef::White => tailwind::GREEN_100,
+                            }
+                            .into(),
+                            ..default()
+                        }),
+                        transform: Transform::IDENTITY
+                            .with_translation(object.position)
+                            .with_scale(Vec3::splat(2.0))
+                            .with_rotation(Quat::from_rotation_y(object.rotation)),
+                        ..default()
+                    });
+                }
+            });
+
+            info!("Done");
+        }
     }
 }
