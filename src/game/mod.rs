@@ -3,7 +3,6 @@ use bevy_rapier3d::prelude::*;
 use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
 use bevy::{
     color::palettes::tailwind,
-    input::InputSystem,
     prelude::*,
     render::camera::RenderTarget,
     window::{PrimaryWindow, WindowRef},
@@ -15,14 +14,12 @@ use object_def::ColorDef;
 mod kinematic_char;
 mod minion;
 mod player;
+pub mod object_def;
 
 pub use kinematic_char::*;
 pub use minion::*;
 pub use player::*;
 
-pub mod object_def;
-pub mod player_minion;
-pub mod player_movement;
 
 pub struct GamePlugin;
 
