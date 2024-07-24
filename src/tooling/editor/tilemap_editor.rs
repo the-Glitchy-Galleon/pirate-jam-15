@@ -1,3 +1,4 @@
+use super::object_def_builder::ObjectDefBuilder;
 use super::tilemap::{Pnormal3, Tilemap, SLOPE_HEIGHT, WALL_HEIGHT};
 use super::tilemap_controls::TilemapControls;
 use super::tilemap_mesh_builder::{self, RawMeshBuilder};
@@ -6,12 +7,12 @@ use crate::framework::prelude::*;
 use crate::framework::tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL, TILESET_TILE_NUM};
 use bevy::color::palettes::tailwind::{self, *};
 use bevy::{ecs::system::SystemId, prelude::*};
+use bevy_egui::EguiUserTextures;
 use bevy_rapier3d::geometry::{CollisionGroups, Group};
 use bevy_rapier3d::math::Real;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::plugin::RapierContext;
 use std::f32::consts::PI;
-use ui::EguiState;
 
 const DEFAULT_EDITOR_SAVE_PATH: &str = "./level_editor_scenes";
 const DEFAULT_EDITOR_EXPORT_PATH: &str = "./assets/level";
@@ -64,6 +65,8 @@ impl Plugin for TilemapEditorPlugin {
             .init_state::<ControlMode>()
             .init_resource::<ExportLevelScenePath>()
             .init_resource::<ObjectMarkerData>()
+            .init_resource::<ObjectDefStorage>()
+            .init_resource::<EguiUserTextures>()
             .insert_resource(EditorState {
                 tilemap,
                 tileset,
@@ -74,9 +77,7 @@ impl Plugin for TilemapEditorPlugin {
                 hovered_map_coord: None,
                 selected_tileset_coords: None,
             })
-            .insert_resource(ui::EguiState {
-                ..Default::default()
-            })
+            .init_resource::<ui::EguiState>()
             .insert_resource(EditorControls {
                 tilemap: TilemapControls::new(32, 6),
             })
@@ -192,6 +193,11 @@ fn recreate_scene(
     }
 }
 
+#[derive(Resource, Default)]
+pub struct ObjectDefStorage {
+    storage: Vec<ObjectDefBuilder>,
+}
+
 #[derive(Resource)]
 pub struct ObjectMarkerData {
     mesh: Handle<Mesh>,
@@ -232,20 +238,18 @@ fn recreate_object_markers(
     egui_state: ResMut<ui::EguiState>,
     data: Res<ObjectMarkerData>,
     state: Res<EditorState>,
+    defs: Res<ObjectDefStorage>,
 ) {
     for ex in markers.iter() {
         cmd.entity(ex).despawn_recursive();
     }
 
-    let Some(ref widget) = egui_state.object_def_widget else {
-        return;
-    };
-    for (id, def) in widget.defs().iter().enumerate() {
+    for (id, def) in defs.storage.iter().enumerate() {
         if let Some(pos) = state
             .tilemap
             .face_id_to_center_pos_3d(state.tilemap.face_grid().coord_to_id(def.coord))
         {
-            let material = if Some(id) == widget.selected_id() {
+            let material = if Some(id) == egui_state.object_def_widget.selected_id() {
                 data.selected_material.clone()
             } else {
                 data.material.clone()
@@ -402,6 +406,7 @@ fn perform_click_actions(
     mouse: Res<ButtonInput<MouseButton>>,
     keys: Res<ButtonInput<KeyCode>>,
     sys: Res<Systems>,
+    defs: Res<ObjectDefStorage>,
 ) {
     let over_ui = global_ui_state.is_pointer_captured || global_ui_state.is_any_focused;
     let mut is_dirty = false;
@@ -500,10 +505,9 @@ fn perform_click_actions(
                 let Some(fid) = state.hovered_ground_face else {
                     return;
                 };
-                let Some(widget) = &mut egui_state.object_def_widget else {
-                    return;
-                };
-                widget.on_coord_select(state.tilemap.face_grid().id_to_coord(fid));
+                egui_state
+                    .object_def_widget
+                    .on_coord_select(&defs.storage, state.tilemap.face_grid().id_to_coord(fid));
             }
         }
         ControlMode::AdminStuff => {}
@@ -543,8 +547,9 @@ fn draw_hovered_tile_gizmo(
 
 pub(super) mod ui {
     use super::{
-        ControlMode, EditorState, ExportLevelScenePath, Systems, DEFAULT_EDITOR_EXPORT_PATH,
-        DEFAULT_EDITOR_SAVE_PATH, START_ELEVATION, TILESET_PATH_DIFFUSE,
+        ControlMode, EditorState, ExportLevelScenePath, ObjectDefStorage, Systems,
+        DEFAULT_EDITOR_EXPORT_PATH, DEFAULT_EDITOR_SAVE_PATH, START_ELEVATION,
+        TILESET_PATH_DIFFUSE,
     };
     use crate::{
         framework::tileset::{TILESET_TEXTURE_DIMS, TILESET_TILE_DIMS},
@@ -564,20 +569,60 @@ pub(super) mod ui {
     use bevy::{prelude::*, utils::hashbrown::HashMap, window::PrimaryWindow};
     use bevy_egui::{
         egui::{self, TextureId},
-        EguiContexts,
+        EguiContexts, EguiUserTextures,
     };
     use std::path::Path;
 
     #[derive(Component)]
     pub struct LevelEditorInfoText;
 
-    #[derive(Resource, Default)]
+    #[derive(Resource)]
     pub(super) struct EguiState {
-        pub paint_widget: Option<TilesetWidget>,
+        pub paint_widget: TilesetWidget,
         pub paint_widget_open: bool,
         pub file_widget: Option<FileWidget>,
         pub resize_widget: Option<TilemapSizeWidget>,
-        pub object_def_widget: Option<ObjectDefWidget>,
+        pub object_def_widget: ObjectDefWidget,
+    }
+
+    impl FromWorld for EguiState {
+        fn from_world(world: &mut World) -> Self {
+            let textures = {
+                let handles = {
+                    let ass = world.resource::<AssetServer>();
+                    ObjectDefKind::VARIANTS.map(|k| ass.load(object_image_path(k)))
+                };
+                let mut egui_textures = world.resource_mut::<EguiUserTextures>();
+                ObjectTextures {
+                    textures: handles.map(|h| egui_textures.add_image(h)),
+                }
+            };
+            world.insert_resource(textures);
+
+            let object_def_widget = ObjectDefWidget::new();
+
+            let paint_widget = {
+                let handle = {
+                    let ass = world.resource::<AssetServer>();
+                    ass.load(TILESET_PATH_DIFFUSE)
+                };
+                let mut egui_textures = world.resource_mut::<EguiUserTextures>();
+                let tileset_id = egui_textures.add_image(handle);
+                TilesetWidget::new(
+                    tileset_id,
+                    TILESET_TEXTURE_DIMS.into(),
+                    TILESET_TILE_DIMS.into(),
+                )
+            };
+
+            Self {
+                paint_widget,
+                paint_widget_open: false,
+                file_widget: None,
+                resize_widget: None,
+                object_def_widget,
+            }
+        }
     }
 
     pub(super) struct FileWidget {
@@ -671,25 +716,7 @@ pub(super) mod ui {
     pub struct ObjectTextures {
         textures: [TextureId; ObjectDefKind::COUNT],
     }
-    pub(super) fn setup(
-        mut cmd: Commands,
-        mut ui_state: ResMut<EguiState>,
-        mut ctxs: EguiContexts,
-        ass: Res<AssetServer>,
-    ) {
-        cmd.insert_resource(ObjectTextures {
-            textures: ObjectDefKind::VARIANTS
-                .map(|kind| ctxs.add_image(ass.load(object_image_path(kind)))),
-        });
-        ui_state.object_def_widget = Some(ObjectDefWidget::new(vec![]));
-
-        let id = ctxs.add_image(ass.load(TILESET_PATH_DIFFUSE));
-        ui_state.paint_widget = Some(TilesetWidget::new(
-            id,
-            TILESET_TEXTURE_DIMS.into(),
-            TILESET_TILE_DIMS.into(),
-        ));
-
+    pub(super) fn setup(mut cmd: Commands) {
         cmd.spawn((
             TextBundle::from_sections([TextSection::new("Level Editor", TextStyle::default())])
                 .with_style(Style {
@@ -743,6 +770,7 @@ pub(super) mod ui {
         sys: Res<Systems>,
         mut export_level_scene_path: ResMut<ExportLevelScenePath>,
         object_textures: Res<ObjectTextures>,
+        mut defs: ResMut<ObjectDefStorage>,
     ) {
         let win = win.single();
         let ctx = ctxs.ctx_for_window_mut(win);
@@ -770,8 +798,7 @@ pub(super) mod ui {
                                 Ok(ron) => {
                                     editor_state.tilemap = ron.tilemap;
                                     cmd.run_system(sys.recreate_scene);
-                                    state.object_def_widget =
-                                        Some(ObjectDefWidget::new(ron.objects));
+                                    defs.storage = ron.objects;
                                     cmd.run_system(sys.recreate_object_markers);
                                 }
                                 Err(e) => {
@@ -779,13 +806,9 @@ pub(super) mod ui {
                                 }
                             },
                             FileWidgetMode::SaveTilemap => {
-                                let Some(ref object_def_widget) = state.object_def_widget else {
-                                    error!("No Object def widget");
-                                    return;
-                                };
                                 let ron = TilemapRon::new(
                                     editor_state.tilemap.clone(),
-                                    object_def_widget.defs().to_owned(),
+                                    defs.storage.to_owned(),
                                     vec![], // Todo!
                                 );
                                 if let Err(e) = ron.write(&path) {
@@ -824,25 +847,23 @@ pub(super) mod ui {
                 });
 
             if let Some((anchor, dims, elevation)) = resize {
-                if let Some(widget) = &mut state.object_def_widget {
-                    let mut grid = editor_state.tilemap.face_grid().clone();
+                let mut grid = editor_state.tilemap.face_grid().clone();
 
-                    let mut coord_remap = HashMap::<u32, UVec2>::new();
+                let mut coord_remap = HashMap::<u32, UVec2>::new();
 
-                    for (dst, src) in grid.resize_anchored(dims, anchor).enumerate() {
-                        let dst_coord = grid.id_to_coord(dst as u32);
-                        if let Some(src) = src {
-                            let src_coord = editor_state.tilemap.face_grid().id_to_coord(src);
-                            for (id, def) in widget.defs().iter().enumerate() {
-                                if def.coord == src_coord {
-                                    coord_remap.insert(id as u32, dst_coord);
-                                }
+                for (dst, src) in grid.resize_anchored(dims, anchor).enumerate() {
+                    let dst_coord = grid.id_to_coord(dst as u32);
+                    if let Some(src) = src {
+                        let src_coord = editor_state.tilemap.face_grid().id_to_coord(src);
+                        for (id, def) in defs.storage.iter().enumerate() {
+                            if def.coord == src_coord {
+                                coord_remap.insert(id as u32, dst_coord);
                             }
                         }
                     }
-                    for (id, coord) in coord_remap {
-                        widget.defs_mut()[id as usize].coord = coord;
-                    }
+                }
+                for (id, coord) in coord_remap {
+                    defs.storage[id as usize].coord = coord;
                 }
 
                 editor_state
@@ -864,32 +885,31 @@ pub(super) mod ui {
             ControlMode::Paint2D => {
                 if state.paint_widget_open {
                     egui::CentralPanel::default().show(ctx, |ui| {
-                        if let Some(widget) = &mut state.paint_widget {
-                            if let Some(new_tile_coord) = widget.show(ui) {
-                                editor_state.selected_tileset_coords = Some(new_tile_coord);
-                                state.paint_widget_open = false;
-                            }
+                        if let Some(new_tile_coord) = state.paint_widget.show(ui) {
+                            editor_state.selected_tileset_coords = Some(new_tile_coord);
+                            state.paint_widget_open = false;
                         }
                     });
                 } else {
                     egui::SidePanel::left("left_side").show(ctx, |ui| {
-                        if let Some(widget) = &mut state.paint_widget {
-                            if let Some(new_tile_coord) = widget.show(ui) {
-                                editor_state.selected_tileset_coords = Some(new_tile_coord);
-                                state.paint_widget_open = false;
-                            }
+                        if let Some(new_tile_coord) = state.paint_widget.show(ui) {
+                            editor_state.selected_tileset_coords = Some(new_tile_coord);
+                            state.paint_widget_open = false;
                         }
                     });
                 }
             }
             ControlMode::PlaceGameObjects => {
-                if let Some(widget) = &mut state.object_def_widget {
-                    egui::SidePanel::left("left_side").show(ctx, |ui| {
-                        if widget.show(ui, &editor_state.tilemap, &object_textures.textures) {
-                            cmd.run_system(sys.recreate_object_markers);
-                        }
-                    });
-                }
+                egui::SidePanel::left("left_side").show(ctx, |ui| {
+                    if state.object_def_widget.show(
+                        ui,
+                        &mut defs.storage,
+                        &editor_state.tilemap,
+                        &object_textures.textures,
+                    ) {
+                        cmd.run_system(sys.recreate_object_markers);
+                    }
+                });
             }
             _ => {}
         }
@@ -944,18 +964,13 @@ fn export_level_scene(world: &mut World) {
         })
         .collect();
 
-    let objects = {
-        let egui_state = world.resource::<EguiState>();
-        let Some(ref widget) = egui_state.object_def_widget else {
-            error!("No Object def widget");
-            return;
-        };
-        widget
-            .defs()
-            .iter()
-            .map(|d| d.build(&state.tilemap))
-            .collect::<Vec<_>>()
-    };
+    let object_defs = world.resource::<ObjectDefStorage>();
+    let objects = object_defs
+        .storage
+        .iter()
+        .map(|d| d.build(&state.tilemap))
+        .collect();
+
     let level_asset = LevelAsset::new(LevelAssetData {
         ground_collider: collider,
         ground_mesh: mesh,

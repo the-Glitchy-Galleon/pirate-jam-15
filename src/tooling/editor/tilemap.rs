@@ -262,7 +262,7 @@ pub struct NeighboringFaces8<'a> {
     pub faces: [Option<Face<'a>>; 8],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 #[rustfmt::skip]
 pub enum Pnormal3 {NOO,ONO,OON,POO,OPO,OOP}
@@ -285,7 +285,7 @@ impl Pnormal3 {
     }
 }
 
-#[derive(Debug, Clone, Copy, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 #[repr(u32)]
 #[rustfmt::skip]
 pub enum Pnormal2 {NO,ON,PO,OP}

@@ -10,15 +10,13 @@ use bevy_egui::egui::{self, Color32, ScrollArea, Sense, Stroke, TextureId, Ui};
 
 pub struct ObjectDefWidget {
     selected_id: Option<usize>,
-    defs: Vec<ObjectDefBuilder>,
     forced_dirty: bool,
 }
 
 impl ObjectDefWidget {
-    pub fn new(defs: Vec<ObjectDefBuilder>) -> Self {
+    pub fn new() -> Self {
         Self {
             selected_id: None,
-            defs,
             forced_dirty: false,
         }
     }
@@ -26,6 +24,7 @@ impl ObjectDefWidget {
     pub fn show(
         &mut self,
         ui: &mut Ui,
+        defs: &mut Vec<ObjectDefBuilder>,
         tilemap: &Tilemap,
         textures: &[TextureId; ObjectDefKind::COUNT],
     ) -> bool {
@@ -43,19 +42,19 @@ impl ObjectDefWidget {
                 ui.separator();
 
                 if let Some(id) = self.selected_id {
-                    let def = self.defs[id].clone();
+                    let def = defs[id].clone();
 
-                    let new_def = self.show_def_widget(def, tilemap, textures, ui);
-                    if self.defs[id] != new_def {
+                    let new_def = self.show_def_widget(def, defs, tilemap, textures, ui);
+                    if defs[id] != new_def {
                         has_changes = true;
                     }
-                    self.defs[id] = new_def;
+                    defs[id] = new_def;
                 }
 
                 ui.separator();
 
                 let mut delete = None;
-                for (i, def) in self.defs.iter().enumerate() {
+                for (i, def) in defs.iter().enumerate() {
                     ui.horizontal(|ui| {
                         if ui.button("[X]").clicked() {
                             delete = Some(i);
@@ -79,15 +78,15 @@ impl ObjectDefWidget {
                     });
                 }
                 if let Some(delete) = delete {
-                    self.defs.remove(delete);
+                    defs.remove(delete);
                     if Some(delete) == self.selected_id {
                         self.selected_id = None;
                     }
                 }
 
                 if ui.button("Add New").clicked() {
-                    self.selected_id = Some(self.defs.len());
-                    self.defs.push(ObjectDefBuilder {
+                    self.selected_id = Some(defs.len());
+                    defs.push(ObjectDefBuilder {
                         coord: tilemap.face_grid().dims() / 2,
                         ..Default::default()
                     });
@@ -99,8 +98,8 @@ impl ObjectDefWidget {
         has_changes
     }
 
-    pub fn on_coord_select(&mut self, coord: UVec2) {
-        if let Some((i, _)) = self.defs.iter().enumerate().find(|(_, d)| d.coord == coord) {
+    pub fn on_coord_select(&mut self, defs: &[ObjectDefBuilder], coord: UVec2) {
+        if let Some((i, _)) = defs.iter().enumerate().find(|(_, d)| d.coord == coord) {
             self.selected_id = Some(i);
             self.forced_dirty = true;
         }
@@ -110,6 +109,7 @@ impl ObjectDefWidget {
     fn show_def_widget(
         &self,
         mut def: ObjectDefBuilder,
+        defs: &[ObjectDefBuilder],
         tilemap: &Tilemap,
         textures: &[TextureId; ObjectDefKind::COUNT],
         ui: &mut Ui,
@@ -217,11 +217,11 @@ impl ObjectDefWidget {
                 let mut delete = None;
                 for (i, obj) in def.obj_refs.iter_mut().enumerate() {
                     ui.horizontal(|ui| {
-                        ui.add(egui::DragValue::new(obj).range(0..=self.defs.len() - 1));
+                        ui.add(egui::DragValue::new(obj).range(0..=defs.len() - 1));
                         if ui.button("X").clicked() {
                             delete = Some(i);
                         }
-                        if let Some(def) = self.defs.get(*obj as usize) {
+                        if let Some(def) = defs.get(*obj as usize) {
                             ui.label(format!(
                                 "({} at {{{}:{}}})",
                                 def.kind.as_str(),
@@ -270,14 +270,6 @@ impl ObjectDefWidget {
             })
         });
         def
-    }
-
-    pub fn defs(&self) -> &[ObjectDefBuilder] {
-        &self.defs
-    }
-
-    pub fn defs_mut(&mut self) -> &mut [ObjectDefBuilder] {
-        &mut self.defs
     }
 
     pub fn selected_id(&self) -> Option<usize> {
