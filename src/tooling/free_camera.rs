@@ -11,12 +11,11 @@ pub struct FreeCameraPlugin {
 
 impl Plugin for FreeCameraPlugin {
     fn build(&self, app: &mut App) {
-        app
-        .insert_resource(FreeCameraSetup {
-            transform: self.transform
+        app.insert_resource(FreeCameraSetup {
+            transform: self.transform,
         })
         .add_systems(PreStartup, setup)
-            .add_systems(Update, camera_controller);
+        .add_systems(Update, camera_controller);
     }
 }
 

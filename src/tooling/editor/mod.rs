@@ -11,15 +11,18 @@ use bevy_rapier3d::{
 use tilemap::SLOPE_HEIGHT;
 use tilemap_editor::TilemapEditorPlugin;
 
-pub mod file_selector_widget;
-pub mod object_def_widget;
+pub mod object_def_builder;
 pub mod tilemap;
 pub mod tilemap_asset;
 pub mod tilemap_controls;
 pub mod tilemap_editor;
 pub mod tilemap_mesh_builder;
-pub mod tilemap_size_widget;
-pub mod tileset_widget;
+pub mod widgets {
+    pub mod file_selector;
+    pub mod object_def;
+    pub mod tilemap_size;
+    pub mod tileset;
+}
 
 pub struct LevelEditorPlugin;
 

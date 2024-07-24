@@ -1,6 +1,5 @@
 use crate::framework::grid::Anchor2;
 use crate::framework::grid::Grid;
-use crate::game::object_def::ObjectDef;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 

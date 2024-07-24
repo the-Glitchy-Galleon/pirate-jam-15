@@ -550,16 +550,18 @@ pub(super) mod ui {
         framework::tileset::{TILESET_TEXTURE_DIMS, TILESET_TILE_DIMS},
         game::object_def::ObjectDefKind,
         tooling::editor::{
-            file_selector_widget::{
-                FileSelectorWidget, FileSelectorWidgetResult, FileSelectorWidgetSettings,
-            },
-            object_def_widget::ObjectDefWidget,
             tilemap_asset::TilemapRon,
-            tilemap_size_widget::TilemapSizeWidget,
-            tileset_widget::TilesetWidget,
+            widgets::{
+                file_selector::{
+                    FileSelectorWidget, FileSelectorWidgetResult, FileSelectorWidgetSettings,
+                },
+                object_def::ObjectDefWidget,
+                tilemap_size::TilemapSizeWidget,
+                tileset::TilesetWidget,
+            },
         },
     };
-    use bevy::{prelude::*, window::PrimaryWindow};
+    use bevy::{prelude::*, utils::hashbrown::HashMap, window::PrimaryWindow};
     use bevy_egui::{
         egui::{self, TextureId},
         EguiContexts,
@@ -814,15 +816,42 @@ pub(super) mod ui {
 
         let mut resize_widget_open = true;
         if let Some(widget) = &mut state.resize_widget {
+            let mut resize = None;
             egui::Window::new("Resize Tilemap")
                 .open(&mut resize_widget_open)
                 .show(ctx, |ui| {
-                    if let Some((anchor, dims, elevation)) = widget.show(ui) {
-                        editor_state.tilemap.resize_anchored(dims, anchor, elevation);
-                        cmd.run_system(sys.recreate_scene);
-                        cmd.run_system(sys.recreate_object_markers);
-                    }
+                    resize = widget.show(ui);
                 });
+
+            if let Some((anchor, dims, elevation)) = resize {
+                if let Some(widget) = &mut state.object_def_widget {
+                    let mut grid = editor_state.tilemap.face_grid().clone();
+
+                    let mut coord_remap = HashMap::<u32, UVec2>::new();
+
+                    for (dst, src) in grid.resize_anchored(dims, anchor).enumerate() {
+                        let dst_coord = grid.id_to_coord(dst as u32);
+                        if let Some(src) = src {
+                            let src_coord = editor_state.tilemap.face_grid().id_to_coord(src);
+                            for (id, def) in widget.defs().iter().enumerate() {
+                                if def.coord == src_coord {
+                                    coord_remap.insert(id as u32, dst_coord);
+                                }
+                            }
+                        }
+                    }
+                    for (id, coord) in coord_remap {
+                        widget.defs_mut()[id as usize].coord = coord;
+                    }
+                }
+
+                editor_state
+                    .tilemap
+                    .resize_anchored(dims, anchor, elevation);
+
+                cmd.run_system(sys.recreate_scene);
+                cmd.run_system(sys.recreate_object_markers);
+            }
             if keys.just_pressed(KeyCode::Escape) {
                 resize_widget_open = false;
             }

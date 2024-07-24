@@ -1,4 +1,4 @@
-use super::object_def_widget::{ObjectDefBuilder, Rot8};
+use super::object_def_builder::{ObjectDefBuilder, Rot8};
 use super::tilemap::{Pnormal2, Tilemap};
 use bevy::asset::io::Reader;
 use bevy::asset::AsyncReadExt;
