@@ -1,6 +1,6 @@
 use bevy::{prelude::*, utils::HashMap};
 
-use super::MinionKind;
+use super::{MinionKind, MinionState};
 
 #[derive(Component, Reflect, Debug)]
 pub struct MinionStorage {
@@ -28,5 +28,32 @@ impl MinionStorage {
         *cnt -= 1;
 
         true
+    }
+}
+
+#[derive(Clone, Debug, Component)]
+pub struct MinionInteractionRequirement {
+    pub counts: HashMap<MinionKind, u32>,
+    pub is_satisfied: bool,
+}
+
+pub fn update_minion_interaction_requirements(
+    mut buffer: Local<HashMap<MinionKind, u32>>,
+    mut requirements_q: Query<(Entity, &mut MinionInteractionRequirement)>,
+    minion_q: Query<(&MinionKind, &MinionState)>,
+) {
+    for (ent, mut req) in requirements_q.iter_mut() {
+        buffer.clear();
+
+        minion_q.iter()
+            .filter(|(_, st)| **st == MinionState::Interracting(ent))
+            .map(|(kind, _)| *kind)
+            .for_each(|kind|
+                *buffer.entry(kind).or_default() += 1
+            );
+
+        req.is_satisfied = req.counts.iter().all(|(k, cnt)| {
+            buffer.get(k).map(|x| *x).unwrap_or_default() >= *cnt
+        });
     }
 }
