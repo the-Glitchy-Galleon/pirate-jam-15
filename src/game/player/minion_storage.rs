@@ -1,9 +1,8 @@
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
 
 use crate::game::{
-    CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionTarget, WalkTargetBundle,
+    CharacterWalkControl, MinionBundle, MinionKind, MinionState, MinionStorage, MinionTarget, WalkTargetBundle
 };
 
 use super::PlayerTag;
@@ -11,41 +10,12 @@ use super::PlayerTag;
 #[derive(Clone, Copy, Debug, Component, Reflect)]
 pub struct PlayerCollector;
 
-#[derive(Component, Reflect)]
-pub struct MinionStorage {
-    storage: HashMap<MinionKind, u32>,
-}
-
 #[derive(Clone, Copy, Debug, Resource, Reflect)]
 pub struct MinionStorageInput {
     pub chosen_ty: MinionKind,
     pub want_to_throw: bool,
     pub to_where: Vec3,
     pub do_pickup: bool,
-}
-
-impl MinionStorage {
-    pub fn new() -> Self {
-        Self {
-            storage: HashMap::new(),
-        }
-    }
-
-    pub fn add_minion(&mut self, ty: MinionKind) {
-        *self.storage.entry(ty).or_default() += 1;
-    }
-
-    pub fn extract_minion(&mut self, ty: MinionKind) -> bool {
-        let cnt = self.storage.entry(ty).or_default();
-
-        if *cnt == 0 {
-            return false;
-        }
-
-        *cnt -= 1;
-
-        true
-    }
 }
 
 pub fn minion_storage_throw(
