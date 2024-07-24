@@ -89,8 +89,9 @@ fn setup_physics(mut commands: Commands) {
             },
             ..default()
         },
-        TransformBundle::from(Transform::from_xyz(4.0, 0.1, 4.0)),
+        TransformBundle::from(Transform::from_xyz(4.0, 0.0, 4.0)),
         Collider::cuboid(1.0, 1.0, 1.0),
+        Sensor,
     ));
 
     /*
