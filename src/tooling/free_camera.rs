@@ -5,24 +5,35 @@ use std::f32::consts::PI;
 pub struct FreeCameraTag;
 
 #[derive(Default)]
-pub struct FreeCameraPlugin;
+pub struct FreeCameraPlugin {
+    pub transform: Transform,
+}
 
 impl Plugin for FreeCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreStartup, setup)
+        app
+        .insert_resource(FreeCameraSetup {
+            transform: self.transform
+        })
+        .add_systems(PreStartup, setup)
             .add_systems(Update, camera_controller);
     }
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, setup: Res<FreeCameraSetup>) {
     commands.spawn((
         FreeCameraTag,
         Camera3dBundle {
-            transform: Transform::from_xyz(0.0, 0.0, 8.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: setup.transform,
             ..default()
         },
         CameraController::default(),
     ));
+}
+
+#[derive(Resource)]
+struct FreeCameraSetup {
+    transform: Transform,
 }
 
 #[derive(Component)]

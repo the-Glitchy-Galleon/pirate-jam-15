@@ -126,7 +126,7 @@ impl<'a> RawMeshBuilder<'a> {
     fn make_island_mesh(&self, coords: &[UVec2], height: u32, tileset: &Tileset) -> RawMesh {
         let mut vertices = Vec::new();
         let mut indices = Vec::new();
-        let mut normals = Vec::new();
+        // let mut normals = Vec::new();
         let mut uvs = Vec::new();
 
         let mut idx = 0;
@@ -156,7 +156,7 @@ impl<'a> RawMeshBuilder<'a> {
                     let nz = z + dz;
 
                     vertices.extend(&[[x, y, z], [nx, y, nz], [nx, ny, nz], [x, ny, z]]);
-                    normals.extend(&[[dx, 0.0, dz]; 4]);
+                    // normals.extend(&[[dx, 0.0, dz]; 4]);
 
                     let tile =
                         tileset.id_to_uvs_or_default(face.wall_side_tile_ids[t + (h * 4) as usize]);
@@ -179,7 +179,7 @@ impl<'a> RawMeshBuilder<'a> {
                 [x + 1.0, y, z + 1.0],
                 [x, y, z + 1.0],
             ]);
-            normals.extend(&[[0.0, 1.0, 0.0]; 4]);
+            // normals.extend(&[[0.0, 1.0, 0.0]; 4]);
 
             let tile = tileset.id_to_uvs_or_default(face.wall_top_tile_id);
             uvs.extend(&[
@@ -200,6 +200,7 @@ impl<'a> RawMeshBuilder<'a> {
             ]);
             idx += 4;
         }
+        let normals = vertex_normals(&vertices, &indices);
 
         RawMesh {
             vertices,
@@ -307,7 +308,7 @@ fn vertex_normals(vertices: &[[f32; 3]], indices: &[u32]) -> Vec<[f32; 3]> {
 
 #[test]
 fn checking() {
-    let tilemap = Tilemap::new(UVec2::new(3, 3)).unwrap();
+    let tilemap = Tilemap::new(UVec2::new(3, 3), 0).unwrap();
     assert_eq!(
         tilemap.face_grid().neighbor_coords_4(UVec2::new(0, 0)),
         [None, Some(UVec2::new(1, 0)), None, Some(UVec2::new(0, 1)),]

@@ -100,13 +100,13 @@ impl Anchor2 {
     pub fn description_str(&self) -> &str {
         match (self.x, self.y) {
             (Anchor::Start,  Anchor::Start)  => "Top Left",
-            (Anchor::Start,  Anchor::Center) => "Top",
-            (Anchor::Start,  Anchor::End)    => "Top Right",
-            (Anchor::Center, Anchor::Start)  => "Left",
+            (Anchor::Center, Anchor::Start)  => "Top",
+            (Anchor::End,    Anchor::Start)  => "Top Right",
+            (Anchor::Start,  Anchor::Center) => "Left",
             (Anchor::Center, Anchor::Center) => "Center",
-            (Anchor::Center, Anchor::End)    => "Right",
-            (Anchor::End,    Anchor::Start)  => "Bottom Left",
-            (Anchor::End,    Anchor::Center) => "Bottom",
+            (Anchor::End,    Anchor::Center) => "Right",
+            (Anchor::Start,  Anchor::End)    => "Bottom Left",
+            (Anchor::Center, Anchor::End)    => "Bottom",
             (Anchor::End,    Anchor::End)    => "Bottom Right",
         }
     }

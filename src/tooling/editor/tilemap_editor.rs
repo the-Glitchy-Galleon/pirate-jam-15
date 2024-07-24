@@ -15,6 +15,7 @@ use ui::EguiState;
 
 const DEFAULT_EDITOR_SAVE_PATH: &str = "./level_editor_scenes";
 const DEFAULT_EDITOR_EXPORT_PATH: &str = "./assets/level";
+const START_ELEVATION: u32 = 6;
 
 #[derive(Component, Reflect)]
 pub struct TilemapGroundMesh;
@@ -56,7 +57,7 @@ pub struct TilemapEditorPlugin;
 
 impl Plugin for TilemapEditorPlugin {
     fn build(&self, app: &mut App) {
-        let tilemap = Tilemap::new(UVec2::new(32, 32)).unwrap();
+        let tilemap = Tilemap::new(UVec2::new(32, 32), START_ELEVATION).unwrap();
         let tileset = Tileset::new(UVec2::new(TILESET_TILE_NUM[0], TILESET_TILE_NUM[1])).unwrap();
 
         app.init_resource::<Systems>()
@@ -77,7 +78,7 @@ impl Plugin for TilemapEditorPlugin {
                 ..Default::default()
             })
             .insert_resource(EditorControls {
-                tilemap: TilemapControls::new(12, 3),
+                tilemap: TilemapControls::new(32, 6),
             })
             .add_systems(
                 Update,
@@ -86,7 +87,7 @@ impl Plugin for TilemapEditorPlugin {
                     perform_click_actions,
                     change_control_mode,
                     ui::render_egui,
-                    draw_vert_gizmos,
+                    // _draw_vert_gizmos,
                     draw_hovered_tile_gizmo,
                     ui::update_info_text,
                     ui::check_open_file_dialog,
@@ -266,7 +267,7 @@ fn recreate_object_markers(
     }
 }
 
-fn draw_vert_gizmos(
+fn _draw_vert_gizmos(
     mut gizmos: Gizmos,
     tilemap: Res<EditorState>,
     transform: Query<&Transform, With<TilemapGroundMesh>>,
@@ -543,7 +544,7 @@ fn draw_hovered_tile_gizmo(
 pub(super) mod ui {
     use super::{
         ControlMode, EditorState, ExportLevelScenePath, Systems, DEFAULT_EDITOR_EXPORT_PATH,
-        DEFAULT_EDITOR_SAVE_PATH, TILESET_PATH_DIFFUSE,
+        DEFAULT_EDITOR_SAVE_PATH, START_ELEVATION, TILESET_PATH_DIFFUSE,
     };
     use crate::{
         framework::tileset::{TILESET_TEXTURE_DIMS, TILESET_TILE_DIMS},
@@ -717,7 +718,10 @@ pub(super) mod ui {
             if keys.just_pressed(KeyCode::KeyR) {
                 state.resize_widget = match state.resize_widget.is_some() {
                     true => None,
-                    false => Some(TilemapSizeWidget::new(editor_state.tilemap.dims())),
+                    false => Some(TilemapSizeWidget::new(
+                        editor_state.tilemap.dims(),
+                        START_ELEVATION,
+                    )),
                 }
             }
             if keys.just_pressed(KeyCode::KeyE) {
@@ -813,8 +817,8 @@ pub(super) mod ui {
             egui::Window::new("Resize Tilemap")
                 .open(&mut resize_widget_open)
                 .show(ctx, |ui| {
-                    if let Some((anchor, dims)) = widget.show(ui) {
-                        editor_state.tilemap.resize_anchored(dims, anchor);
+                    if let Some((anchor, dims, elevation)) = widget.show(ui) {
+                        editor_state.tilemap.resize_anchored(dims, anchor, elevation);
                         cmd.run_system(sys.recreate_scene);
                         cmd.run_system(sys.recreate_object_markers);
                     }

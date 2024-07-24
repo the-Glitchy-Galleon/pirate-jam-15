@@ -39,7 +39,6 @@ impl AnchorWidget {
                 {
                     self.selected = Some(anchor);
                     result = self.selected;
-                    println!("Cell clicked: ({}, {})", x, y);
                 }
             }
         }
@@ -51,20 +50,22 @@ pub struct TilemapSizeWidget {
     anchor_widget: AnchorWidget,
     pub old_dims: UVec2,
     pub sliders: UVec2,
+    pub elevation: u32,
 }
 
 impl TilemapSizeWidget {
-    pub fn new(sliders: UVec2) -> Self {
+    pub fn new(sliders: UVec2, elevation: u32) -> Self {
         Self {
             anchor_widget: AnchorWidget {
                 selected: Some(Anchor2::CENTER),
             },
             old_dims: sliders,
             sliders,
+            elevation,
         }
     }
 
-    pub fn show(&mut self, ui: &mut Ui) -> Option<(Anchor2, UVec2)> {
+    pub fn show(&mut self, ui: &mut Ui) -> Option<(Anchor2, UVec2, u32)> {
         ui.separator();
 
         let mut result = None;
@@ -76,13 +77,33 @@ impl TilemapSizeWidget {
                     "Anchor: {}",
                     self.anchor_widget.selected.unwrap().description_str()
                 ));
-                let x = ui.add(egui::Slider::new(&mut self.sliders.x, 1..=MAX_GRID_DIMS.x));
-                let y = ui.add(egui::Slider::new(&mut self.sliders.y, 1..=MAX_GRID_DIMS.y));
-
-                if x.drag_stopped() || x.lost_focus() || y.drag_stopped() || y.lost_focus() {
+                let mut update = false;
+                ui.horizontal(|ui| {
+                    ui.label("X");
+                    let r = ui.add(egui::Slider::new(&mut self.sliders.x, 1..=MAX_GRID_DIMS.x));
+                    if r.drag_stopped() || r.lost_focus() {
+                        update = true;
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Y");
+                    let r = ui.add(egui::Slider::new(&mut self.sliders.y, 1..=MAX_GRID_DIMS.x));
+                    if r.drag_stopped() || r.lost_focus() {
+                        update = true;
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Elevation");
+                    ui.add(egui::Slider::new(&mut self.elevation, 0..=32));
+                });
+                if update {
                     if self.old_dims != self.sliders {
                         self.old_dims = self.sliders;
-                        result = Some((self.anchor_widget.selected.unwrap(), self.sliders));
+                        result = Some((
+                            self.anchor_widget.selected.unwrap(),
+                            self.sliders,
+                            self.elevation,
+                        ));
                     }
                 }
             });

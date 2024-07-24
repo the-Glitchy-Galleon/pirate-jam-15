@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 pub const TILE_SIZE_X: f32 = 1.0;
 pub const TILE_SIZE_Y: f32 = 1.0;
 pub const TILE_DIMS: Vec2 = Vec2::new(TILE_SIZE_X, TILE_SIZE_Y);
-pub const SLOPE_HEIGHT: f32 = 0.5;
+pub const SLOPE_HEIGHT: f32 = 0.334;
+// pub const SLOPE_HEIGHT: f32 = 1.0;
 pub const WALL_HEIGHT: f32 = 1.0;
 pub const MAX_NUM_WALLS: usize = 6;
 
@@ -17,7 +18,6 @@ pub struct FaceData {
     pub wall_top_tile_id: u32,
     pub wall_side_tile_ids: [u32; 4 * MAX_NUM_WALLS],
     pub tile_id: u32,
-    pub object: Option<ObjectDef>,
 }
 impl FaceData {
     pub const DEFAULT: FaceData = FaceData {
@@ -25,7 +25,6 @@ impl FaceData {
         tile_id: 0,
         wall_top_tile_id: 0,
         wall_side_tile_ids: [0; 4 * MAX_NUM_WALLS],
-        object: None,
     };
 }
 
@@ -48,13 +47,18 @@ pub struct Tilemap {
 }
 
 impl Tilemap {
-    pub fn new(dims: UVec2) -> Option<Self> {
+    pub fn new(dims: UVec2, start_elevation: u32) -> Option<Self> {
         let vert_dims = dims + UVec2::ONE;
         Some(Self {
             face_grid: Grid::new(dims)?,
             vert_grid: Grid::new(vert_dims)?,
             face_data: vec![FaceData::DEFAULT; (dims.element_product()) as usize],
-            vert_data: vec![VertData::DEFAULT; (vert_dims.element_product()) as usize],
+            vert_data: vec![
+                VertData {
+                    elevation: start_elevation
+                };
+                (vert_dims.element_product()) as usize
+            ],
         })
     }
 
@@ -187,7 +191,7 @@ impl Tilemap {
         &self.vert_grid
     }
 
-    pub fn resize_anchored(&mut self, dims: UVec2, anchor: Anchor2) {
+    pub fn resize_anchored(&mut self, dims: UVec2, anchor: Anchor2, elevation: u32) {
         let mut face_data = Vec::with_capacity(dims.element_product() as usize);
         let vert_dims = dims + UVec2::ONE;
         let mut vert_data = Vec::with_capacity(vert_dims.element_product() as usize);
@@ -203,7 +207,7 @@ impl Tilemap {
         for vid in self.vert_grid.resize_anchored(vert_dims, anchor) {
             let val = match vid {
                 Some(vid) => self.vert_data[vid as usize].clone(),
-                None => VertData::default(),
+                None => VertData { elevation },
             };
             vert_data.push(val);
         }

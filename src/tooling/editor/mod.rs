@@ -6,8 +6,9 @@ use crate::{
 use bevy::prelude::*;
 use bevy_rapier3d::{
     plugin::{NoUserData, RapierPhysicsPlugin},
-    render::RapierDebugRenderPlugin,
+    render::{DebugRenderStyle, RapierDebugRenderPlugin},
 };
+use tilemap::SLOPE_HEIGHT;
 use tilemap_editor::TilemapEditorPlugin;
 
 pub mod file_selector_widget;
@@ -26,15 +27,42 @@ impl Plugin for LevelEditorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin::default(),
+            RapierDebugRenderPlugin {
+                style: DebugRenderStyle {
+                    subdivisions: 1,
+                    border_subdivisions: 2,
+                    collider_dynamic_color: [340.0, 1.0, 0.2, 1.0],
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
             GlobalUiStatePlugin,
             LogicalCursorPlugin,
-            FreeCameraPlugin,
+            FreeCameraPlugin {
+                transform: Transform::from_xyz(0.0, SLOPE_HEIGHT * 12.0, 10.0)
+                    .looking_at(Vec3::ZERO, Vec3::Y),
+            },
             TilemapEditorPlugin,
         ))
         .insert_resource(AmbientLight {
             color: Color::WHITE,
-            brightness: 2000.,
-        });
+            brightness: 500.,
+        })
+        .add_systems(Startup, setup);
     }
+}
+
+fn setup(mut cmd: Commands) {
+    cmd.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            illuminance: 10_000.0,
+            shadows_enabled: true,
+
+            ..Default::default()
+        },
+        transform: Transform::IDENTITY
+            .with_translation(Vec3::new(5.0, 10.0, -5.0))
+            .looking_at(Vec3::ZERO, Vec3::Y),
+        ..Default::default()
+    });
 }
