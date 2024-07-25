@@ -12,7 +12,7 @@ fn set_window_title(title: &str) {
         .set_title(title);
 }
 
-pub fn create_app() -> (App, bool) {
+pub fn create_app() -> (App, GameRunArgs) {
     let mut app = App::new();
 
     app.add_plugins(
