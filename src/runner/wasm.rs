@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use web_sys::Document;
+use crate::GameRunArgs;
 
 static LAUNCHER_TITLE: &'static str = "pirate ship";
 
@@ -32,7 +33,8 @@ pub fn create_app() -> (App, bool) {
             }),
     );
 
-    (app, true)
+    
+    (app, GameRunArgs::default())
 }
 
 fn setup_dom(document: &Document) {

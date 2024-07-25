@@ -553,7 +553,7 @@ pub(super) mod ui {
     };
     use crate::{
         framework::tileset::{TILESET_TEXTURE_DIMS, TILESET_TILE_DIMS},
-        game::object_def::ObjectDefKind,
+        game::objects::definitions::ObjectDefKind,
         tooling::editor::{
             tilemap_asset::TilemapRon,
             widgets::{

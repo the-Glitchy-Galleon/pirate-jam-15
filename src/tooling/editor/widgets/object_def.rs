@@ -1,5 +1,5 @@
 use crate::{
-    game::object_def::{ColorDef, ObjectDefKind},
+    game::objects::definitions::{ColorDef, ObjectDefKind},
     tooling::editor::{
         object_def_builder::{ObjectDefBuilder, Rot8},
         tilemap::Tilemap,
