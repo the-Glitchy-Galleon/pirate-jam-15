@@ -1,33 +1,26 @@
 use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
-use bevy::{
-    prelude::*,
-    render::camera::RenderTarget,
-    window::{PrimaryWindow, WindowRef},
-};
-use bevy::{input::InputSystem, prelude::*, utils::HashMap};
+use bevy::prelude::*;
+use bevy::{input::InputSystem, utils::HashMap};
 use bevy_rapier3d::prelude::*;
-use bevy_rapier3d::prelude::*;
-use objects::{
-    assets::GameObjectAssets,
-    camera::{self},
-};
-pub use player_minion::*;
-pub use player_movement::*;
 
 mod kinematic_char;
-mod minion;
 pub mod level;
+mod minion;
 mod player;
-
-pub use kinematic_char::*;
-pub use minion::*;
-pub use player::*;
 pub mod top_down_camera;
 pub mod objects {
     pub mod assets;
     pub mod camera;
     pub mod definitions;
 }
+
+pub use kinematic_char::*;
+pub use minion::*;
+use objects::{
+    assets::GameObjectAssets,
+    camera::{self},
+};
+pub use player::*;
 
 pub struct GamePlugin;
 
@@ -57,8 +50,7 @@ impl Plugin for GamePlugin {
         });
 
         /* Setup */
-        app
-        //.add_systems(Startup, spawn_gameplay_camera)
+        app.add_systems(Startup, spawn_gameplay_camera)
             .add_systems(Startup, setup_physics)
             .add_systems(Startup, setup_player);
 
@@ -99,17 +91,18 @@ impl Plugin for GamePlugin {
                 camera::cast_spotlight_rays.after(camera::look_at_path_state),
             ),
         );
-
-        app.add_plugins(AudioPlugin);
     }
 }
 
 pub fn spawn_gameplay_camera(mut commands: Commands) {
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-30.0, 30.0, 100.0)
-            .looking_at(Vec3::new(0.0, 10.0, 0.0), Vec3::Y),
-        ..Default::default()
-    });
+    commands.spawn((
+        // TopDownCameraControls,
+        Camera3dBundle {
+            transform: Transform::from_xyz(-30.0, 30.0, 100.0)
+                .looking_at(Vec3::new(0.0, 10.0, 0.0), Vec3::Y),
+            ..Default::default()
+        },
+    ));
 }
 
 fn setup_physics(mut commands: Commands) {
