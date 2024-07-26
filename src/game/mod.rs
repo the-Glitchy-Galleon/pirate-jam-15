@@ -191,7 +191,6 @@ fn setup_physics(
         },
         TransformBundle::from(Transform::from_xyz(4.0, 0.0, 4.0)),
         Collider::cuboid(1.0, 1.0, 1.0),
-        Sensor,
         CollisionGroups {
             memberships: TARGET_GROUP,
             filters: GROUND_GROUP | ACTOR_GROUP,

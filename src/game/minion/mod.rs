@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::{Collider, CollisionGroups};
+use bevy_rapier3d::{plugin::RapierContext, prelude::{Collider, CollisionGroups, Group, QueryFilter}};
 
 mod collector;
 mod destructible_target;
@@ -10,7 +10,7 @@ pub use destructible_target::*;
 use vleue_navigator::{NavMesh, TransformedPath};
 pub use walk_target::*;
 
-use super::{collision_groups::{ACTOR_GROUP, GROUND_GROUP}, CharacterWalkControl, KinematicCharacterBundle, LevelResources, PlayerTag};
+use super::{collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP}, CharacterWalkControl, KinematicCharacterBundle, LevelResources, PlayerTag};
 
 const MINION_INTERRACTION_RANGE: f32 = 0.5;
 const MINION_NODE_DIST: f32 = 0.1;
@@ -237,30 +237,46 @@ pub fn update_minion_state(
     mut minion_q: Query<(&GlobalTransform, &mut MinionState)>,
     target_q: Query<&GlobalTransform, With<MinionTarget>>,
     player_q: Query<&GlobalTransform, With<PlayerTag>>,
+    rap_ctx: ResMut<RapierContext>,
 ) {
     let Ok(player_tf) = player_q.get_single() else {
         return;
     };
 
     for (tf, mut state) in minion_q.iter_mut() {
-        let dist_check = |p| tf.translation().distance(p) < MINION_INTERRACTION_RANGE;
+        let target_pos = match state.as_ref() {
+            MinionState::GoingToPlayer => player_tf.translation(),
+            MinionState::GoingTo(target) => match target_q.get(*target) {
+                Ok(tf) => tf.translation(),
+                Err(e) => {
+                    warn!("Failed to get target pos: {e}");
+                    continue;
+                }
+            },
+            _ => continue,
+        };
+
+        let is_target_reachable = rap_ctx.cast_ray(
+            tf.translation(),
+            target_pos - tf.translation(),
+            MINION_INTERRACTION_RANGE,
+            true,
+            QueryFilter {
+                groups: Some(CollisionGroups {
+                    memberships: Group::all(),
+                    filters: GROUND_GROUP | TARGET_GROUP,
+                }),
+                ..default()
+            },
+        ).is_some();
 
         match *state {
-            MinionState::GoingToPlayer => {
-                if dist_check(player_tf.translation()) {
-                    *state = MinionState::Idling;
-                }
-            }
-            MinionState::GoingTo(target) => {
-                let Ok(target_tf) = target_q.get(target) else {
-                    *state = MinionState::Idling;
-                    continue;
-                };
-
-                if dist_check(target_tf.translation()) {
-                    *state = MinionState::Interracting(target);
-                }
-            }
+            MinionState::GoingToPlayer if is_target_reachable => {
+                *state = MinionState::Idling
+            },
+            MinionState::GoingTo(target) if is_target_reachable => {
+                *state = MinionState::Interracting(target);
+            },
             _ => (),
         }
     }
