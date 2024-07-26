@@ -67,10 +67,7 @@ pub fn init_level(
                         ..default()
                     },
                     collider,
-                    CollisionGroups {
-                        memberships: G_GROUND,
-                        filters: G_PLAYER | G_MINION | G_OBJECT,
-                    },
+                    CollisionGroups::new(GROUND_GROUP, ACTOR_GROUP | ACTOR_GROUP | TARGET_GROUP),
                 ))
                 .id();
 
@@ -94,10 +91,7 @@ pub fn init_level(
                             ..default()
                         },
                         collider,
-                        CollisionGroups {
-                            memberships: G_WALL,
-                            filters: G_PLAYER | G_MINION | G_OBJECT,
-                        },
+                        CollisionGroups::new(WALL_GROUP, ACTOR_GROUP | TARGET_GROUP),
                     ))
                     .id(),
                 );

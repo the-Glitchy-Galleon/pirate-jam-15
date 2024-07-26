@@ -1,22 +1,20 @@
+use super::{
+    collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP},
+    CharacterWalkControl, KinematicCharacterBundle, LevelResources, PlayerTag,
+};
 use bevy::prelude::*;
 use bevy_rapier3d::{
     plugin::RapierContext,
     prelude::{Collider, CollisionGroups, Group, QueryFilter},
 };
+use vleue_navigator::{NavMesh, TransformedPath};
 
 mod collector;
 mod destructible_target;
 mod walk_target;
-
 pub use collector::*;
 pub use destructible_target::*;
-use vleue_navigator::{NavMesh, TransformedPath};
 pub use walk_target::*;
-
-use super::{
-    collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP},
-    CharacterWalkControl, KinematicCharacterBundle, LevelResources, PlayerTag,
-};
 
 const MINION_INTERRACTION_RANGE: f32 = 0.5;
 const MINION_NODE_DIST: f32 = 0.1;
@@ -58,7 +56,6 @@ pub struct MinionBundle {
     pub character: KinematicCharacterBundle,
     pub kind: MinionKind,
     pub state: MinionState,
-    pub collision_groups: CollisionGroups,
 }
 
 impl Default for MinionBundle {
@@ -69,10 +66,7 @@ impl Default for MinionBundle {
             character: Default::default(),
             kind: Default::default(),
             state: Default::default(),
-            collision_groups: CollisionGroups {
-                memberships: ACTOR_GROUP,
-                filters: GROUND_GROUP,
-            },
+            collision_groups: CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP),
         }
     }
 }
@@ -271,11 +265,11 @@ pub fn update_minion_state(
                 MINION_INTERRACTION_RANGE,
                 true,
                 QueryFilter {
-                    groups: Some(CollisionGroups {
-                        memberships: Group::all(),
-                        filters: GROUND_GROUP | TARGET_GROUP,
-                    }),
-                    ..default()
+                    groups: Some(CollisionGroups::new(
+                        Group::all(),
+                        GROUND_GROUP | TARGET_GROUP,
+                    )),
+                    ..Default::default()
                 },
             )
             .is_some();

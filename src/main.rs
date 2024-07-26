@@ -2,7 +2,6 @@
 
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use game::{
     level::{self, UserDefinedStartupLevel},
     GamePlugin,
@@ -39,13 +38,9 @@ fn main() -> AppExit {
         app.add_plugins(GamePlugin);
 
         if let Some(level) = run_args.level {
-            app.add_plugins(WorldInspectorPlugin::default());
             app.insert_resource(UserDefinedStartupLevel(level));
             app.add_systems(Startup, level::load_user_defined_startup_level);
         }
-    } else {
-        app.add_plugins(WorldInspectorPlugin::default());
     }
-
     runner::run_app(&mut app)
 }

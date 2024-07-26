@@ -188,10 +188,10 @@ pub fn update_shined_entities(
                 bevy_rapier3d::math::Real::INFINITY,
                 true,
                 QueryFilter {
-                    groups: Some(CollisionGroups {
-                        memberships: G_SENSOR,
-                        filters: G_GROUND | G_WALL | G_PLAYER | G_MINION,
-                    }),
+                    groups: Some(CollisionGroups::new(
+                        Group::all(),
+                        GROUND_GROUP | WALL_GROUP | ACTOR_GROUP | ACTOR_GROUP,
+                    )),
                     ..Default::default()
                 },
             );

@@ -1,10 +1,9 @@
-use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
-
 use crate::game::{
     collision_groups::*, CharacterWalkControl, KinematicCharacterBundle, MinionBundle, MinionKind,
     MinionState, MinionStorage, WalkTargetBundle,
 };
+use bevy::prelude::*;
+use bevy_rapier3d::prelude::*;
 
 use super::PlayerTag;
 
@@ -68,10 +67,7 @@ pub fn minion_storage_throw(
             ..default()
         },
         collider: Collider::cuboid(0.3, 0.3, 0.3),
-        collision_groups: CollisionGroups {
-            memberships: G_MINION,
-            filters: G_ALL,
-        },
+        collision_groups: CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP),
         character: KinematicCharacterBundle::default(),
         kind: min_inp.chosen_ty,
         state: MinionState::GoingTo(target_id),

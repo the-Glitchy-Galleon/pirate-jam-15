@@ -1,20 +1,21 @@
 use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
-use bevy::{
-    color::palettes::tailwind,
-    prelude::*,
-    render::camera::RenderTarget,
-    window::{PrimaryWindow, WindowRef},
+use bevy::prelude::*;
+use bevy::{input::InputSystem, utils::HashMap};
+use bevy_rapier3d::prelude::*;
+use collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP};
+use kinematic_char::*;
+use minion::*;
+use objects::{
+    assets::GameObjectAssets,
+    camera::{self},
 };
-use bevy::{input::InputSystem, prelude::*, utils::HashMap};
-use bevy_rapier3d::prelude::*;
-use bevy_rapier3d::prelude::*;
-use object_def::ColorDef;
+use player::*;
 
-mod collision_groups;
-mod kinematic_char;
+pub mod collision_groups;
+pub mod kinematic_char;
 pub mod level;
-mod minion;
-mod player;
+pub mod minion;
+pub mod player;
 pub mod top_down_camera;
 pub mod objects {
     pub mod assets;
@@ -22,13 +23,6 @@ pub mod objects {
     pub mod definitions;
 }
 
-pub use kinematic_char::*;
-pub use minion::*;
-use objects::{
-    assets::GameObjectAssets,
-    camera::{self},
-};
-pub use player::*;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
 #[derive(Debug, Resource)]
@@ -114,7 +108,7 @@ impl Plugin for GamePlugin {
             .init_resource::<GameObjectAssets>();
 
         app.add_systems(Startup, level::load_preview_scene);
-        app.add_systems(PreUpdate, level::init_level);
+        // app.add_systems(PreUpdate, level::init_level);
         app.add_systems(Update, top_down_camera::update);
         camera::add_systems_and_resources(app);
     }
@@ -124,8 +118,8 @@ pub fn spawn_gameplay_camera(mut commands: Commands) {
     commands.spawn((
         // TopDownCameraControls,
         Camera3dBundle {
-            transform: Transform::from_xyz(-30.0, 30.0, 100.0)
-                .looking_at(Vec3::new(0.0, 10.0, 0.0), Vec3::Y),
+            transform: Transform::from_xyz(-30.0, 30.0, 30.0)
+                .looking_at(Vec3::new(10.0, 0.0, 7.0), Vec3::Y),
             ..Default::default()
         },
     ));
@@ -188,10 +182,7 @@ fn setup_physics(mut navs: ResMut<Assets<NavMesh>>, mut commands: Commands) {
     commands.spawn((
         TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
-        CollisionGroups {
-            memberships: GROUND_GROUP,
-            filters: ACTOR_GROUP | TARGET_GROUP,
-        },
+        CollisionGroups::new(GROUND_GROUP, ACTOR_GROUP | TARGET_GROUP),
     ));
 
     commands.spawn((
@@ -206,10 +197,7 @@ fn setup_physics(mut navs: ResMut<Assets<NavMesh>>, mut commands: Commands) {
         },
         TransformBundle::from(Transform::from_xyz(4.0, 0.0, 4.0)),
         Collider::cuboid(1.0, 1.0, 1.0),
-        CollisionGroups {
-            memberships: TARGET_GROUP,
-            filters: GROUND_GROUP | ACTOR_GROUP,
-        },
+        CollisionGroups::new(TARGET_GROUP, GROUND_GROUP | ACTOR_GROUP),
     ));
 
     /*

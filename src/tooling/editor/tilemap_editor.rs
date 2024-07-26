@@ -14,7 +14,7 @@ use bevy_egui::EguiUserTextures;
 use bevy_rapier3d::geometry::CollisionGroups;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::plugin::RapierContext;
-use bevy_rapier3d::prelude::Collider;
+use bevy_rapier3d::prelude::{Collider, Group};
 use std::f32::consts::PI;
 
 const DEFAULT_EDITOR_SAVE_PATH: &str = "./level_editor_scenes";
@@ -134,7 +134,6 @@ mod oneshot {
 
     use super::*;
     use bevy::ecs::system::SystemId;
-    use bevy_rapier3d::prelude::Group;
 
     #[derive(Resource)]
     pub(super) struct Systems {
@@ -193,7 +192,7 @@ mod oneshot {
                 ..default()
             },
             collider,
-            CollisionGroups::new(G_GROUND, Group::all()),
+            CollisionGroups::new(GROUND_GROUP, ACTOR_GROUP | TARGET_GROUP),
             TilemapGroundMesh,
         ));
 
@@ -216,7 +215,7 @@ mod oneshot {
                     ..default()
                 },
                 collider,
-                CollisionGroups::new(G_WALL, G_ALL),
+                CollisionGroups::new(WALL_GROUP, ACTOR_GROUP | TARGET_GROUP),
                 TilemapWallMesh,
             ));
         }
@@ -352,7 +351,7 @@ fn process_spawn_object_queue(
                     .insert((
                         Shineable,
                         Collider::cuboid(0.5, 0.5, 0.5),
-                        CollisionGroups::new(G_PLAYER, G_ALL),
+                        CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP),
                     ))
                     .id(),
                 ObjectDefKind::Camera => {
@@ -500,7 +499,7 @@ fn update_hovered_states(
         *ray.direction,
         bevy_rapier3d::math::Real::MAX,
         true,
-        QueryFilter::new().groups(CollisionGroups::new(G_SENSOR, G_GROUND)),
+        QueryFilter::new().groups(CollisionGroups::new(Group::all(), GROUND_GROUP)),
     );
 
     let wall_ray = rapier.cast_ray_and_get_normal(
@@ -508,7 +507,7 @@ fn update_hovered_states(
         *ray.direction,
         bevy_rapier3d::math::Real::MAX,
         true,
-        QueryFilter::new().groups(CollisionGroups::new(G_SENSOR, G_WALL)),
+        QueryFilter::new().groups(CollisionGroups::new(Group::all(), WALL_GROUP)),
     );
 
     let mut ground_toi = f32::MAX;
