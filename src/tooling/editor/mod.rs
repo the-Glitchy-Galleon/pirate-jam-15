@@ -32,8 +32,8 @@ impl Plugin for LevelEditorPlugin {
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin {
                 style: DebugRenderStyle {
-                    subdivisions: 1,
-                    border_subdivisions: 2,
+                    // subdivisions: 1,
+                    // border_subdivisions: 2,
                     collider_dynamic_color: [340.0, 1.0, 0.2, 1.0],
                     ..Default::default()
                 },

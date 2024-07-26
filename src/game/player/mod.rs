@@ -10,7 +10,8 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 
 use super::{
-    CharacterWalkControl, KinematicCharacterBundle, MinionKind, MinionStorage, MinionTarget,
+    collision_groups::*, CharacterWalkControl, KinematicCharacterBundle, MinionKind, MinionStorage,
+    MinionTarget,
 };
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
@@ -30,6 +31,10 @@ pub fn setup_player(mut commands: Commands) {
             PlayerTag,
             minion_st,
             Collider::round_cylinder(0.9, 0.3, 0.2),
+            CollisionGroups {
+                memberships: G_PLAYER,
+                filters: G_ALL,
+            },
             SpatialBundle {
                 transform: Transform::from_xyz(0.0, 5.0, 0.0),
                 ..default()
@@ -49,6 +54,10 @@ pub fn setup_player(mut commands: Commands) {
                         },
                         ActiveCollisionTypes::KINEMATIC_STATIC,
                         Collider::cone(3.0, 4.5),
+                        CollisionGroups {
+                            memberships: G_SENSOR,
+                            filters: G_MINION,
+                        },
                         RigidBody::Fixed,
                         Sensor,
                     ));

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Reflect)]
 pub enum Easing {
     Linear,
     InPowi(i32),
@@ -51,6 +51,7 @@ impl Default for Easing {
 struct Tween<T> {
     a: T,
     b: T,
+    easing: Easing,
 }
 
 impl<T: Clone> Clone for Tween<T> {
@@ -58,26 +59,85 @@ impl<T: Clone> Clone for Tween<T> {
         Self {
             a: self.a.clone(),
             b: self.b.clone(),
+            easing: self.easing.clone(),
         }
     }
 }
 
 impl<T> Tween<T> {
-    pub fn new(a: T, b: T) -> Self {
-        Self { a, b }
+    pub fn new(a: T, b: T, easing: Easing) -> Self {
+        Self { a, b, easing }
     }
 }
 impl Tween<Vec3> {
-    pub fn lerp(&self, t: f32) -> Vec3 {
-        self.a.lerp(self.b, t)
+    pub fn apply(&self, t: f32) -> Vec3 {
+        self.a.lerp(self.b, self.easing.apply(t as f64) as f32)
     }
 }
 
+#[derive(Component, Clone, Reflect)]
+pub struct TweenList {
+    paths: Vec<Vec3>,
+    target: usize,
+    progress: f32,
+    tween: Tween<Vec3>,
+}
+
+impl TweenList {
+    pub fn new(paths: Vec<Vec3>, easing: Easing) -> Self {
+        let tween = match paths.len() {
+            0 => Tween::new(Vec3::ZERO, Vec3::ZERO, easing),
+            1 => Tween::new(paths[0], paths[0], easing),
+            _ => Tween::new(paths[0], paths[1], easing),
+        };
+        let target = match paths.len() {
+            0 => 0,
+            1 => 0,
+            _ => 1,
+        };
+        Self {
+            paths,
+            target,
+            progress: 0.0,
+            tween,
+        }
+    }
+
+    pub fn tick(&mut self, dt: f32) -> Vec3 {
+        let paths_len = self.paths.len();
+        if paths_len == 0 {
+            return Vec3::ZERO;
+        }
+        if paths_len == 1 {
+            return self.paths[0];
+        }
+
+        self.progress += dt;
+        if self.progress >= 1.0 {
+            let old_target = self.target;
+            self.target = (self.target + 1) % paths_len;
+            self.progress = 0.0;
+            self.tween = Tween::new(
+                self.paths[old_target],
+                self.paths[self.target],
+                self.tween.easing,
+            );
+            self.paths[old_target]
+        } else {
+            self.tween.apply(self.progress)
+        }
+    }
+}
+
+/*
 #[derive(Clone, Copy, PartialEq, Eq, Reflect)]
 enum BackForth {
     Back,
     Forth,
 }
+
+
+Removed because you can simulated it by just adding more points
 
 #[derive(Component, Clone, Reflect)]
 pub struct TweenBackAndForth {
@@ -141,3 +201,5 @@ impl TweenBackAndForth {
         }
     }
 }
+
+*/

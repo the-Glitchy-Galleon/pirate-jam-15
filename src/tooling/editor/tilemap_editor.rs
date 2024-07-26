@@ -5,14 +5,16 @@ use super::tilemap_mesh_builder::{self, RawMeshBuilder};
 use crate::framework::level_asset::{LevelAsset, LevelAssetData, WallData};
 use crate::framework::prelude::*;
 use crate::framework::tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL, TILESET_TILE_NUM};
-use crate::game::objects::camera::CameraObjBuilder;
+use crate::game::collision_groups::*;
+use crate::game::objects::camera::{CameraObjBuilder, Shineable};
 use crate::game::objects::definitions::ObjectDefKind;
 use bevy::color::palettes::tailwind::{self, *};
 use bevy::prelude::*;
 use bevy_egui::EguiUserTextures;
-use bevy_rapier3d::geometry::{CollisionGroups, Group};
+use bevy_rapier3d::geometry::CollisionGroups;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::plugin::RapierContext;
+use bevy_rapier3d::prelude::Collider;
 use std::f32::consts::PI;
 
 const DEFAULT_EDITOR_SAVE_PATH: &str = "./level_editor_scenes";
@@ -107,7 +109,7 @@ impl Plugin for TilemapEditorPlugin {
                     apply_deferred,
                     process_despawn_object_queue,
                     apply_deferred,
-                    process_spawn_object_queue,
+                    process_spawn_object_queue.before(camera::link_root_parents),
                     apply_deferred,
                 )
                     .chain(),
@@ -128,8 +130,11 @@ fn setup(mut cmd: Commands, sys: Res<oneshot::Systems>) {
 }
 
 mod oneshot {
+    use crate::game::collision_groups::*;
+
     use super::*;
     use bevy::ecs::system::SystemId;
+    use bevy_rapier3d::prelude::Group;
 
     #[derive(Resource)]
     pub(super) struct Systems {
@@ -188,7 +193,7 @@ mod oneshot {
                 ..default()
             },
             collider,
-            CollisionGroups::new(Group::GROUP_15, Group::GROUP_15),
+            CollisionGroups::new(G_GROUND, Group::all()),
             TilemapGroundMesh,
         ));
 
@@ -211,7 +216,7 @@ mod oneshot {
                     ..default()
                 },
                 collider,
-                CollisionGroups::new(Group::GROUP_16, Group::GROUP_16),
+                CollisionGroups::new(G_WALL, G_ALL),
                 TilemapWallMesh,
             ));
         }
@@ -332,32 +337,34 @@ fn process_spawn_object_queue(
                 data.material.clone()
             };
 
-            let marker = match def.kind {
-                ObjectDefKind::Camera => {
-                    let builder = CameraObjBuilder(def.build(&state.tilemap));
-                    let camera = builder.build(&mut cmd, &assets);
-                    cmd.entity(camera)
-                        .insert(ObjectMarker { id: spawn.id })
-                        .id()
-                }
-                _ => {
-                    let marker = (
-                        ObjectMarker { id: spawn.id },
-                        PbrBundle {
-                            mesh: data.mesh.clone(),
-                            material,
-                            transform: Transform::IDENTITY
-                                .with_translation(pos + Vec3::Y * 0.4)
-                                .with_scale(Vec3::splat(0.4)),
-                            ..Default::default()
-                        },
-                    );
-                    cmd.spawn(marker).id()
-                }
+            let marker_dummy = PbrBundle {
+                mesh: data.mesh.clone(),
+                material,
+                transform: Transform::IDENTITY
+                    .with_translation(pos + Vec3::Y * 0.4)
+                    .with_scale(Vec3::splat(0.4)),
+                ..Default::default()
             };
 
+            let entity = match def.kind {
+                ObjectDefKind::SpawnPoint => cmd
+                    .spawn(marker_dummy)
+                    .insert((
+                        Shineable,
+                        Collider::cuboid(0.5, 0.5, 0.5),
+                        CollisionGroups::new(G_PLAYER, G_ALL),
+                    ))
+                    .id(),
+                ObjectDefKind::Camera => {
+                    let builder = CameraObjBuilder(def.build(&state.tilemap));
+                    builder.build(&mut cmd, &assets)
+                }
+                _ => cmd.spawn(marker_dummy).id(),
+            };
+            cmd.entity(entity).insert(ObjectMarker { id: spawn.id });
+
             if is_selected {
-                selected_change.send(SelectedObjectChanged::Entity(marker));
+                selected_change.send(SelectedObjectChanged::Entity(entity));
             }
         } else {
             warn!("No valid position for object {}: {def:?}", spawn.id);
@@ -493,7 +500,7 @@ fn update_hovered_states(
         *ray.direction,
         bevy_rapier3d::math::Real::MAX,
         true,
-        QueryFilter::new().groups(CollisionGroups::new(Group::GROUP_15, Group::GROUP_15)),
+        QueryFilter::new().groups(CollisionGroups::new(G_SENSOR, G_GROUND)),
     );
 
     let wall_ray = rapier.cast_ray_and_get_normal(
@@ -501,7 +508,7 @@ fn update_hovered_states(
         *ray.direction,
         bevy_rapier3d::math::Real::MAX,
         true,
-        QueryFilter::new().groups(CollisionGroups::new(Group::GROUP_16, Group::GROUP_16)),
+        QueryFilter::new().groups(CollisionGroups::new(G_SENSOR, G_WALL)),
     );
 
     let mut ground_toi = f32::MAX;
@@ -1127,12 +1134,10 @@ pub(super) mod ui {
                     evs.send(SelectedObjectChanged::Id(id));
                 }
                 ObjectDefResult::ValueChanged(id) => {
-                    info!("value changed");
                     despawn.send(DespawnObject { id });
                     spawn.send(SpawnObject { id });
                 }
                 ObjectDefResult::Deleted(id) => {
-                    info!("deleted");
                     defs.selected_id = None;
                     despawn.send(DespawnObject { id });
                 }

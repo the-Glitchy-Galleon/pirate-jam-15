@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::Collider;
+use bevy_rapier3d::prelude::{Collider, CollisionGroups};
 
 mod collector;
 mod destructible_target;
@@ -42,10 +42,11 @@ pub enum MinionState {
     Interracting(Entity),
 }
 
-#[derive(Bundle, Default)]
+#[derive(Bundle)]
 pub struct MinionBundle {
     pub spatial: SpatialBundle,
     pub collider: Collider,
+    pub collision_groups: CollisionGroups,
     pub character: KinematicCharacterBundle,
     pub kind: MinionKind,
     pub state: MinionState,

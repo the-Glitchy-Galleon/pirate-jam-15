@@ -43,6 +43,8 @@ fn main() -> AppExit {
             app.insert_resource(UserDefinedStartupLevel(level));
             app.add_systems(Startup, level::load_user_defined_startup_level);
         }
+    } else {
+        app.add_plugins(WorldInspectorPlugin::default());
     }
 
     runner::run_app(&mut app)

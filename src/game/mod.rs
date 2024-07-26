@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::{input::InputSystem, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 
+pub mod collision_groups;
 mod kinematic_char;
 pub mod level;
 mod minion;

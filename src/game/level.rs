@@ -1,14 +1,16 @@
-use bevy::{color::palettes::tailwind, prelude::*};
-
+use super::objects::assets::GameObjectAssets;
 use crate::{
     framework::prelude::LevelAsset,
-    game::objects::{
-        camera::CameraObjBuilder,
-        definitions::{ColorDef, ObjectDefKind},
+    game::{
+        collision_groups::*,
+        objects::{
+            camera::CameraObjBuilder,
+            definitions::{ColorDef, ObjectDefKind},
+        },
     },
 };
-
-use super::objects::assets::GameObjectAssets;
+use bevy::{color::palettes::tailwind, prelude::*};
+use bevy_rapier3d::prelude::*;
 
 #[derive(Component)]
 pub struct InitLevel {
@@ -65,6 +67,10 @@ pub fn init_level(
                         ..default()
                     },
                     collider,
+                    CollisionGroups {
+                        memberships: G_GROUND,
+                        filters: G_PLAYER | G_MINION | G_OBJECT,
+                    },
                 ))
                 .id();
 
@@ -88,6 +94,10 @@ pub fn init_level(
                             ..default()
                         },
                         collider,
+                        CollisionGroups {
+                            memberships: G_WALL,
+                            filters: G_PLAYER | G_MINION | G_OBJECT,
+                        },
                     ))
                     .id(),
                 );
