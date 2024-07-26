@@ -11,7 +11,7 @@ use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
 
 use super::{
-    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP}, CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage, MinionTarget
+    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP}, CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage, MinionTarget
 };
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
@@ -106,7 +106,7 @@ pub fn player_controls(
         QueryFilter {
             groups: Some(CollisionGroups {
                 memberships: Group::all(),
-                filters: GROUND_GROUP | ACTOR_GROUP,
+                filters: GROUND_GROUP | TARGET_GROUP,
             }),
             ..default()
         },

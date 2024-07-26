@@ -5,7 +5,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use super::collision_groups::{ACTOR_GROUP, GROUND_GROUP};
+use super::collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP};
 
 const GROUND_TIMER: f32 = 0.5;
 const MOVEMENT_SPEED: f32 = 8.0;
@@ -61,7 +61,7 @@ impl Default for KinematicCharacterBundle {
                 snap_to_ground: None,
                 filter_groups: Some(CollisionGroups {
                     memberships: ACTOR_GROUP,
-                    filters: GROUND_GROUP,
+                    filters: GROUND_GROUP | TARGET_GROUP,
                 }),
                 ..default()
             },
