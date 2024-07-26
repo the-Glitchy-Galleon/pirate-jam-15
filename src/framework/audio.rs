@@ -26,6 +26,21 @@ impl GlobalVolume {
     }
 }
 
+#[derive(Resource)]
+pub struct GlobalVolume {
+    volume: Volume,
+    tween: Option<VolumeTween>,
+}
+
+impl GlobalVolume {
+    pub fn new(volume: f64) -> Self {
+        Self {
+            volume: Volume::Amplitude(volume),
+            tween: None,
+        }
+    }
+}
+
 pub struct AudioPlugin;
 impl Plugin for AudioPlugin {
     fn build(&self, app: &mut App) {
