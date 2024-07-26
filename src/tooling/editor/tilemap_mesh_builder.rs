@@ -317,3 +317,52 @@ fn checking() {
         [None, Some(UVec2::new(1, 0)), None, Some(UVec2::new(0, 1)),]
     );
 }
+
+pub mod testing {
+    use super::RawMeshBuilder;
+    use bevy::prelude::*;
+    use bevy::utils::HashMap;
+    use polyanya::{Polygon, Vertex};
+
+    impl<'a> RawMeshBuilder<'a> {
+        pub fn create_polyanya_mesh(width: usize, height: usize) -> (Vec<Vertex>, Vec<Polygon>) {
+            let mut vertices = Vec::new();
+            let mut vertex_indices = HashMap::new();
+            let mut polygons = Vec::new();
+
+            // Create vertices
+            for y in 0..=height {
+                for x in 0..=width {
+                    let index = vertices.len() as u32;
+                    let coords = Vec2::new(x as f32, y as f32);
+                    vertex_indices.insert((x, y), index);
+                    vertices.push(Vertex::new(coords, vec![]));
+                }
+            }
+
+            // Create polygons
+            for y in 0..height {
+                for x in 0..width {
+                    let v0 = *vertex_indices.get(&(x, y)).unwrap();
+                    let v1 = *vertex_indices.get(&(x + 1, y)).unwrap();
+                    let v2 = *vertex_indices.get(&(x + 1, y + 1)).unwrap();
+                    let v3 = *vertex_indices.get(&(x, y + 1)).unwrap();
+                    let polygon_index = polygons.len() as isize;
+
+                    let polygon = Polygon {
+                        vertices: vec![v0, v1, v2, v3],
+                        is_one_way: false,
+                    };
+                    polygons.push(polygon);
+
+                    vertices[v0 as usize].polygons.push(polygon_index);
+                    vertices[v1 as usize].polygons.push(polygon_index);
+                    vertices[v2 as usize].polygons.push(polygon_index);
+                    vertices[v3 as usize].polygons.push(polygon_index);
+                }
+            }
+
+            (vertices, polygons)
+        }
+    }
+}

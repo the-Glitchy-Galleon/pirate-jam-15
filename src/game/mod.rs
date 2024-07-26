@@ -17,7 +17,10 @@ use crate::{
 };
 use bevy::{input::InputSystem, prelude::*, utils::HashMap};
 use bevy_rapier3d::prelude::*;
-use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
+use vleue_navigator::{
+    prelude::{NavmeshUpdaterPlugin, PrimitiveObstacle},
+    NavMesh, VleueNavigatorPlugin,
+};
 
 pub mod collision_groups;
 pub mod kinematic_char;
@@ -45,6 +48,7 @@ impl Plugin for GamePlugin {
             RapierDebugRenderPlugin::default(),
             AudioPlugin,
             VleueNavigatorPlugin,
+            NavmeshUpdaterPlugin::<PrimitiveObstacle>::default(),
             bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
         ));
 
@@ -71,7 +75,7 @@ impl Plugin for GamePlugin {
 
         /* Setup */
         app.add_systems(Startup, spawn_gameplay_camera)
-            .add_systems(Startup, setup_physics)
+            // .add_systems(Startup, setup_physics)
             .add_systems(Startup, player::setup_player);
 
         /* Common systems */
@@ -121,7 +125,7 @@ impl Plugin for GamePlugin {
             .init_resource::<GameObjectAssets>();
 
         app.add_systems(Startup, level::load_preview_scene);
-        // app.add_systems(PreUpdate, level::init_level);
+        app.add_systems(PreUpdate, level::init_level);
         app.add_systems(Update, top_down_camera::update);
         camera::add_systems_and_resources(app);
     }
@@ -183,34 +187,10 @@ fn setup_physics(mut navs: ResMut<Assets<NavMesh>>, mut commands: Commands) {
     )
     .unwrap();
 
-    let handle = navs.reserve_handle();
-    let mut navmesh = NavMesh::from_polyanya_mesh(mesh);
-    navmesh.set_transform(Transform::from_rotation(Quat::from_rotation_x(
-        -std::f32::consts::FRAC_PI_2,
-    )));
-
-    navs.insert(handle.id(), navmesh);
-    commands.insert_resource(LevelResources { navmesh: handle });
-
     commands.spawn((
         TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
         CollisionGroups::new(GROUND_GROUP, ACTOR_GROUP | TARGET_GROUP),
-    ));
-
-    commands.spawn((
-        DestructibleTargetBundle {
-            requirement: {
-                let mut map = HashMap::new();
-                map.insert(MinionKind::Void, 2);
-
-                MinionInteractionRequirement::new(map)
-            },
-            ..default()
-        },
-        TransformBundle::from(Transform::from_xyz(4.0, 0.0, 4.0)),
-        Collider::cuboid(1.0, 1.0, 1.0),
-        CollisionGroups::new(TARGET_GROUP, GROUND_GROUP | ACTOR_GROUP),
     ));
 
     /*

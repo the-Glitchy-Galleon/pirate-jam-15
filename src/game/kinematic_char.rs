@@ -6,6 +6,8 @@ use crate::game::collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
+use super::collision_groups::WALL_GROUP;
+
 pub const GROUND_TIMER: f32 = 0.5;
 pub const MOVEMENT_SPEED: f32 = 8.0;
 // pub const JUMP_SPEED: f32 = 20.0;
@@ -60,7 +62,7 @@ impl Default for KinematicCharacterBundle {
                 snap_to_ground: None,
                 filter_groups: Some(CollisionGroups::new(
                     ACTOR_GROUP,
-                    GROUND_GROUP | TARGET_GROUP,
+                    GROUND_GROUP | WALL_GROUP | TARGET_GROUP,
                 )),
                 ..default()
             },

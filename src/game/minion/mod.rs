@@ -11,6 +11,8 @@ use bevy_rapier3d::{
 };
 use vleue_navigator::{NavMesh, TransformedPath};
 
+use super::collision_groups::WALL_GROUP;
+
 pub mod collector;
 pub mod destructible_target;
 pub mod walk_target;
@@ -65,7 +67,7 @@ impl Default for MinionBundle {
             character: Default::default(),
             kind: Default::default(),
             state: Default::default(),
-            collision_groups: CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP),
+            collision_groups: CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP | WALL_GROUP),
         }
     }
 }
@@ -182,6 +184,7 @@ pub fn minion_build_path(
             },
             _ => continue,
         };
+        let target_pos = target_pos.with_y(0.0);
 
         if !navmesh.transformed_is_in_mesh(tf.translation()) {
             error!("Minion is not in the navigation: {:?}", tf.translation());

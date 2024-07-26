@@ -13,6 +13,8 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
 
+use super::collision_groups::WALL_GROUP;
+
 pub mod minion_storage;
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
@@ -32,7 +34,7 @@ pub fn setup_player(mut commands: Commands) {
             PlayerTag,
             minion_st,
             Collider::round_cylinder(0.9, 0.3, 0.2),
-            CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP),
+            CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP | WALL_GROUP),
             SpatialBundle {
                 transform: Transform::from_xyz(0.0, 5.0, 0.0),
                 ..default()
@@ -70,13 +72,16 @@ pub fn player_controls(
     mut player: Query<(&mut Transform, &mut CharacterWalkControl), With<PlayerTag>>,
     mut minion: ResMut<MinionStorageInput>,
     minion_targets: Query<Entity, With<MinionTarget>>,
-    level_reses: Res<LevelResources>,
+    level_reses: Option<Res<LevelResources>>,
     navmeshes: Res<Assets<NavMesh>>,
 ) {
     let Ok(window) = window.get_single() else {
         return;
     };
     let Some(pos) = window.cursor_position() else {
+        return;
+    };
+    let Some(level_reses) = level_reses else {
         return;
     };
     let Some((cam_tf, cam)) = cam
@@ -101,7 +106,7 @@ pub fn player_controls(
         QueryFilter {
             groups: Some(CollisionGroups::new(
                 Group::all(),
-                GROUND_GROUP | TARGET_GROUP,
+                GROUND_GROUP | WALL_GROUP | TARGET_GROUP,
             )),
             ..default()
         },

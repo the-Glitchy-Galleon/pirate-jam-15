@@ -27,3 +27,15 @@ impl Into<Mesh> for RawMesh {
         .with_inserted_indices(Indices::U32(self.indices))
     }
 }
+
+impl RawMesh {
+    pub fn flattened(&self) -> RawMesh {
+        let mut result = self.clone();
+        result.vertices = result
+            .vertices
+            .into_iter()
+            .map(|v| [v[0], 0.0, v[2]])
+            .collect::<Vec<_>>();
+        result
+    }
+}
