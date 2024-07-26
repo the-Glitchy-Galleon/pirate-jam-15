@@ -5,11 +5,12 @@ use super::tilemap_mesh_builder::{self, RawMeshBuilder};
 use crate::framework::level_asset::{LevelAsset, LevelAssetData, WallData};
 use crate::framework::prelude::*;
 use crate::framework::tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL, TILESET_TILE_NUM};
+use crate::game::objects::camera::CameraObjBuilder;
+use crate::game::objects::definitions::ObjectDefKind;
 use bevy::color::palettes::tailwind::{self, *};
-use bevy::{ecs::system::SystemId, prelude::*};
+use bevy::prelude::*;
 use bevy_egui::EguiUserTextures;
 use bevy_rapier3d::geometry::{CollisionGroups, Group};
-use bevy_rapier3d::math::Real;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::plugin::RapierContext;
 use std::f32::consts::PI;
@@ -61,12 +62,15 @@ impl Plugin for TilemapEditorPlugin {
         let tilemap = Tilemap::new(UVec2::new(32, 32), START_ELEVATION).unwrap();
         let tileset = Tileset::new(UVec2::new(TILESET_TILE_NUM[0], TILESET_TILE_NUM[1])).unwrap();
 
-        app.init_resource::<Systems>()
+        app.init_resource::<oneshot::Systems>()
             .init_state::<ControlMode>()
-            .init_resource::<ExportLevelScenePath>()
+            .init_resource::<oneshot::ExportLevelScenePath>()
             .init_resource::<ObjectMarkerData>()
             .init_resource::<ObjectDefStorage>()
             .init_resource::<EguiUserTextures>()
+            .add_event::<SelectedObjectChanged>()
+            .add_event::<DespawnObject>()
+            .add_event::<SpawnObject>()
             .insert_resource(EditorState {
                 tilemap,
                 tileset,
@@ -87,88 +91,89 @@ impl Plugin for TilemapEditorPlugin {
                     update_hovered_states,
                     perform_click_actions,
                     change_control_mode,
+                    update_selected_object_marker.after(process_spawn_object_queue),
+                    update_selected_object_marker_material.after(process_spawn_object_queue),
                     ui::render_egui,
                     // _draw_vert_gizmos,
                     draw_hovered_tile_gizmo,
                     ui::update_info_text,
                     ui::check_open_file_dialog,
+                    ui::update_object_def_ui,
                 ),
             )
+            .add_systems(
+                PreUpdate,
+                (
+                    apply_deferred,
+                    process_despawn_object_queue,
+                    apply_deferred,
+                    process_spawn_object_queue,
+                    apply_deferred,
+                )
+                    .chain(),
+            )
             .add_systems(Startup, (setup, ui::setup));
+
+        // Object Spawning compatibility
+        use crate::game::objects::*;
+        app.init_resource::<assets::GameObjectAssets>();
+
+        camera::add_systems_and_resources(app);
     }
 }
 
-#[derive(Resource)]
-struct Systems {
-    recreate_scene: SystemId,
-    recreate_object_markers: SystemId,
-    export_level_scene: SystemId,
-}
-
-impl FromWorld for Systems {
-    fn from_world(world: &mut World) -> Self {
-        Self {
-            recreate_scene: world.register_system(recreate_scene),
-            recreate_object_markers: world.register_system(recreate_object_markers),
-            export_level_scene: world.register_system(export_level_scene),
-        }
-    }
-}
-
-fn setup(mut cmd: Commands, sys: Res<Systems>) {
+fn setup(mut cmd: Commands, sys: Res<oneshot::Systems>) {
     cmd.run_system(sys.recreate_scene);
     cmd.run_system(sys.recreate_object_markers);
 }
 
-fn recreate_scene(
-    mut cmd: Commands,
-    ass: Res<AssetServer>,
-    state: Res<EditorState>,
-    mut egui_state: ResMut<ui::EguiState>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut mats: ResMut<Assets<StandardMaterial>>,
-    grounds: Query<Entity, With<TilemapGroundMesh>>,
-    walls: Query<Entity, With<TilemapWallMesh>>,
-) {
-    // despawn existing
-    for ex in grounds.iter() {
-        cmd.entity(ex).despawn_recursive();
+mod oneshot {
+    use super::*;
+    use bevy::ecs::system::SystemId;
+
+    #[derive(Resource)]
+    pub(super) struct Systems {
+        pub(super) recreate_scene: SystemId,
+        pub(super) recreate_object_markers: SystemId,
+        pub(super) export_level_scene: SystemId,
     }
-    for ex in walls.iter() {
-        cmd.entity(ex).despawn_recursive();
+
+    impl FromWorld for Systems {
+        fn from_world(world: &mut World) -> Self {
+            Self {
+                recreate_scene: world.register_system(recreate_scene),
+                recreate_object_markers: world.register_system(recreate_object_markers),
+                export_level_scene: world.register_system(export_level_scene),
+            }
+        }
     }
-    let diffuse: Handle<Image> = ass.load(TILESET_PATH_DIFFUSE);
-    let normal: Option<Handle<Image>> = TILESET_PATH_NORMAL.map(|f| ass.load(f));
 
-    let builder = RawMeshBuilder::new(&state.tilemap);
-    let mesh = builder.make_ground_mesh(&state.tileset).into();
-    // let collider = builder.build_rapier_heightfield_collider();
-    let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(&mesh);
-    let handle: Handle<Mesh> = meshes.add(mesh);
+    fn recreate_scene(
+        mut cmd: Commands,
+        ass: Res<AssetServer>,
+        state: Res<EditorState>,
+        mut egui_state: ResMut<ui::EguiState>,
+        mut meshes: ResMut<Assets<Mesh>>,
+        mut mats: ResMut<Assets<StandardMaterial>>,
+        grounds: Query<Entity, With<TilemapGroundMesh>>,
+        walls: Query<Entity, With<TilemapWallMesh>>,
+    ) {
+        // despawn existing
+        for ex in grounds.iter() {
+            cmd.entity(ex).despawn_recursive();
+        }
+        for ex in walls.iter() {
+            cmd.entity(ex).despawn_recursive();
+        }
+        let diffuse: Handle<Image> = ass.load(TILESET_PATH_DIFFUSE);
+        let normal: Option<Handle<Image>> = TILESET_PATH_NORMAL.map(|f| ass.load(f));
 
-    cmd.spawn((
-        PbrBundle {
-            mesh: handle,
-            material: mats.add(StandardMaterial {
-                base_color_texture: Some(diffuse.clone()),
-                normal_map_texture: normal.clone(),
-                perceptual_roughness: 0.9,
-                metallic: 0.0,
-                ..default()
-            }),
-            transform: Transform::IDENTITY,
-            ..default()
-        },
-        collider,
-        CollisionGroups::new(Group::GROUP_15, Group::GROUP_15),
-        TilemapGroundMesh,
-    ));
-
-    for mesh in builder.make_wall_meshes(&state.tileset) {
-        let mesh = mesh.into();
+        let builder = RawMeshBuilder::new(&state.tilemap);
+        let mesh = builder.make_ground_mesh(&state.tileset).into();
+        // let collider = builder.build_rapier_heightfield_collider();
         let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(&mesh);
-        // let collider = Collider::from_bevy_mesh(&mesh, &ComputedColliderShape::TriMesh).unwrap();
         let handle: Handle<Mesh> = meshes.add(mesh);
+
         cmd.spawn((
             PbrBundle {
                 mesh: handle,
@@ -183,19 +188,187 @@ fn recreate_scene(
                 ..default()
             },
             collider,
-            CollisionGroups::new(Group::GROUP_16, Group::GROUP_16),
-            TilemapWallMesh,
+            CollisionGroups::new(Group::GROUP_15, Group::GROUP_15),
+            TilemapGroundMesh,
         ));
+
+        for mesh in builder.make_wall_meshes(&state.tileset) {
+            let mesh = mesh.into();
+            let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(&mesh);
+            // let collider = Collider::from_bevy_mesh(&mesh, &ComputedColliderShape::TriMesh).unwrap();
+            let handle: Handle<Mesh> = meshes.add(mesh);
+            cmd.spawn((
+                PbrBundle {
+                    mesh: handle,
+                    material: mats.add(StandardMaterial {
+                        base_color_texture: Some(diffuse.clone()),
+                        normal_map_texture: normal.clone(),
+                        perceptual_roughness: 0.9,
+                        metallic: 0.0,
+                        ..default()
+                    }),
+                    transform: Transform::IDENTITY,
+                    ..default()
+                },
+                collider,
+                CollisionGroups::new(Group::GROUP_16, Group::GROUP_16),
+                TilemapWallMesh,
+            ));
+        }
+
+        if let Some(widget) = &mut egui_state.resize_widget {
+            widget.set_dims(state.tilemap.dims());
+        }
     }
 
-    if let Some(widget) = &mut egui_state.resize_widget {
-        widget.set_dims(state.tilemap.dims());
+    fn recreate_object_markers(
+        marker: Query<&ObjectMarker>,
+        defs: Res<ObjectDefStorage>,
+        mut spawn: EventWriter<SpawnObject>,
+        mut despawn: EventWriter<DespawnObject>,
+    ) {
+        for marker in marker.iter() {
+            despawn.send(DespawnObject {
+                id: marker.id as u32,
+            });
+        }
+
+        for id in 0..defs.storage.len() {
+            spawn.send(SpawnObject { id: id as u32 });
+        }
+    }
+
+    #[derive(Resource, Default)]
+    pub struct ExportLevelScenePath(pub String);
+
+    fn export_level_scene(world: &mut World) {
+        // let mut ass = world.resource_mut::<AssetServer>();
+        let state = world.resource::<EditorState>();
+        let path = world.resource::<ExportLevelScenePath>().0.clone();
+
+        let builder = RawMeshBuilder::new(&state.tilemap);
+        let mesh = builder.make_ground_mesh(&state.tileset);
+        let collider =
+            tilemap_mesh_builder::build_rapier_convex_collider_for_preview(&mesh.clone().into());
+
+        let walls = builder
+            .make_wall_meshes(&state.tileset)
+            .into_iter()
+            .map(|mesh| {
+                let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(
+                    &mesh.clone().into(),
+                );
+                WallData { mesh, collider }
+            })
+            .collect();
+
+        let object_defs = world.resource::<ObjectDefStorage>();
+        let objects = object_defs
+            .storage
+            .iter()
+            .map(|d| d.build(&state.tilemap))
+            .collect();
+
+        let level_asset = LevelAsset::new(LevelAssetData {
+            ground_collider: collider,
+            ground_mesh: mesh,
+            walls,
+            objects,
+            meshes: vec![], // TODO
+        });
+
+        match level_asset.save(path.as_str()) {
+            Ok(()) => info!("Export successful!"),
+            Err(e) => error!("error saving level: {e:?}"),
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct DespawnObject {
+    id: u32,
+}
+
+fn process_despawn_object_queue(
+    mut despawn: EventReader<DespawnObject>,
+    mut cmd: Commands,
+    markers: Query<(Entity, &ObjectMarker)>,
+) {
+    for despawn in despawn.read() {
+        for (ent, marker) in markers.iter() {
+            if marker.id == despawn.id {
+                cmd.entity(ent).despawn_recursive();
+            }
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct SpawnObject {
+    id: u32,
+}
+
+fn process_spawn_object_queue(
+    mut spawn: EventReader<SpawnObject>,
+    mut cmd: Commands,
+    defs: Res<ObjectDefStorage>,
+    data: Res<ObjectMarkerData>,
+    state: Res<EditorState>,
+    assets: Res<crate::game::objects::assets::GameObjectAssets>,
+    mut selected_change: EventWriter<SelectedObjectChanged>,
+) {
+    for spawn in spawn.read() {
+        let Some(def) = defs.storage.get(spawn.id as usize) else {
+            continue;
+        };
+        if let Some(pos) = state
+            .tilemap
+            .face_id_to_center_pos_3d(state.tilemap.face_grid().coord_to_id(def.coord))
+        {
+            let is_selected = Some(spawn.id) == defs.selected_id;
+            let material = if is_selected {
+                data.selected_material.clone()
+            } else {
+                data.material.clone()
+            };
+
+            let marker = match def.kind {
+                ObjectDefKind::Camera => {
+                    let builder = CameraObjBuilder(def.build(&state.tilemap));
+                    let camera = builder.build(&mut cmd, &assets);
+                    cmd.entity(camera)
+                        .insert(ObjectMarker { id: spawn.id })
+                        .id()
+                }
+                _ => {
+                    let marker = (
+                        ObjectMarker { id: spawn.id },
+                        PbrBundle {
+                            mesh: data.mesh.clone(),
+                            material,
+                            transform: Transform::IDENTITY
+                                .with_translation(pos + Vec3::Y * 0.4)
+                                .with_scale(Vec3::splat(0.4)),
+                            ..Default::default()
+                        },
+                    );
+                    cmd.spawn(marker).id()
+                }
+            };
+
+            if is_selected {
+                selected_change.send(SelectedObjectChanged::Entity(marker));
+            }
+        } else {
+            warn!("No valid position for object {}: {def:?}", spawn.id);
+        }
     }
 }
 
 #[derive(Resource, Default)]
 pub struct ObjectDefStorage {
     storage: Vec<ObjectDefBuilder>,
+    selected_id: Option<u32>,
 }
 
 #[derive(Resource)]
@@ -232,41 +405,48 @@ pub struct ObjectMarker {
     id: u32,
 }
 
-fn recreate_object_markers(
-    mut cmd: Commands,
-    markers: Query<Entity, With<ObjectMarker>>,
-    egui_state: ResMut<ui::EguiState>,
-    data: Res<ObjectMarkerData>,
-    state: Res<EditorState>,
-    defs: Res<ObjectDefStorage>,
-) {
-    for ex in markers.iter() {
-        cmd.entity(ex).despawn_recursive();
-    }
+#[derive(Event)]
+enum SelectedObjectChanged {
+    Entity(Entity),
+    Id(u32),
+}
 
-    for (id, def) in defs.storage.iter().enumerate() {
-        if let Some(pos) = state
-            .tilemap
-            .face_id_to_center_pos_3d(state.tilemap.face_grid().coord_to_id(def.coord))
-        {
-            let material = if Some(id) == egui_state.object_def_widget.selected_id() {
+fn update_selected_object_marker(
+    mut evs: EventReader<SelectedObjectChanged>,
+    mut defs: ResMut<ObjectDefStorage>,
+    mut markers: Query<(&ObjectMarker, Entity)>,
+) {
+    if let Some(selected) = evs.read().last() {
+        let mut id = None;
+        for (marker, entity) in markers.iter_mut() {
+            let is_selected = match selected {
+                SelectedObjectChanged::Entity(e) => *e == entity,
+                SelectedObjectChanged::Id(id) => *id == marker.id,
+            };
+            if is_selected {
+                id = Some(marker.id);
+            }
+        }
+        defs.selected_id = id;
+    }
+}
+
+fn update_selected_object_marker_material(
+    mut evs: EventReader<SelectedObjectChanged>,
+    data: Res<ObjectMarkerData>,
+    mut markers: Query<(&ObjectMarker, Entity, &mut Handle<StandardMaterial>)>,
+) {
+    if let Some(selected) = evs.read().last() {
+        for (marker, entity, mut material) in markers.iter_mut() {
+            let is_selected = match selected {
+                SelectedObjectChanged::Entity(e) => *e == entity,
+                SelectedObjectChanged::Id(id) => *id == marker.id,
+            };
+            *material = if is_selected {
                 data.selected_material.clone()
             } else {
                 data.material.clone()
             };
-            cmd.spawn((
-                ObjectMarker { id: id as u32 },
-                PbrBundle {
-                    mesh: data.mesh.clone(),
-                    material,
-                    transform: Transform::IDENTITY
-                        .with_translation(pos + Vec3::Y * 0.4)
-                        .with_scale(Vec3::splat(0.4)),
-                    ..Default::default()
-                },
-            ));
-        } else {
-            warn!("No valid position for object {id}: {def:?}");
         }
     }
 }
@@ -311,7 +491,7 @@ fn update_hovered_states(
     let ground_ray = rapier.cast_ray(
         ray.origin,
         *ray.direction,
-        Real::MAX,
+        bevy_rapier3d::math::Real::MAX,
         true,
         QueryFilter::new().groups(CollisionGroups::new(Group::GROUP_15, Group::GROUP_15)),
     );
@@ -319,7 +499,7 @@ fn update_hovered_states(
     let wall_ray = rapier.cast_ray_and_get_normal(
         ray.origin,
         *ray.direction,
-        Real::MAX,
+        bevy_rapier3d::math::Real::MAX,
         true,
         QueryFilter::new().groups(CollisionGroups::new(Group::GROUP_16, Group::GROUP_16)),
     );
@@ -405,8 +585,8 @@ fn perform_click_actions(
     global_ui_state: Res<GlobalUiState>,
     mouse: Res<ButtonInput<MouseButton>>,
     keys: Res<ButtonInput<KeyCode>>,
-    sys: Res<Systems>,
-    defs: Res<ObjectDefStorage>,
+    sys: Res<oneshot::Systems>,
+    mut defs: ResMut<ObjectDefStorage>,
 ) {
     let over_ui = global_ui_state.is_pointer_captured || global_ui_state.is_any_focused;
     let mut is_dirty = false;
@@ -505,9 +685,16 @@ fn perform_click_actions(
                 let Some(fid) = state.hovered_ground_face else {
                     return;
                 };
-                egui_state
-                    .object_def_widget
-                    .on_coord_select(&defs.storage, state.tilemap.face_grid().id_to_coord(fid));
+                let coord = state.tilemap.face_grid().id_to_coord(fid);
+                let mut selected_id = None;
+                for (i, def) in defs.storage.iter().enumerate() {
+                    if def.coord == coord {
+                        selected_id = Some(i as u32);
+                    }
+                }
+                if selected_id.is_some() {
+                    defs.selected_id = selected_id;
+                }
             }
         }
         ControlMode::AdminStuff => {}
@@ -547,8 +734,9 @@ fn draw_hovered_tile_gizmo(
 
 pub(super) mod ui {
     use super::{
-        ControlMode, EditorState, ExportLevelScenePath, ObjectDefStorage, Systems,
-        DEFAULT_EDITOR_EXPORT_PATH, DEFAULT_EDITOR_SAVE_PATH, START_ELEVATION,
+        oneshot::{ExportLevelScenePath, Systems},
+        ControlMode, DespawnObject, EditorState, ObjectDefStorage, SelectedObjectChanged,
+        SpawnObject, DEFAULT_EDITOR_EXPORT_PATH, DEFAULT_EDITOR_SAVE_PATH, START_ELEVATION,
         TILESET_PATH_DIFFUSE,
     };
     use crate::{
@@ -560,7 +748,7 @@ pub(super) mod ui {
                 file_selector::{
                     FileSelectorWidget, FileSelectorWidgetResult, FileSelectorWidgetSettings,
                 },
-                object_def::ObjectDefWidget,
+                object_def::{ObjectDefResult, ObjectDefWidget},
                 tilemap_size::TilemapSizeWidget,
                 tileset::TilesetWidget,
             },
@@ -599,7 +787,7 @@ pub(super) mod ui {
             };
             world.insert_resource(textures);
 
-            let object_def_widget = ObjectDefWidget::new();
+            let object_def_widget = ObjectDefWidget;
 
             let paint_widget = {
                 let handle = {
@@ -685,6 +873,7 @@ pub(super) mod ui {
     #[rustfmt::skip]
     pub const fn object_image_path(kind: ObjectDefKind) -> &'static str {
         match kind {
+            ObjectDefKind::SpawnPoint      => "editor-only/spawnpoint.png",
             ObjectDefKind::Cauldron        => "editor-only/cauldron.png",
             ObjectDefKind::Camera          => "editor-only/camera.png",
             ObjectDefKind::LaserGrid       => "editor-only/lasergrid.png",
@@ -769,7 +958,6 @@ pub(super) mod ui {
         mut cmd: Commands,
         sys: Res<Systems>,
         mut export_level_scene_path: ResMut<ExportLevelScenePath>,
-        object_textures: Res<ObjectTextures>,
         mut defs: ResMut<ObjectDefStorage>,
     ) {
         let win = win.single();
@@ -899,20 +1087,57 @@ pub(super) mod ui {
                     });
                 }
             }
-            ControlMode::PlaceGameObjects => {
-                egui::SidePanel::left("left_side").show(ctx, |ui| {
-                    if state.object_def_widget.show(
-                        ui,
-                        &mut defs.storage,
-                        &editor_state.tilemap,
-                        &object_textures.textures,
-                    ) {
-                        cmd.run_system(sys.recreate_object_markers);
-                    }
-                });
-            }
             _ => {}
         }
+    }
+
+    pub(super) fn update_object_def_ui(
+        mut ctxs: EguiContexts,
+        mut state: ResMut<EguiState>,
+        editor_state: ResMut<EditorState>,
+        editor_mode: Res<State<ControlMode>>,
+        win: Query<Entity, With<PrimaryWindow>>,
+        object_textures: Res<ObjectTextures>,
+        mut defs: ResMut<ObjectDefStorage>,
+        mut evs: EventWriter<SelectedObjectChanged>,
+        mut spawn: EventWriter<SpawnObject>,
+        mut despawn: EventWriter<DespawnObject>,
+    ) {
+        if *editor_mode.get() != ControlMode::PlaceGameObjects {
+            return;
+        }
+        let win = win.single();
+        let ctx = ctxs.ctx_for_window_mut(win);
+
+        egui::SidePanel::left("left_side").show(ctx, |ui| {
+            let selected_id = defs.selected_id;
+            match state.object_def_widget.show(
+                ui,
+                &mut defs.storage,
+                selected_id,
+                &editor_state.tilemap,
+                &object_textures.textures,
+            ) {
+                ObjectDefResult::Ok => {}
+                ObjectDefResult::New(id) => {
+                    spawn.send(SpawnObject { id });
+                    evs.send(SelectedObjectChanged::Id(id));
+                }
+                ObjectDefResult::SelectedChanged(id) => {
+                    evs.send(SelectedObjectChanged::Id(id));
+                }
+                ObjectDefResult::ValueChanged(id) => {
+                    info!("value changed");
+                    despawn.send(DespawnObject { id });
+                    spawn.send(SpawnObject { id });
+                }
+                ObjectDefResult::Deleted(id) => {
+                    info!("deleted");
+                    defs.selected_id = None;
+                    despawn.send(DespawnObject { id });
+                }
+            }
+        });
     }
 
     #[rustfmt::skip]
@@ -937,50 +1162,5 @@ pub(super) mod ui {
             ControlMode::PaintWalls3D     => *text = ["Shape Walls 3D",     &coords].join("\n"),
             ControlMode::PlaceGameObjects => *text = ["Place Game Objects", &coords].join("\n"),
         }
-    }
-}
-
-#[derive(Resource, Default)]
-struct ExportLevelScenePath(String);
-
-fn export_level_scene(world: &mut World) {
-    // let mut ass = world.resource_mut::<AssetServer>();
-    let state = world.resource::<EditorState>();
-    let path = world.resource::<ExportLevelScenePath>().0.clone();
-
-    let builder = RawMeshBuilder::new(&state.tilemap);
-    let mesh = builder.make_ground_mesh(&state.tileset);
-    let collider =
-        tilemap_mesh_builder::build_rapier_convex_collider_for_preview(&mesh.clone().into());
-
-    let walls = builder
-        .make_wall_meshes(&state.tileset)
-        .into_iter()
-        .map(|mesh| {
-            let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(
-                &mesh.clone().into(),
-            );
-            WallData { mesh, collider }
-        })
-        .collect();
-
-    let object_defs = world.resource::<ObjectDefStorage>();
-    let objects = object_defs
-        .storage
-        .iter()
-        .map(|d| d.build(&state.tilemap))
-        .collect();
-
-    let level_asset = LevelAsset::new(LevelAssetData {
-        ground_collider: collider,
-        ground_mesh: mesh,
-        walls,
-        objects,
-        meshes: vec![], // TODO
-    });
-
-    match level_asset.save(path.as_str()) {
-        Ok(()) => info!("Export successful!"),
-        Err(e) => error!("error saving level: {e:?}"),
     }
 }

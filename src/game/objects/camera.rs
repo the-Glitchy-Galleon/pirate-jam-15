@@ -3,26 +3,25 @@ use crate::framework::easing::TweenBackAndForth;
 use super::{assets::GameObjectAssets, definitions::*};
 use bevy::{color::palettes::tailwind, prelude::*, time::Real};
 use helpers::*;
-use std::f32::consts::FRAC_PI_2;
+use std::{f32::consts::FRAC_PI_2, ops::RangeInclusive};
 
 const NUM_SPOTLIGHT_RAYS: usize = 16;
+const ANGLE_SIZE: f32 = 0.4;
+const ANGLE_RANGE: RangeInclusive<f32> = 0.3..=0.6; // range that kinda works out
 
 pub struct CameraObjBuilder(pub ObjectDef);
 
 impl CameraObjBuilder {
     pub fn build(self, cmd: &mut Commands, assets: &GameObjectAssets) -> Entity {
         let position = self.0.position + Vec3::Y * 3.0;
-        let spotlight_position = position + Vec3::new(0.25, 0.25, 0.0);
+        let spotlight_position = position + Vec3::new(0.0, 0.1, -0.5);
 
         let mut max_range = 0.0;
         for pos in &self.0.pos_refs {
             max_range = f32::max(max_range, pos.distance(spotlight_position));
         }
 
-        let angle = FRAC_PI_2 * 0.4;
-
-        // range that kinda works out
-        let angle = f32::clamp(angle, FRAC_PI_2 * 0.3, FRAC_PI_2 * 0.6);
+        let angle = FRAC_PI_2 * f32::clamp(ANGLE_SIZE, *ANGLE_RANGE.start(), *ANGLE_RANGE.end());
 
         let root = (
             Name::new(format!(
@@ -31,35 +30,36 @@ impl CameraObjBuilder {
                 self.0.position
             )),
             SpatialBundle {
-                transform: Transform::IDENTITY.with_translation(position),
+                transform: Transform::IDENTITY
+                    .with_translation(position)
+                    .with_rotation(Quat::from_rotation_y(self.0.rotation)),
                 ..Default::default()
             },
             CameraPathState::new(self.0.pos_refs.clone(), position),
             ShowForwardGizmo,
         );
-        let spotlight2 = (
-            SpotLightBundle {
-                transform: Transform::from_translation(spotlight_position - position),
-                spot_light: SpotLight {
-                    intensity: 5_000_000.0, // lumens? but it doesn't do much with reasonable values
-                    color: self.spotlight_color(),
-                    shadows_enabled: true,
-                    range: 100.0, // ignore calculated range because it doesn't really reach
-                    inner_angle: angle,
-                    outer_angle: angle * 0.9,
-                    ..default()
-                },
-                ..Default::default()
+        let spotlight2 = (SpotLightBundle {
+            transform: Transform::from_translation(spotlight_position - position),
+            spot_light: SpotLight {
+                intensity: 5_000_000.0, // lumens? but it doesn't do much with reasonable values
+                color: self.spotlight_color(),
+                shadows_enabled: true,
+                range: 100.0, // ignore calculated range because it doesn't really reach
+                inner_angle: angle,
+                outer_angle: angle * 0.9,
+                ..default()
             },
-            LookAtPathState,
-        );
-        let mesh = (
+            ..Default::default()
+        },);
+        let wall_mount = (MaterialMeshBundle::<StandardMaterial> {
+            mesh: assets.camera_wall_mount.clone(),
+            material: assets.camera_material.clone(),
+            ..Default::default()
+        },);
+        let rotating_mesh = (
             MaterialMeshBundle::<StandardMaterial> {
-                mesh: assets.camera_mesh.clone(),
+                mesh: assets.camera_rotating_mesh.clone(),
                 material: assets.camera_material.clone(),
-                transform: Transform::IDENTITY
-                    .with_rotation(Quat::from_rotation_y(self.0.rotation))
-                    .with_translation(Vec3::new(0.0, 0.25, 0.3)),
                 ..Default::default()
             },
             LookAtPathState,
@@ -67,10 +67,11 @@ impl CameraObjBuilder {
 
         cmd.spawn(root)
             .with_children(|cmd| {
-                cmd.spawn(mesh);
-                // cmd.spawn(capsule);
-                // cmd.spawn(spotlight);
-                cmd.spawn(spotlight2);
+                cmd.spawn(wall_mount).with_children(|cmd| {
+                    cmd.spawn(rotating_mesh).with_children(|cmd| {
+                        cmd.spawn(spotlight2);
+                    });
+                });
             })
             .id()
     }
@@ -87,6 +88,44 @@ impl CameraObjBuilder {
             ColorDef::Cyan    => tailwind::CYAN_500,
             ColorDef::White   => tailwind::GREEN_100,
         }.into()
+    }
+}
+
+pub fn add_systems_and_resources(app: &mut App) {
+    app.add_event::<SpotlightHitEvent>();
+    app.add_systems(PreUpdate, link_root_parents);
+    app.add_systems(
+        Update,
+        (
+            show_forward_gizmo,
+            update_path_state,
+            draw_path_state_gizmo.after(update_path_state),
+            follow_path_state.after(update_path_state),
+            look_at_path_state.after(update_path_state),
+            cast_spotlight_rays.after(look_at_path_state),
+        ),
+    );
+}
+
+#[derive(Component, Reflect)]
+pub struct RootParent {
+    entity: Entity,
+}
+
+// Todo: this does not consider changes in hierarchy while the game is running
+pub fn link_root_parents(
+    mut cmd: Commands,
+    entity: Query<Entity, Without<RootParent>>,
+    hierarchy: Query<&Parent>,
+) {
+    for entity in entity.iter() {
+        let mut current_root = entity;
+        while let Ok(parent) = hierarchy.get(current_root) {
+            current_root = parent.get();
+        }
+        cmd.entity(entity).insert(RootParent {
+            entity: current_root,
+        });
     }
 }
 
@@ -126,11 +165,11 @@ pub fn draw_path_state_gizmo(state: Query<&CameraPathState>, mut gizmos: Gizmos)
 pub struct FollowPathState;
 
 pub fn follow_path_state(
-    parent: Query<&CameraPathState>,
-    mut follower: Query<(&Parent, &mut Transform, &GlobalTransform), With<FollowPathState>>,
+    state: Query<&CameraPathState>,
+    mut follower: Query<(&RootParent, &mut Transform, &GlobalTransform), With<FollowPathState>>,
 ) {
-    for (pid, mut tx, gx) in follower.iter_mut() {
-        if let Ok(state) = parent.get(pid.get()) {
+    for (root, mut tx, gx) in follower.iter_mut() {
+        if let Ok(state) = state.get(root.entity) {
             let offset = tx.translation - gx.translation();
             tx.translation = state.position + offset;
         }
@@ -141,15 +180,23 @@ pub fn follow_path_state(
 pub struct LookAtPathState;
 
 pub fn look_at_path_state(
-    parent: Query<&CameraPathState>,
-    mut looker: Query<(&Parent, &mut Transform, &GlobalTransform), With<LookAtPathState>>,
+    state: Query<&CameraPathState>,
+    mut looker: Query<(&RootParent, &mut Transform, &GlobalTransform), With<LookAtPathState>>,
 ) {
-    for (pid, mut tx, gx) in looker.iter_mut() {
-        if let Ok(state) = parent.get(pid.get()) {
-            let offset = tx.translation - gx.translation();
-            tx.look_at(state.position + offset, Vec3::Y);
+    for (root, mut tx, gx) in looker.iter_mut() {
+        if let Ok(state) = state.get(root.entity) {
+            let transform = compute_parent_transform(gx, &tx);
+            let local_point = transform.transform_point(state.position);
+            tx.look_at(local_point, Vec3::Y);
         }
     }
+}
+
+fn compute_parent_transform(
+    global_transform: &GlobalTransform,
+    transform: &Transform,
+) -> Transform {
+    Transform::from_matrix(transform.compute_matrix() * global_transform.compute_matrix().inverse())
 }
 
 #[derive(Event)]

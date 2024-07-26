@@ -18,14 +18,14 @@ pub struct InitLevel {
 pub fn load_preview_scene(
     mut cmd: Commands,
     ass: Res<AssetServer>,
-    already_init: Query<&InitLevel>,
+    already_init: Option<Res<UserDefinedStartupLevel>>,
 ) {
-    if already_init.iter().count() > 0 {
-        return;
+    if !already_init.is_some() {
+        info!("Loading Preview Scene");
+        cmd.spawn(InitLevel {
+            handle: ass.load("level/preview.level"),
+        });
     }
-    cmd.spawn(InitLevel {
-        handle: ass.load("level/preview.level"),
-    });
 }
 
 pub fn init_level(

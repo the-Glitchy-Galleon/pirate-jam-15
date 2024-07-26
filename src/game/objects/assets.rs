@@ -2,19 +2,20 @@ use bevy::prelude::*;
 
 #[derive(Resource)]
 pub struct GameObjectAssets {
-    pub camera_mesh: Handle<Mesh>,
+    pub camera_wall_mount: Handle<Mesh>,
+    pub camera_rotating_mesh: Handle<Mesh>,
     pub camera_material: Handle<StandardMaterial>,
 }
 
 impl FromWorld for GameObjectAssets {
     fn from_world(world: &mut World) -> Self {
-        let camera_mesh = {
-            let handle = {
-                // let ass = world.resource::<AssetServer>();
-                Cuboid::new(0.25, 0.25, 0.25)
-            };
-            let mut meshes = world.resource_mut::<Assets<Mesh>>();
-            meshes.add(handle)
+        let camera_wall_mount = {
+            let ass = world.resource::<AssetServer>();
+            ass.load("objects.glb#Mesh0/Primitive0")
+        };
+        let camera_rotating_mesh = {
+            let ass = world.resource::<AssetServer>();
+            ass.load("objects.glb#Mesh1/Primitive0")
         };
 
         let camera_material = {
@@ -29,7 +30,8 @@ impl FromWorld for GameObjectAssets {
         };
 
         Self {
-            camera_mesh,
+            camera_wall_mount,
+            camera_rotating_mesh,
             camera_material,
         }
     }

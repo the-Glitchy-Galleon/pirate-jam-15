@@ -76,21 +76,11 @@ impl Plugin for GamePlugin {
         app.init_asset::<LevelAsset>()
             .init_asset_loader::<LevelAssetLoader>()
             .init_resource::<GameObjectAssets>();
-        app.add_event::<camera::SpotlightHitEvent>();
+
         app.add_systems(Startup, level::load_preview_scene);
-        app.add_systems(PreUpdate, (level::init_level,));
-        app.add_systems(
-            Update,
-            (
-                top_down_camera::update,
-                camera::show_forward_gizmo,
-                camera::update_path_state,
-                camera::draw_path_state_gizmo.after(camera::update_path_state),
-                camera::follow_path_state.after(camera::update_path_state),
-                camera::look_at_path_state.after(camera::update_path_state),
-                camera::cast_spotlight_rays.after(camera::look_at_path_state),
-            ),
-        );
+        app.add_systems(PreUpdate, level::init_level);
+        app.add_systems(Update, top_down_camera::update);
+        camera::add_systems_and_resources(app);
     }
 }
 
