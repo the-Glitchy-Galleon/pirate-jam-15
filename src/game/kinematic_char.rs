@@ -5,6 +5,8 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
+use super::collision_groups::{ACTOR_GROUP, GROUND_GROUP};
+
 const GROUND_TIMER: f32 = 0.5;
 const MOVEMENT_SPEED: f32 = 8.0;
 // const JUMP_SPEED: f32 = 20.0;
@@ -57,6 +59,10 @@ impl Default for KinematicCharacterBundle {
                 min_slope_slide_angle: 30.0_f32.to_radians(),
                 apply_impulse_to_dynamic_bodies: true,
                 snap_to_ground: None,
+                filter_groups: Some(CollisionGroups {
+                    memberships: ACTOR_GROUP,
+                    filters: GROUND_GROUP,
+                }),
                 ..default()
             },
             rigid_body: RigidBody::KinematicPositionBased,

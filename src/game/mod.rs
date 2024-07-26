@@ -5,12 +5,14 @@ use bevy::{
 };
 use bevy::{input::InputSystem, utils::HashMap};
 use bevy_rapier3d::prelude::*;
+use collision_groups::{ACTOR_GROUP, GROUND_GROUP};
 use object_def::ColorDef;
 
 mod kinematic_char;
 mod minion;
 pub mod object_def;
 mod player;
+mod collision_groups;
 
 pub use kinematic_char::*;
 pub use minion::*;
@@ -171,6 +173,10 @@ fn setup_physics(
     commands.spawn((
         TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
+        CollisionGroups {
+            memberships: GROUND_GROUP,
+            filters: ACTOR_GROUP,
+        },
     ));
 
     commands.spawn((
@@ -186,6 +192,10 @@ fn setup_physics(
         TransformBundle::from(Transform::from_xyz(4.0, 0.0, 4.0)),
         Collider::cuboid(1.0, 1.0, 1.0),
         Sensor,
+        CollisionGroups {
+            memberships: ACTOR_GROUP,
+            filters: GROUND_GROUP,
+        },
     ));
 
     /*

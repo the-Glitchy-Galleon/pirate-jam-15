@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::Collider;
+use bevy_rapier3d::prelude::{Collider, CollisionGroups};
 
 mod collector;
 mod destructible_target;
@@ -10,7 +10,7 @@ pub use destructible_target::*;
 use vleue_navigator::{NavMesh, TransformedPath};
 pub use walk_target::*;
 
-use super::{CharacterWalkControl, KinematicCharacterBundle, LevelResources, PlayerTag};
+use super::{collision_groups::{ACTOR_GROUP, GROUND_GROUP}, CharacterWalkControl, KinematicCharacterBundle, LevelResources, PlayerTag};
 
 const MINION_INTERRACTION_RANGE: f32 = 0.5;
 const MINION_NODE_DIST: f32 = 0.1;
@@ -44,13 +44,30 @@ pub enum MinionState {
     Interracting(Entity),
 }
 
-#[derive(Bundle, Default)]
+#[derive(Bundle)]
 pub struct MinionBundle {
     pub spatial: SpatialBundle,
     pub collider: Collider,
     pub character: KinematicCharacterBundle,
     pub kind: MinionKind,
     pub state: MinionState,
+    pub collision_groups: CollisionGroups,
+}
+
+impl Default for MinionBundle {
+    fn default() -> Self {
+        Self {
+            spatial: Default::default(),
+            collider: Default::default(),
+            character: Default::default(),
+            kind: Default::default(),
+            state: Default::default(),
+            collision_groups: CollisionGroups {
+                memberships: ACTOR_GROUP,
+                filters: GROUND_GROUP,
+            },
+        }
+    }
 }
 
 #[derive(Component)]

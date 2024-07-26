@@ -11,7 +11,7 @@ use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
 
 use super::{
-    CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage, MinionTarget
+    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP}, CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage, MinionTarget
 };
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
@@ -36,6 +36,10 @@ pub fn setup_player(mut commands: Commands) {
                 ..default()
             },
             KinematicCharacterBundle::default(),
+            CollisionGroups {
+                memberships: ACTOR_GROUP,
+                filters: GROUND_GROUP,
+            },
         ))
         .with_children(|b| {
             b.spawn((SpatialBundle { ..default() }, PlayerCollector))
@@ -52,6 +56,10 @@ pub fn setup_player(mut commands: Commands) {
                         Collider::cone(3.0, 4.5),
                         RigidBody::Fixed,
                         Sensor,
+                        CollisionGroups {
+                            memberships: DETECTION_GROUP,
+                            filters: ACTOR_GROUP,
+                        },
                     ));
                 });
         });
@@ -95,7 +103,13 @@ pub fn player_controls(
         cursor_ray.direction.as_vec3(),
         1000.0,
         true,
-        default(),
+        QueryFilter {
+            groups: Some(CollisionGroups {
+                memberships: Group::all(),
+                filters: GROUND_GROUP | ACTOR_GROUP,
+            }),
+            ..default()
+        },
     ) else {
         return;
     };
