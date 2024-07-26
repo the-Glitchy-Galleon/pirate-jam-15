@@ -71,9 +71,18 @@ impl Plugin for GamePlugin {
         app.add_systems(Update, cleanup_minion_state)
             .add_systems(Update, update_minion_state)
             .add_systems(Update,
-                minion_walk
+                minion_update_path
                 .run_if(resource_exists::<LevelResources>)
                 .after(update_minion_state)
+            )
+            .add_systems(PostUpdate,
+                minion_build_path
+                .run_if(resource_exists::<LevelResources>)
+                .after(TransformSystem::TransformPropagate)
+            )
+            .add_systems(Update,
+                minion_walk
+                .run_if(resource_exists::<LevelResources>)
             )
             .add_systems(Update, walk_target_update.after(update_minion_state))
             .add_systems(

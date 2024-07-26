@@ -102,10 +102,46 @@ pub fn debug_navmesh(
     }
 }
 
-pub fn minion_walk(
+pub fn minion_update_path(
+    mut minion_q: Query<(Entity, &MinionState, &MinionPath)>,
+    target_q: Query<&GlobalTransform, With<MinionTarget>>,
+    player_q: Query<&GlobalTransform, With<PlayerTag>>,
+    mut commands: Commands,
+) {
+    let Ok(player_tf) = player_q.get_single() else {
+        return;
+    };
+
+    for (ent, state, path) in minion_q.iter_mut() {
+        let target_pos = match &state {
+            MinionState::GoingToPlayer => player_tf.translation(),
+            MinionState::GoingTo(target) => match target_q.get(*target) {
+                Ok(tf) => tf.translation(),
+                Err(e) => {
+                    warn!("Failed to get target pos: {e}");
+                    continue;
+                }
+            },
+            _ => continue,
+        };
+        let target_navmesh_pos = Vec3::new(target_pos.x, 0.0, target_pos.z);
+        let Some(last) = path.0.path.last() else {
+            commands.entity(ent).remove::<MinionPath>();
+            continue;
+        };
+
+        if target_navmesh_pos.distance(*last) < MINION_NODE_DIST {
+            continue;
+        }
+
+        commands.entity(ent).remove::<MinionPath>();
+    }
+}
+
+pub fn minion_build_path(
     level_reses: Res<LevelResources>,
     navmeshes: Res<Assets<NavMesh>>,
-    mut minion_q: Query<(Entity, &GlobalTransform, &mut CharacterWalkControl, &mut MinionState, Option<&mut MinionPath>)>,
+    mut minion_q: Query<(Entity, &GlobalTransform, &mut MinionState), Without<MinionPath>>,
     target_q: Query<&GlobalTransform, With<MinionTarget>>,
     player_q: Query<&GlobalTransform, With<PlayerTag>>,
     mut commands: Commands,
@@ -116,9 +152,8 @@ pub fn minion_walk(
     let Some(navmesh) = navmeshes.get(&level_reses.navmesh) else {
         return;
     };
-    let mut local_path = None;
 
-    for (ent, tf, mut walk, mut state, mut path) in minion_q.iter_mut() {
+    for (ent, tf, mut state) in minion_q.iter_mut() {
         let target_pos = match state.as_ref() {
             MinionState::GoingToPlayer => player_tf.translation(),
             MinionState::GoingTo(target) => match target_q.get(*target) {
@@ -130,55 +165,54 @@ pub fn minion_walk(
             },
             _ => continue,
         };
-        let validate_path = |path: &TransformedPath| {
-            let Some(last) = path.path.last().map(|x| *x)
-                else { return false; };
 
-            let target_pos = Vec3::new(target_pos.x, 0.0, target_pos.z);
-            last.distance(target_pos) < MINION_NODE_DIST
+        if !navmesh.transformed_is_in_mesh(tf.translation()) {
+            error!("Minion is not in the navigation: {:?}", tf.translation());
+            // *state = MinionState::Idling;
+            continue;
+        }
+        if !navmesh.transformed_is_in_mesh(target_pos) {
+            info!("Minion target is not in the navigation");
+            *state = MinionState::Idling;
+            continue;
+        }
+
+        let Some(path) = navmesh.transformed_path(
+            Vec3::new(tf.translation().x, 0.0, tf.translation().z),
+            Vec3::new(target_pos.x, 0.0, target_pos.z),
+        ) else {
+            info!("Failed to find the path");
+            *state = MinionState::Idling;
+            continue;
         };
 
-        let path = match path.as_deref_mut() {
-            Some(p) if validate_path(&p.0) => &mut p.0,
-            _ => {
-                if !navmesh.transformed_is_in_mesh(tf.translation()) {
-                    error!("Minion is not in the navigation");
-                    continue;
-                }
-                if !navmesh.transformed_is_in_mesh(target_pos) {
-                    error!("Minion target is not in the navigation");
-                    continue;
-                }
+        commands.entity(ent).insert(MinionPath(path));
+    }
+}
 
-                local_path = navmesh.transformed_path(
-                    Vec3::new(tf.translation().x, 0.0, tf.translation().z),
-                    Vec3::new(target_pos.x, 0.0, target_pos.z),
-                );
-                match &mut local_path {
-                    Some(x) => x,
-                    None => {
-                        // *state = MinionState::Idling;
-                        continue;
-                    },
-                }
-            },
-        };
+pub fn minion_walk(
+    level_reses: Res<LevelResources>,
+    navmeshes: Res<Assets<NavMesh>>,
+    mut minion_q: Query<(&GlobalTransform, &mut CharacterWalkControl, &mut MinionPath)>,
+) {
+    let Some(navmesh) = navmeshes.get(&level_reses.navmesh) else {
+        return;
+    };
 
-        if let Some(p) = path.path.first().map(|x| *x) {
+    for (tf, mut walk, mut path) in minion_q.iter_mut() {
+        let path = &mut path.0.path;
+
+        if let Some(p) = path.first().map(|x| *x) {
             let minion_pos = navmesh.transform().transform_point(tf.translation()).xy();
             let p = navmesh.transform().transform_point(p).xy();
             if p.distance(minion_pos) <= MINION_NODE_DIST {
-                path.path.pop();
+                path.pop();
             }
         }
 
-        if let Some(next) = path.path.first().map(|x| *x) {
+        if let Some(next) = path.first().map(|x| *x) {
             walk.do_move = true;
             walk.direction = next - Vec3::new(tf.translation().x, 0.0, tf.translation().z);
-        }
-
-        if let Some(p) = local_path.take() {
-            commands.entity(ent).insert(MinionPath(p));
         }
     }
 }
