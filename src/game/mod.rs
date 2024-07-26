@@ -18,6 +18,13 @@ mod player;
 pub use kinematic_char::*;
 pub use minion::*;
 pub use player::*;
+use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
+
+#[derive(Debug)]
+#[derive(Resource)]
+pub struct LevelResources {
+    pub navmesh: Handle<NavMesh>,
+}
 
 pub struct GamePlugin;
 
@@ -27,6 +34,8 @@ impl Plugin for GamePlugin {
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
             AudioPlugin,
+            VleueNavigatorPlugin,
+            bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
         ));
 
         app.register_type::<CharacterWalkControl>()
@@ -46,6 +55,10 @@ impl Plugin for GamePlugin {
             do_pickup: false,
         });
 
+        // app.insert_resource(LevelResources {
+        //     navmesh: Handle::inva
+        // });
+
         /* Setup */
         app.add_systems(Startup, spawn_gameplay_camera)
             .add_systems(Startup, setup_physics)
@@ -57,7 +70,11 @@ impl Plugin for GamePlugin {
         /* Minion systems */
         app.add_systems(Update, cleanup_minion_state)
             .add_systems(Update, update_minion_state)
-            .add_systems(Update, minion_walk.after(update_minion_state))
+            .add_systems(Update,
+                minion_walk
+                .run_if(resource_exists::<LevelResources>)
+                .after(update_minion_state)
+            )
             .add_systems(Update, walk_target_update.after(update_minion_state))
             .add_systems(
                 Update,
@@ -74,24 +91,75 @@ impl Plugin for GamePlugin {
             .init_asset_loader::<LevelAssetLoader>();
 
         app.add_systems(Startup, load_preview_scene);
-        app.add_systems(Update, init_level);
+        // app.add_systems(Update, init_level);
     }
 }
 
 pub fn spawn_gameplay_camera(mut commands: Commands) {
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-30.0, 30.0, 100.0)
-            .looking_at(Vec3::new(0.0, 10.0, 0.0), Vec3::Y),
+        transform: Transform::from_xyz(-30.0, 30.0, 30.0)
+            .looking_at(Vec3::new(10.0, 0.0, 7.0), Vec3::Y),
         ..Default::default()
     });
 }
 
-fn setup_physics(mut commands: Commands) {
+fn setup_physics(
+    mut navs: ResMut<Assets<NavMesh>>,
+    mut commands: Commands
+) {
     /*
      * Ground
      */
     let ground_size = 200.1;
     let ground_height = 0.1;
+
+    let mesh = polyanya::Mesh::new(
+        vec![
+            polyanya::Vertex::new(Vec2::new(0., 6.), vec![0, -1]),           // 0
+            polyanya::Vertex::new(Vec2::new(2., 5.), vec![0, -1, 2]),        // 1
+            polyanya::Vertex::new(Vec2::new(5., 7.), vec![0, 2, -1]),        // 2
+            polyanya::Vertex::new(Vec2::new(5., 8.), vec![0, -1]),           // 3
+            polyanya::Vertex::new(Vec2::new(0., 8.), vec![0, -1]),           // 4
+            polyanya::Vertex::new(Vec2::new(1., 4.), vec![1, -1]),           // 5
+            polyanya::Vertex::new(Vec2::new(2., 1.), vec![1, -1]),           // 6
+            polyanya::Vertex::new(Vec2::new(4., 1.), vec![1, -1]),           // 7
+            polyanya::Vertex::new(Vec2::new(4., 2.), vec![1, -1, 2]),        // 8
+            polyanya::Vertex::new(Vec2::new(2., 4.), vec![1, 2, -1]),        // 9
+            polyanya::Vertex::new(Vec2::new(7., 4.), vec![2, -1, 4]),        // 10
+            polyanya::Vertex::new(Vec2::new(10., 7.), vec![2, 4, 6, -1, 3]), // 11
+            polyanya::Vertex::new(Vec2::new(7., 7.), vec![2, 3, -1]),        // 12
+            polyanya::Vertex::new(Vec2::new(11., 8.), vec![3, -1]),          // 13
+            polyanya::Vertex::new(Vec2::new(7., 8.), vec![3, -1]),           // 14
+            polyanya::Vertex::new(Vec2::new(7., 0.), vec![5, 4, -1]),        // 15
+            polyanya::Vertex::new(Vec2::new(11., 3.), vec![4, 5, -1]),       // 16
+            polyanya::Vertex::new(Vec2::new(11., 5.), vec![4, -1, 6]),       // 17
+            polyanya::Vertex::new(Vec2::new(12., 0.), vec![5, -1]),          // 18
+            polyanya::Vertex::new(Vec2::new(12., 3.), vec![5, -1]),          // 19
+            polyanya::Vertex::new(Vec2::new(13., 5.), vec![6, -1]),          // 20
+            polyanya::Vertex::new(Vec2::new(13., 7.), vec![6, -1]),          // 21
+            polyanya::Vertex::new(Vec2::new(1., 3.), vec![1, -1]),           // 22
+        ],
+        vec![
+            polyanya::Polygon::new(vec![0, 1, 2, 3, 4], true),           // 0
+            polyanya::Polygon::new(vec![5, 22, 6, 7, 8, 9], true),       // 1
+            polyanya::Polygon::new(vec![1, 9, 8, 10, 11, 12, 2], false), // 2
+            polyanya::Polygon::new(vec![12, 11, 13, 14], true),          // 3
+            polyanya::Polygon::new(vec![10, 15, 16, 17, 11], false),     // 4
+            polyanya::Polygon::new(vec![15, 18, 19, 16], true),          // 5
+            polyanya::Polygon::new(vec![11, 17, 20, 21], true),          // 6
+        ],
+    ).unwrap();
+
+    let handle = navs.reserve_handle();
+    let mut navmesh = NavMesh::from_polyanya_mesh(mesh);
+    navmesh.set_transform(Transform::from_rotation(Quat::from_rotation_x(
+        -std::f32::consts::FRAC_PI_2
+    )));
+
+    navs.insert(handle.id(), navmesh);
+    commands.insert_resource(LevelResources {
+        navmesh: handle,
+    });
 
     commands.spawn((
         TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
