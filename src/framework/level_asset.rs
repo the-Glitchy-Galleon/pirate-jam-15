@@ -1,4 +1,4 @@
-use crate::{framework::prelude::*, game::object_def::ObjectDef};
+use crate::{framework::prelude::*, game::objects::definitions::ObjectDef};
 use bevy::{
     asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},
     prelude::*,

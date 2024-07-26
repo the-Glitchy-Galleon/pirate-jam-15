@@ -2,24 +2,33 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Sub};
 
-macro_rules! cool_enum { // pfft, strum..
+macro_rules! object_enum { // pfft, strum..
     (
         $(#[$meta:meta])*
         $v:vis enum $n:ident ($t:ty, $c:literal) { $(
-            $vn:ident: $vs:literal
+            $vn:ident = $vi:literal : $vs:literal
         ),* $(,)? }
     ) => {
+
         $(#[$meta])*
+        #[repr($t)]
         $v enum $n {$(
-            $vn
+            $vn = $vi
         ),* }
 
         impl $n {
             pub const COUNT: usize = $c;
             pub const VARIANTS: [Self; Self::COUNT] = [ $( $n :: $vn),*];
-            pub const NAMES: [&'static str; Self::COUNT] = [$($vs),*];
-            pub fn as_str(self) -> &'static str {
-                Self::NAMES[self as $t as usize]
+
+            pub fn as_str(&self) -> &'static str {
+                match self {$(
+                    $n :: $vn => $vs
+                ),*}
+            }
+        }
+        impl AsRef<str> for $n {
+            fn as_ref(&self) -> &str {
+                self.as_str()
             }
         }
     };
@@ -36,36 +45,35 @@ pub struct ObjectDef {
     pub tags: Vec<Tag>,
 }
 
-cool_enum! {
-
+object_enum! {
     #[derive(Debug, Clone, Copy, Reflect, Serialize, Deserialize, PartialEq, Eq)]
-    #[repr(u32)]
     #[rustfmt::skip]
-    pub enum ObjectDefKind (u32, 3) {
-        Cauldron         : "Tinting Cauldron",
-        Camera           : "Camera",
-        LaserGrid        : "Laser Grid",
-        // ControlPanel     : "Control Panel",
-        // PressurePlate    : "Pressure Plate",
-        // Key              : "Key",
-        // KeyDoor          : "Locked Door",
-        // Barrier          : "Locked Barrier",
-        // PowerOutlet      : "Power Outlet",
-        // EmptySocket      : "Empty Socket",
-        // ExplosiveBarrel  : "Explosive Barrel",
-        // Anglerfish       : "Anglerfish",
-        // Ventilation      : "Ventilation",
-        // Well             : "Well",
-        // BigHole          : "Big Hole",
-        // LaserDrill       : "Laser Drill",
-        // VaultDoor        : "Vault Door",
-        // Painting         : "Pretentious Painting",
-        // Vase             : "Antique Vase",
-        // Ingot            : "Gold Ingot",
-        // Sculpture        : "Sculpture",
-        // Book             : "Book",
-        // Relic            : "Relic",
-        // WineBottle       : "Wine Bottle",
+    pub enum ObjectDefKind (u32, 4) {
+        SpawnPoint       = 0x0001 : "Spawn Point",
+        Cauldron         = 0x0101 : "Tinting Cauldron",
+        Camera           = 0x0102 : "Camera",
+        LaserGrid        = 0x0103 : "Laser Grid",
+        // ControlPanel     = 0x0104 : "Control Panel",
+        // PressurePlate    = 0x0105 : "Pressure Plate",
+        // Key              = 0x0106 : "Key",
+        // KeyDoor          = 0x0107 : "Locked Door",
+        // Barrier          = 0x0108 : "Locked Barrier",
+        // PowerOutlet      = 0x0109 : "Power Outlet",
+        // EmptySocket      = 0x010A : "Empty Socket",
+        // ExplosiveBarrel  = 0x010B : "Explosive Barrel",
+        // Anglerfish       = 0x010C : "Anglerfish",
+        // Ventilation      = 0x010D : "Ventilation",
+        // Well             = 0x0201  : "Well",
+        // BigHole          = 0x0202  : "Big Hole",
+        // LaserDrill       = 0x0203  : "Laser Drill",
+        // VaultDoor        = 0x0204  : "Vault Door",
+        // Painting         = 0x0205  : "Pretentious Painting",
+        // Vase             = 0x0206  : "Antique Vase",
+        // Ingot            = 0x0207  : "Gold Ingot",
+        // Sculpture        = 0x0208  : "Sculpture",
+        // Book             = 0x0209  : "Book",
+        // Relic            = 0x020A  : "Relic",
+        // WineBottle       = 0x020B  : "Wine Bottle",
     }
 }
 

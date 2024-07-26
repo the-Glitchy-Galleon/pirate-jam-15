@@ -1,5 +1,5 @@
 use crate::{
-    game::object_def::{ColorDef, ObjectDef, ObjectDefKind, Tag},
+    game::objects::definitions::{ColorDef, ObjectDef, ObjectDefKind, Tag},
     tooling::editor::tilemap::Tilemap,
 };
 use bevy::{math::UVec2, reflect::Reflect};

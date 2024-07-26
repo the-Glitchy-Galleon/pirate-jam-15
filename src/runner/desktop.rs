@@ -1,4 +1,4 @@
-use crate::tooling::prelude::*;
+use crate::{tooling::prelude::*, GameRunArgs};
 use bevy::prelude::*;
 
 use clap::{Parser, Subcommand};
@@ -6,6 +6,9 @@ use clap::{Parser, Subcommand};
 #[derive(Parser, Debug)]
 #[command(version, about = "Runs the game", long_about = None)]
 struct Cli {
+    #[arg(short, long)]
+    level: Option<String>,
+
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -16,7 +19,7 @@ enum Command {
     Editor,
 }
 
-pub fn create_app() -> (App, bool) {
+pub fn create_app() -> (App, GameRunArgs) {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins);
 
@@ -26,9 +29,21 @@ pub fn create_app() -> (App, bool) {
         Some(Command::Editor) => {
             // std::env::set_var("RUST_BACKTRACE", "1");
             app.add_plugins(LevelEditorPlugin);
-            (app, false)
+            (
+                app,
+                GameRunArgs {
+                    init: false,
+                    ..Default::default()
+                },
+            )
         }
-        None => (app, true),
+        None => (
+            app,
+            GameRunArgs {
+                init: true,
+                level: args.level,
+            },
+        ),
     }
 }
 

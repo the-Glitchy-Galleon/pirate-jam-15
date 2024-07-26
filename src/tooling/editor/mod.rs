@@ -4,6 +4,7 @@ use crate::{
     FreeCameraPlugin,
 };
 use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::{
     plugin::{NoUserData, RapierPhysicsPlugin},
     render::{DebugRenderStyle, RapierDebugRenderPlugin},
@@ -29,11 +30,12 @@ pub struct LevelEditorPlugin;
 impl Plugin for LevelEditorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            WorldInspectorPlugin::default(),
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin {
                 style: DebugRenderStyle {
-                    subdivisions: 1,
-                    border_subdivisions: 2,
+                    // subdivisions: 1,
+                    // border_subdivisions: 2,
                     collider_dynamic_color: [340.0, 1.0, 0.2, 1.0],
                     ..Default::default()
                 },

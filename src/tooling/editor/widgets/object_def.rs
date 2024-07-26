@@ -1,5 +1,5 @@
 use crate::{
-    game::object_def::{ColorDef, ObjectDefKind},
+    game::objects::definitions::{ColorDef, ObjectDefKind},
     tooling::editor::{
         object_def_builder::{ObjectDefBuilder, Rot8},
         tilemap::Tilemap,
@@ -8,31 +8,18 @@ use crate::{
 use bevy::math::UVec2;
 use bevy_egui::egui::{self, Color32, ScrollArea, Sense, Stroke, TextureId, Ui};
 
-pub struct ObjectDefWidget {
-    selected_id: Option<usize>,
-    forced_dirty: bool,
-}
+pub struct ObjectDefWidget;
 
 impl ObjectDefWidget {
-    pub fn new() -> Self {
-        Self {
-            selected_id: None,
-            forced_dirty: false,
-        }
-    }
-
     pub fn show(
         &mut self,
         ui: &mut Ui,
         defs: &mut Vec<ObjectDefBuilder>,
+        selected_id: Option<u32>,
         tilemap: &Tilemap,
         textures: &[TextureId; ObjectDefKind::COUNT],
-    ) -> bool {
-        let mut has_changes = false;
-        if self.forced_dirty {
-            has_changes = true;
-            self.forced_dirty = false;
-        }
+    ) -> ObjectDefResult {
+        let mut result = ObjectDefResult::Ok;
 
         ScrollArea::both()
             .id_source("object_def_widget_scroll")
@@ -41,14 +28,14 @@ impl ObjectDefWidget {
 
                 ui.separator();
 
-                if let Some(id) = self.selected_id {
-                    let def = defs[id].clone();
+                if let Some(id) = selected_id {
+                    let def = defs[id as usize].clone();
 
                     let new_def = self.show_def_widget(def, defs, tilemap, textures, ui);
-                    if defs[id] != new_def {
-                        has_changes = true;
+                    if defs[id as usize] != new_def {
+                        result = ObjectDefResult::ValueChanged(id);
                     }
-                    defs[id] = new_def;
+                    defs[id as usize] = new_def;
                 }
 
                 ui.separator();
@@ -57,11 +44,11 @@ impl ObjectDefWidget {
                 for (i, def) in defs.iter().enumerate() {
                     ui.horizontal(|ui| {
                         if ui.button("[X]").clicked() {
-                            delete = Some(i);
+                            delete = Some(i as u32);
                         }
                         if ui
                             .add(egui::SelectableLabel::new(
-                                Some(i) == self.selected_id,
+                                Some(i as u32) == selected_id,
                                 format!(
                                     "{:03}: {} at {{{}:{}}}",
                                     i,
@@ -72,37 +59,29 @@ impl ObjectDefWidget {
                             ))
                             .clicked()
                         {
-                            self.selected_id = Some(i);
-                            has_changes = true;
+                            result = ObjectDefResult::SelectedChanged(i as u32);
                         }
                     });
                 }
                 if let Some(delete) = delete {
-                    defs.remove(delete);
-                    if Some(delete) == self.selected_id {
-                        self.selected_id = None;
+                    defs.remove(delete as usize);
+                    if Some(delete) == selected_id {
+                        result = ObjectDefResult::Deleted(delete);
                     }
                 }
 
                 if ui.button("Add New").clicked() {
-                    self.selected_id = Some(defs.len());
+                    let new_id = defs.len() as u32;
                     defs.push(ObjectDefBuilder {
                         coord: tilemap.face_grid().dims() / 2,
                         ..Default::default()
                     });
-                    has_changes = true;
+                    result = ObjectDefResult::New(new_id);
                 }
                 ui.separator();
                 ui.add_space(5.0);
             });
-        has_changes
-    }
-
-    pub fn on_coord_select(&mut self, defs: &[ObjectDefBuilder], coord: UVec2) {
-        if let Some((i, _)) = defs.iter().enumerate().find(|(_, d)| d.coord == coord) {
-            self.selected_id = Some(i);
-            self.forced_dirty = true;
-        }
+        result
     }
 
     #[must_use]
@@ -271,8 +250,12 @@ impl ObjectDefWidget {
         });
         def
     }
+}
 
-    pub fn selected_id(&self) -> Option<usize> {
-        self.selected_id
-    }
+pub enum ObjectDefResult {
+    Ok,
+    New(u32),
+    SelectedChanged(u32),
+    ValueChanged(u32),
+    Deleted(u32),
 }

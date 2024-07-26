@@ -1,19 +1,28 @@
 use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
-use bevy::{color::palettes::tailwind, prelude::*};
+use bevy::prelude::*;
 use bevy::{input::InputSystem, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 use collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP};
-use object_def::ColorDef;
+use kinematic_char::*;
+use minion::*;
+use objects::{
+    assets::GameObjectAssets,
+    camera::{self},
+};
+use player::*;
 
-mod collision_groups;
-mod kinematic_char;
-mod minion;
-pub mod object_def;
-mod player;
+pub mod collision_groups;
+pub mod kinematic_char;
+pub mod level;
+pub mod minion;
+pub mod player;
+pub mod top_down_camera;
+pub mod objects {
+    pub mod assets;
+    pub mod camera;
+    pub mod definitions;
+}
 
-pub use kinematic_char::*;
-pub use minion::*;
-pub use player::*;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
 #[derive(Debug, Resource)]
@@ -95,19 +104,25 @@ impl Plugin for GamePlugin {
             .add_systems(Update, minion_storage_pickup);
 
         app.init_asset::<LevelAsset>()
-            .init_asset_loader::<LevelAssetLoader>();
+            .init_asset_loader::<LevelAssetLoader>()
+            .init_resource::<GameObjectAssets>();
 
-        app.add_systems(Startup, load_preview_scene);
-        // app.add_systems(Update, init_level);
+        app.add_systems(Startup, level::load_preview_scene);
+        // app.add_systems(PreUpdate, level::init_level);
+        app.add_systems(Update, top_down_camera::update);
+        camera::add_systems_and_resources(app);
     }
 }
 
 pub fn spawn_gameplay_camera(mut commands: Commands) {
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-30.0, 30.0, 30.0)
-            .looking_at(Vec3::new(10.0, 0.0, 7.0), Vec3::Y),
-        ..Default::default()
-    });
+    commands.spawn((
+        // TopDownCameraControls,
+        Camera3dBundle {
+            transform: Transform::from_xyz(-30.0, 30.0, 30.0)
+                .looking_at(Vec3::new(10.0, 0.0, 7.0), Vec3::Y),
+            ..Default::default()
+        },
+    ));
 }
 
 fn setup_physics(mut navs: ResMut<Assets<NavMesh>>, mut commands: Commands) {
@@ -167,10 +182,7 @@ fn setup_physics(mut navs: ResMut<Assets<NavMesh>>, mut commands: Commands) {
     commands.spawn((
         TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
-        CollisionGroups {
-            memberships: GROUND_GROUP,
-            filters: ACTOR_GROUP | TARGET_GROUP,
-        },
+        CollisionGroups::new(GROUND_GROUP, ACTOR_GROUP | TARGET_GROUP),
     ));
 
     commands.spawn((
@@ -185,10 +197,7 @@ fn setup_physics(mut navs: ResMut<Assets<NavMesh>>, mut commands: Commands) {
         },
         TransformBundle::from(Transform::from_xyz(4.0, 0.0, 4.0)),
         Collider::cuboid(1.0, 1.0, 1.0),
-        CollisionGroups {
-            memberships: TARGET_GROUP,
-            filters: GROUND_GROUP | ACTOR_GROUP,
-        },
+        CollisionGroups::new(TARGET_GROUP, GROUND_GROUP | ACTOR_GROUP),
     ));
 
     /*
@@ -228,116 +237,5 @@ fn setup_physics(mut navs: ResMut<Assets<NavMesh>>, mut commands: Commands) {
         }
 
         offset -= 0.05 * rad * (num as f32 - 1.0);
-    }
-}
-
-#[derive(Component)]
-struct InitLevel {
-    handle: Handle<LevelAsset>,
-}
-
-fn load_preview_scene(mut cmd: Commands, ass: Res<AssetServer>) {
-    cmd.spawn(InitLevel {
-        handle: ass.load("level/preview.level"),
-    });
-}
-
-fn init_level(
-    mut cmd: Commands,
-    level_q: Query<(Entity, &InitLevel)>,
-    ass: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut mats: ResMut<Assets<StandardMaterial>>,
-    levels: Res<Assets<LevelAsset>>,
-) {
-    use crate::framework::tileset::TILESET_PATH_DIFFUSE;
-    use crate::framework::tileset::TILESET_PATH_NORMAL;
-
-    for (ent, init) in level_q.iter() {
-        if let Some(level) = levels.get(&init.handle) {
-            info!("Initializing Level");
-            cmd.entity(ent).despawn();
-
-            let diffuse: Handle<Image> = ass.load(TILESET_PATH_DIFFUSE);
-            let normal: Option<Handle<Image>> = TILESET_PATH_NORMAL.map(|f| ass.load(f));
-
-            let handle: Handle<Mesh> = meshes.add(level.data().ground_mesh.clone());
-            let collider = level.data().ground_collider.clone();
-
-            cmd.spawn((
-                PbrBundle {
-                    mesh: handle,
-                    material: mats.add(StandardMaterial {
-                        base_color_texture: Some(diffuse.clone()),
-                        normal_map_texture: normal.clone(),
-                        perceptual_roughness: 0.9,
-                        metallic: 0.0,
-                        ..default()
-                    }),
-                    transform: Transform::IDENTITY.with_scale(Vec3::ONE * 2.0),
-                    ..default()
-                },
-                collider,
-            ))
-            .with_children(|parent| {
-                // as children because the map is scaled for now
-
-                for wall in &level.data().walls {
-                    let mesh = wall.mesh.clone();
-                    let collider = wall.collider.clone();
-                    let handle: Handle<Mesh> = meshes.add(mesh);
-                    parent.spawn((
-                        PbrBundle {
-                            mesh: handle,
-                            material: mats.add(StandardMaterial {
-                                base_color_texture: Some(diffuse.clone()),
-                                normal_map_texture: normal.clone(),
-                                perceptual_roughness: 0.9,
-                                metallic: 0.0,
-                                ..default()
-                            }),
-                            transform: Transform::IDENTITY,
-                            ..default()
-                        },
-                        collider,
-                    ));
-                }
-                for object in &level.data().objects {
-                    info!(
-                        "Spawning {} {}",
-                        object.color.as_str(),
-                        object.kind.as_str()
-                    );
-                    parent.spawn(PbrBundle {
-                        mesh: meshes.add(Cuboid::default()),
-                        material: mats.add(StandardMaterial {
-                            base_color_texture: Some(diffuse.clone()),
-                            normal_map_texture: normal.clone(),
-                            perceptual_roughness: 0.9,
-                            metallic: 0.0,
-                            base_color: match object.color {
-                                ColorDef::Void => tailwind::GRAY_500,
-                                ColorDef::Red => tailwind::RED_500,
-                                ColorDef::Green => tailwind::GREEN_500,
-                                ColorDef::Blue => tailwind::BLUE_500,
-                                ColorDef::Yellow => tailwind::YELLOW_500,
-                                ColorDef::Magenta => tailwind::PURPLE_500,
-                                ColorDef::Cyan => tailwind::CYAN_500,
-                                ColorDef::White => tailwind::GREEN_100,
-                            }
-                            .into(),
-                            ..default()
-                        }),
-                        transform: Transform::IDENTITY
-                            .with_translation(object.position)
-                            .with_scale(Vec3::splat(2.0))
-                            .with_rotation(Quat::from_rotation_y(object.rotation)),
-                        ..default()
-                    });
-                }
-            });
-
-            info!("Done");
-        }
     }
 }

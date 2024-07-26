@@ -1,3 +1,4 @@
+use crate::GameRunArgs;
 use bevy::prelude::*;
 use web_sys::Document;
 
@@ -11,7 +12,7 @@ fn set_window_title(title: &str) {
         .set_title(title);
 }
 
-pub fn create_app() -> (App, bool) {
+pub fn create_app() -> (App, GameRunArgs) {
     let mut app = App::new();
 
     app.add_plugins(
@@ -32,7 +33,7 @@ pub fn create_app() -> (App, bool) {
             }),
     );
 
-    (app, true)
+    (app, GameRunArgs::default())
 }
 
 fn setup_dom(document: &Document) {

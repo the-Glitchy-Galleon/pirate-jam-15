@@ -1,7 +1,8 @@
-pub mod minion_storage;
-
-pub use minion_storage::*;
-
+use super::{
+    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP},
+    CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage,
+    MinionTarget,
+};
 use bevy::{
     prelude::*,
     render::camera::RenderTarget,
@@ -10,11 +11,8 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
 
-use super::{
-    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP},
-    CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage,
-    MinionTarget,
-};
+mod minion_storage;
+pub use minion_storage::*;
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
 #[reflect(Component)]
@@ -33,15 +31,12 @@ pub fn setup_player(mut commands: Commands) {
             PlayerTag,
             minion_st,
             Collider::round_cylinder(0.9, 0.3, 0.2),
+            CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP),
             SpatialBundle {
                 transform: Transform::from_xyz(0.0, 5.0, 0.0),
                 ..default()
             },
             KinematicCharacterBundle::default(),
-            CollisionGroups {
-                memberships: ACTOR_GROUP,
-                filters: GROUND_GROUP,
-            },
         ))
         .with_children(|b| {
             b.spawn((SpatialBundle { ..default() }, PlayerCollector))
@@ -56,12 +51,9 @@ pub fn setup_player(mut commands: Commands) {
                         },
                         ActiveCollisionTypes::KINEMATIC_STATIC,
                         Collider::cone(3.0, 4.5),
+                        CollisionGroups::new(DETECTION_GROUP, ACTOR_GROUP),
                         RigidBody::Fixed,
                         Sensor,
-                        CollisionGroups {
-                            memberships: DETECTION_GROUP,
-                            filters: ACTOR_GROUP,
-                        },
                     ));
                 });
         });
@@ -103,13 +95,13 @@ pub fn player_controls(
     let Some((ent_hit, ray_hit)) = rap_ctx.cast_ray_and_get_normal(
         cursor_ray.origin,
         cursor_ray.direction.as_vec3(),
-        1000.0,
+        bevy_rapier3d::math::Real::INFINITY,
         true,
         QueryFilter {
-            groups: Some(CollisionGroups {
-                memberships: Group::all(),
-                filters: GROUND_GROUP | TARGET_GROUP,
-            }),
+            groups: Some(CollisionGroups::new(
+                Group::all(),
+                GROUND_GROUP | TARGET_GROUP,
+            )),
             ..default()
         },
     ) else {
