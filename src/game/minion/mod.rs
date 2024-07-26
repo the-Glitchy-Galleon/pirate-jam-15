@@ -7,7 +7,6 @@ mod walk_target;
 
 pub use collector::*;
 pub use destructible_target::*;
-use polyanya::Path;
 use vleue_navigator::{NavMesh, TransformedPath};
 pub use walk_target::*;
 

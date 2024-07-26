@@ -2,11 +2,8 @@ use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
 use bevy::{
     color::palettes::tailwind,
     prelude::*,
-    render::camera::RenderTarget,
-    window::{PrimaryWindow, WindowRef},
 };
-use bevy::{input::InputSystem, prelude::*, utils::HashMap};
-use bevy_rapier3d::prelude::*;
+use bevy::{input::InputSystem, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 use object_def::ColorDef;
 
