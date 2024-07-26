@@ -74,7 +74,7 @@ pub fn player_controls(
     mut gizmos: Gizmos,
     mut player: Query<(&mut Transform, &mut CharacterWalkControl), With<PlayerTag>>,
     mut minion: ResMut<MinionStorageInput>,
-    mut minion_targets: Query<Entity, With<MinionTarget>>,
+    minion_targets: Query<Entity, With<MinionTarget>>,
     level_reses: Res<LevelResources>,
     navmeshes: Res<Assets<NavMesh>>,
 ) {
