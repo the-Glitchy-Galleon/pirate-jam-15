@@ -57,23 +57,17 @@ pub struct MinionBundle {
 #[derive(Component)]
 pub struct MinionPath(TransformedPath);
 
-pub fn minion_walk(
-    level_reses: Res<LevelResources>,
+// TODO: render it more aligned to the level
+pub fn debug_navmesh(
+    level_reses: Option<Res<LevelResources>>,
     navmeshes: Res<Assets<NavMesh>>,
-    mut minion_q: Query<(Entity, &GlobalTransform, &mut CharacterWalkControl, &mut MinionState, Option<&mut MinionPath>)>,
-    target_q: Query<&GlobalTransform, With<MinionTarget>>,
-    player_q: Query<&GlobalTransform, With<PlayerTag>>,
-    mut commands: Commands,
     mut gizmos: Gizmos,
 ) {
-    let Ok(player_tf) = player_q.get_single() else {
-        return;
-    };
-    let Some(navmesh) = navmeshes.get(&level_reses.navmesh) else {
-        return;
-    };
-    let mut local_path = None;
-
+    let Some(navmesh) = level_reses.as_ref()
+            .map(|x| &x.navmesh)
+        else { return; };
+    let Some(navmesh) = navmeshes.get(navmesh.id())
+        else { return; };
     let red = LinearRgba {
         red: 1.0,
         green: 0.0,
@@ -81,6 +75,7 @@ pub fn minion_walk(
         alpha: 1.0,
     };
     let verts = &navmesh.get().vertices;
+
     for poly in &navmesh.get().polygons {
         let fst = poly.vertices.iter()
             .map(|x| *x)
@@ -94,8 +89,34 @@ pub fn minion_walk(
             .map(|v| Vec3::new(v.x, 0.0, v.y));
         for (start, end) in fst.zip(snd) {
             gizmos.line(start, end, red);
+
+            let center = (start + end) / 2.0;
+            let dir = end - start;
+            let ort = Vec3::new(-dir.z, 0.0, dir.x);
+            gizmos.line(
+                center,
+                center + 0.3 * ort.normalize_or_zero(),
+                red,
+            );
         }
     }
+}
+
+pub fn minion_walk(
+    level_reses: Res<LevelResources>,
+    navmeshes: Res<Assets<NavMesh>>,
+    mut minion_q: Query<(Entity, &GlobalTransform, &mut CharacterWalkControl, &mut MinionState, Option<&mut MinionPath>)>,
+    target_q: Query<&GlobalTransform, With<MinionTarget>>,
+    player_q: Query<&GlobalTransform, With<PlayerTag>>,
+    mut commands: Commands,
+) {
+    let Ok(player_tf) = player_q.get_single() else {
+        return;
+    };
+    let Some(navmesh) = navmeshes.get(&level_reses.navmesh) else {
+        return;
+    };
+    let mut local_path = None;
 
     for (ent, tf, mut walk, mut state, mut path) in minion_q.iter_mut() {
         let target_pos = match state.as_ref() {

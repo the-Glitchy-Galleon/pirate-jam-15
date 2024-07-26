@@ -80,7 +80,8 @@ impl Plugin for GamePlugin {
                 Update,
                 update_minion_interaction_requirements.after(update_minion_state),
             )
-            .add_systems(Update, update_destructble_target);
+            .add_systems(Update, update_destructble_target)
+            .add_systems(Update, debug_navmesh);
 
         /* Player systems */
         app.add_systems(PreUpdate, player_controls.after(InputSystem))
