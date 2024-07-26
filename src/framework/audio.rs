@@ -6,25 +6,9 @@ use bevy_kira_audio::prelude::*;
 use std::time::Duration;
 
 // Use `AudioAsset` to disambiguate from the `AudioSource` exported by bevy::prelude
-pub use bevy_kira_audio::prelude::AudioSource as AudioAsset;
-
 pub use bevy_kira_audio::prelude::AudioControl;
+pub use bevy_kira_audio::prelude::AudioSource as AudioAsset;
 pub use bevy_kira_audio::prelude::{AudioReceiver, PlaybackState, Volume};
-
-#[derive(Resource)]
-pub struct GlobalVolume {
-    volume: Volume,
-    tween: Option<VolumeTween>,
-}
-
-impl GlobalVolume {
-    pub fn new(volume: f64) -> Self {
-        Self {
-            volume: Volume::Amplitude(volume),
-            tween: None,
-        }
-    }
-}
 
 #[derive(Resource)]
 pub struct GlobalVolume {
