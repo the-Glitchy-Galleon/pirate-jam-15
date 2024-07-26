@@ -1,5 +1,10 @@
-use bevy::render::mesh::{Indices, PrimitiveTopology};
-use bevy::{prelude::*, render::render_asset::RenderAssetUsages};
+use bevy::{
+    prelude::*,
+    render::{
+        mesh::{Indices, PrimitiveTopology},
+        render_asset::RenderAssetUsages,
+    },
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]

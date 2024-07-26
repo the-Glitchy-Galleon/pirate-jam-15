@@ -1,7 +1,9 @@
-use super::{
+use crate::game::{
     collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP},
-    CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage,
-    MinionTarget,
+    kinematic_char::KinematicCharacterBundle,
+    minion::collector::MinionStorage,
+    player::minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
+    CharacterWalkControl, LevelResources, MinionKind, MinionTarget,
 };
 use bevy::{
     prelude::*,
@@ -11,8 +13,7 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
 
-mod minion_storage;
-pub use minion_storage::*;
+pub mod minion_storage;
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
 #[reflect(Component)]

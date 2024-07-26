@@ -1,5 +1,7 @@
-use super::tilemap::{Tilemap, SLOPE_HEIGHT, TILE_SIZE_X, TILE_SIZE_Y, WALL_HEIGHT};
-use crate::framework::{prelude::*, tileset::Tileset};
+use crate::{
+    framework::{raw_mesh::RawMesh, tileset::Tileset},
+    tooling::editor::tilemap::{Tilemap, SLOPE_HEIGHT, TILE_SIZE_X, TILE_SIZE_Y, WALL_HEIGHT},
+};
 use bevy::{prelude::*, utils::HashSet};
 use bevy_rapier3d::geometry::{Collider, ComputedColliderShape, VHACDParameters};
 use itertools::izip;
@@ -8,6 +10,7 @@ use std::collections::VecDeque;
 pub struct RawMeshBuilder<'a> {
     tilemap: &'a Tilemap,
 }
+
 impl<'a> RawMeshBuilder<'a> {
     pub fn new(tilemap: &'a Tilemap) -> Self {
         Self { tilemap }

@@ -1,9 +1,9 @@
-use super::object_def_builder::{ObjectDefBuilder, Rot8};
-use super::tilemap::{Pnormal2, Tilemap};
-use bevy::asset::io::Reader;
-use bevy::asset::AsyncReadExt;
+use crate::tooling::editor::{
+    object_def_builder::{ObjectDefBuilder, Rot8},
+    tilemap::{Pnormal2, Tilemap},
+};
 use bevy::{
-    asset::{AssetLoader, LoadContext},
+    asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},
     prelude::*,
 };
 use ron::ser::PrettyConfig;

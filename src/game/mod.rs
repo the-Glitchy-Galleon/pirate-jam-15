@@ -1,15 +1,23 @@
-use crate::framework::prelude::{AudioPlugin, LevelAsset, LevelAssetLoader};
-use bevy::prelude::*;
-use bevy::{input::InputSystem, utils::HashMap};
-use bevy_rapier3d::prelude::*;
-use collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP};
-use kinematic_char::*;
-use minion::*;
-use objects::{
-    assets::GameObjectAssets,
-    camera::{self},
+use crate::{
+    framework::{
+        audio::AudioPlugin,
+        level_asset::{LevelAsset, LevelAssetLoader},
+    },
+    game::{
+        collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP},
+        kinematic_char::{CharacterWalkControl, CharacterWalkState},
+        minion::{
+            collector::{MinionInteractionRequirement, MinionStorage},
+            destructible_target::DestructibleTargetBundle,
+            MinionKind, MinionState, MinionTarget,
+        },
+        objects::{assets::GameObjectAssets, camera},
+        player::minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
+    },
 };
-use player::*;
+use bevy::{input::InputSystem, prelude::*, utils::HashMap};
+use bevy_rapier3d::prelude::*;
+use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
 pub mod collision_groups;
 pub mod kinematic_char;
@@ -22,8 +30,6 @@ pub mod objects {
     pub mod camera;
     pub mod definitions;
 }
-
-use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
 #[derive(Debug, Resource)]
 pub struct LevelResources {
@@ -66,42 +72,49 @@ impl Plugin for GamePlugin {
         /* Setup */
         app.add_systems(Startup, spawn_gameplay_camera)
             .add_systems(Startup, setup_physics)
-            .add_systems(Startup, setup_player);
+            .add_systems(Startup, player::setup_player);
 
         /* Common systems */
-        app.add_systems(FixedUpdate, update_kinematic_character);
+        app.add_systems(FixedUpdate, kinematic_char::update_kinematic_character);
 
         /* Minion systems */
-        app.add_systems(Update, cleanup_minion_state)
-            .add_systems(Update, update_minion_state)
+        app.add_systems(Update, minion::cleanup_minion_state)
+            .add_systems(Update, minion::update_minion_state)
             .add_systems(
                 Update,
-                minion_update_path
+                minion::minion_update_path
                     .run_if(resource_exists::<LevelResources>)
-                    .after(update_minion_state),
+                    .after(minion::update_minion_state),
             )
             .add_systems(
                 PostUpdate,
-                minion_build_path
+                minion::minion_build_path
                     .run_if(resource_exists::<LevelResources>)
                     .after(TransformSystem::TransformPropagate),
             )
             .add_systems(
                 Update,
-                minion_walk.run_if(resource_exists::<LevelResources>),
+                minion::minion_walk.run_if(resource_exists::<LevelResources>),
             )
-            .add_systems(Update, walk_target_update.after(update_minion_state))
             .add_systems(
                 Update,
-                update_minion_interaction_requirements.after(update_minion_state),
+                minion::walk_target::walk_target_update.after(minion::update_minion_state),
             )
-            .add_systems(Update, update_destructble_target)
-            .add_systems(Update, debug_navmesh);
+            .add_systems(
+                Update,
+                minion::collector::update_minion_interaction_requirements
+                    .after(minion::update_minion_state),
+            )
+            .add_systems(
+                Update,
+                minion::destructible_target::update_destructble_target,
+            )
+            .add_systems(Update, minion::debug_navmesh);
 
         /* Player systems */
-        app.add_systems(PreUpdate, player_controls.after(InputSystem))
-            .add_systems(Update, minion_storage_throw)
-            .add_systems(Update, minion_storage_pickup);
+        app.add_systems(PreUpdate, player::player_controls.after(InputSystem))
+            .add_systems(Update, player::minion_storage::minion_storage_throw)
+            .add_systems(Update, player::minion_storage::minion_storage_pickup);
 
         app.init_asset::<LevelAsset>()
             .init_asset_loader::<LevelAssetLoader>()

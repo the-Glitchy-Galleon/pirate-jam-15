@@ -1,7 +1,7 @@
 #![cfg(not(target_family = "wasm"))]
 use crate::{
-    framework::{logical_cursor::LogicalCursorPlugin, prelude::GlobalUiStatePlugin},
-    FreeCameraPlugin,
+    framework::{global_ui_state::GlobalUiStatePlugin, logical_cursor::LogicalCursorPlugin},
+    tooling::free_camera::FreeCameraPlugin,
 };
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;

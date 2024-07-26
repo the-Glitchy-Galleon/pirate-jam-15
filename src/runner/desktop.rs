@@ -1,6 +1,5 @@
-use crate::{tooling::prelude::*, GameRunArgs};
+use crate::{tooling::editor::LevelEditorPlugin, GameRunArgs};
 use bevy::prelude::*;
-
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]

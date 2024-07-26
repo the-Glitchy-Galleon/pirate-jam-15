@@ -1,11 +1,12 @@
 use crate::game::{
-    collision_groups::*, CharacterWalkControl, KinematicCharacterBundle, MinionBundle, MinionKind,
-    MinionState, MinionStorage, WalkTargetBundle,
+    collision_groups::{ACTOR_GROUP, GROUND_GROUP},
+    kinematic_char::KinematicCharacterBundle,
+    minion::{collector::MinionStorage, walk_target::WalkTargetBundle, MinionBundle},
+    player::PlayerTag,
+    CharacterWalkControl, MinionKind, MinionState,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
-
-use super::PlayerTag;
 
 #[derive(Clone, Copy, Debug, Reflect)]
 pub enum MinionThrowTarget {

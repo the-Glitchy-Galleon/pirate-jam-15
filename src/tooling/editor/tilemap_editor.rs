@@ -1,20 +1,29 @@
-use super::object_def_builder::ObjectDefBuilder;
-use super::tilemap::{Pnormal3, Tilemap, SLOPE_HEIGHT, WALL_HEIGHT};
-use super::tilemap_controls::TilemapControls;
-use super::tilemap_mesh_builder::{self, RawMeshBuilder};
-use crate::framework::level_asset::{LevelAsset, LevelAssetData, WallData};
-use crate::framework::prelude::*;
-use crate::framework::tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL, TILESET_TILE_NUM};
-use crate::game::collision_groups::*;
-use crate::game::objects::camera::{CameraObjBuilder, Shineable};
-use crate::game::objects::definitions::ObjectDefKind;
-use bevy::color::palettes::tailwind::{self, *};
-use bevy::prelude::*;
+use crate::{
+    framework::{
+        global_ui_state::GlobalUiState,
+        logical_cursor::LogicalCursorPosition,
+        tileset::{Tileset, TILESET_TILE_NUM},
+    },
+    game::{
+        collision_groups::{ACTOR_GROUP, GROUND_GROUP, WALL_GROUP},
+        objects::{
+            assets,
+            camera::{self, CameraObjBuilder, Shineable},
+            definitions::ObjectDefKind,
+        },
+    },
+    tooling::editor::{
+        object_def_builder::ObjectDefBuilder,
+        tilemap::{Pnormal3, Tilemap, SLOPE_HEIGHT, WALL_HEIGHT},
+        tilemap_controls::TilemapControls,
+    },
+};
+use bevy::{
+    color::palettes::tailwind::{self, *},
+    prelude::*,
+};
 use bevy_egui::EguiUserTextures;
-use bevy_rapier3d::geometry::CollisionGroups;
-use bevy_rapier3d::pipeline::QueryFilter;
-use bevy_rapier3d::plugin::RapierContext;
-use bevy_rapier3d::prelude::{Collider, Group};
+use bevy_rapier3d::prelude::*;
 use std::f32::consts::PI;
 
 const DEFAULT_EDITOR_SAVE_PATH: &str = "./level_editor_scenes";
@@ -117,7 +126,6 @@ impl Plugin for TilemapEditorPlugin {
             .add_systems(Startup, (setup, ui::setup));
 
         // Object Spawning compatibility
-        use crate::game::objects::*;
         app.init_resource::<assets::GameObjectAssets>();
 
         camera::add_systems_and_resources(app);
@@ -130,10 +138,20 @@ fn setup(mut cmd: Commands, sys: Res<oneshot::Systems>) {
 }
 
 mod oneshot {
-    use crate::game::collision_groups::*;
-
-    use super::*;
-    use bevy::ecs::system::SystemId;
+    use super::{
+        ui, DespawnObject, EditorState, ObjectDefStorage, ObjectMarker, SpawnObject,
+        TilemapGroundMesh, TilemapWallMesh,
+    };
+    use crate::{
+        framework::{
+            level_asset::{LevelAsset, LevelAssetData, WallData},
+            tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL},
+        },
+        game::collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
+        tooling::editor::tilemap_mesh_builder::{self, RawMeshBuilder},
+    };
+    use bevy::{ecs::system::SystemId, prelude::*};
+    use bevy_rapier3d::prelude::*;
 
     #[derive(Resource)]
     pub(super) struct Systems {
@@ -738,15 +756,14 @@ fn draw_hovered_tile_gizmo(
     gizmos.arrow(from, to, BLUE_100);
 }
 
-pub(super) mod ui {
+mod ui {
     use super::{
         oneshot::{ExportLevelScenePath, Systems},
         ControlMode, DespawnObject, EditorState, ObjectDefStorage, SelectedObjectChanged,
         SpawnObject, DEFAULT_EDITOR_EXPORT_PATH, DEFAULT_EDITOR_SAVE_PATH, START_ELEVATION,
-        TILESET_PATH_DIFFUSE,
     };
     use crate::{
-        framework::tileset::{TILESET_TEXTURE_DIMS, TILESET_TILE_DIMS},
+        framework::tileset::{TILESET_PATH_DIFFUSE, TILESET_TEXTURE_DIMS, TILESET_TILE_DIMS},
         game::objects::definitions::ObjectDefKind,
         tooling::editor::{
             tilemap_asset::TilemapRon,

@@ -1,6 +1,5 @@
+use crate::game::minion::{MinionState, MinionTarget};
 use bevy::prelude::*;
-
-use super::{MinionState, MinionTarget};
 
 #[derive(Component, Default, Debug, Reflect)]
 #[reflect(Component)]

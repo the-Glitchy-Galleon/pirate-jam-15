@@ -1,8 +1,7 @@
 //! Example to demonstrate simple usage of minion requirement
 
+use crate::game::minion::{collector::MinionInteractionRequirement, MinionTarget};
 use bevy::prelude::*;
-
-use super::{MinionInteractionRequirement, MinionTarget};
 
 #[derive(Clone, Copy, Component, Debug, Reflect, Default)]
 pub struct DestructibleTargetTag;

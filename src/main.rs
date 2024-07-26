@@ -1,16 +1,18 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use crate::{
+    game::{
+        level::{self, UserDefinedStartupLevel},
+        GamePlugin,
+    },
+    tooling::fps_counter::FpsCounterPlugin,
+};
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
-use game::{
-    level::{self, UserDefinedStartupLevel},
-    GamePlugin,
-};
-use tooling::prelude::*;
 
 pub mod framework;
-mod game;
-mod runner;
+pub mod game;
+pub mod runner;
 pub mod tooling;
 
 pub struct GameRunArgs {

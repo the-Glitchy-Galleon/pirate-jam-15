@@ -1,6 +1,5 @@
+use crate::game::minion::{MinionKind, MinionState};
 use bevy::{prelude::*, utils::HashMap};
-
-use super::{MinionKind, MinionState};
 
 #[derive(Component, Reflect, Debug)]
 pub struct MinionStorage {
