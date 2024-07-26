@@ -11,7 +11,9 @@ use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
 
 use super::{
-    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP}, CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage, MinionTarget
+    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP},
+    CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage,
+    MinionTarget,
 };
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
@@ -124,18 +126,9 @@ pub fn player_controls(
         Color::linear_rgb(1.0, 0.0, 0.0)
     };
 
-    gizmos.arrow(
-        ray_hit.point + ray_hit.normal * 10.0,
-        ray_hit.point,
-        color,
-    );
+    gizmos.arrow(ray_hit.point + ray_hit.normal * 10.0, ray_hit.point, color);
 
-    gizmos.circle(
-        ray_hit.point,
-        hit_dir,
-        3.0,
-        color,
-    );
+    gizmos.circle(ray_hit.point, hit_dir, 3.0, color);
 
     let Ok((player_tf, mut walk)) = player.get_single_mut() else {
         return;

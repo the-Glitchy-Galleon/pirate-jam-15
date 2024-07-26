@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use bevy_rapier3d::{plugin::RapierContext, prelude::{Collider, CollisionGroups, Group, QueryFilter}};
+use bevy_rapier3d::{
+    plugin::RapierContext,
+    prelude::{Collider, CollisionGroups, Group, QueryFilter},
+};
 
 mod collector;
 mod destructible_target;
@@ -10,7 +13,10 @@ pub use destructible_target::*;
 use vleue_navigator::{NavMesh, TransformedPath};
 pub use walk_target::*;
 
-use super::{collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP}, CharacterWalkControl, KinematicCharacterBundle, LevelResources, PlayerTag};
+use super::{
+    collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP},
+    CharacterWalkControl, KinematicCharacterBundle, LevelResources, PlayerTag,
+};
 
 const MINION_INTERRACTION_RANGE: f32 = 0.5;
 const MINION_NODE_DIST: f32 = 0.1;
@@ -79,11 +85,12 @@ pub fn debug_navmesh(
     navmeshes: Res<Assets<NavMesh>>,
     mut gizmos: Gizmos,
 ) {
-    let Some(navmesh) = level_reses.as_ref()
-            .map(|x| &x.navmesh)
-        else { return; };
-    let Some(navmesh) = navmeshes.get(navmesh.id())
-        else { return; };
+    let Some(navmesh) = level_reses.as_ref().map(|x| &x.navmesh) else {
+        return;
+    };
+    let Some(navmesh) = navmeshes.get(navmesh.id()) else {
+        return;
+    };
     let red = LinearRgba {
         red: 1.0,
         green: 0.0,
@@ -93,11 +100,15 @@ pub fn debug_navmesh(
     let verts = &navmesh.get().vertices;
 
     for poly in &navmesh.get().polygons {
-        let fst = poly.vertices.iter()
+        let fst = poly
+            .vertices
+            .iter()
             .map(|x| *x)
             .map(|x| verts[x as usize].coords)
             .map(|v| Vec3::new(v.x, 0.0, v.y));
-        let snd = poly.vertices.iter()
+        let snd = poly
+            .vertices
+            .iter()
             .map(|x| *x)
             .skip(1)
             .chain(std::iter::once(poly.vertices[0]))
@@ -109,11 +120,7 @@ pub fn debug_navmesh(
             let center = (start + end) / 2.0;
             let dir = end - start;
             let ort = Vec3::new(-dir.z, 0.0, dir.x);
-            gizmos.line(
-                center,
-                center + 0.3 * ort.normalize_or_zero(),
-                red,
-            );
+            gizmos.line(center, center + 0.3 * ort.normalize_or_zero(), red);
         }
     }
 }
@@ -256,27 +263,27 @@ pub fn update_minion_state(
             _ => continue,
         };
 
-        let is_target_reachable = rap_ctx.cast_ray(
-            tf.translation(),
-            target_pos - tf.translation(),
-            MINION_INTERRACTION_RANGE,
-            true,
-            QueryFilter {
-                groups: Some(CollisionGroups {
-                    memberships: Group::all(),
-                    filters: GROUND_GROUP | TARGET_GROUP,
-                }),
-                ..default()
-            },
-        ).is_some();
+        let is_target_reachable = rap_ctx
+            .cast_ray(
+                tf.translation(),
+                target_pos - tf.translation(),
+                MINION_INTERRACTION_RANGE,
+                true,
+                QueryFilter {
+                    groups: Some(CollisionGroups {
+                        memberships: Group::all(),
+                        filters: GROUND_GROUP | TARGET_GROUP,
+                    }),
+                    ..default()
+                },
+            )
+            .is_some();
 
         match *state {
-            MinionState::GoingToPlayer if is_target_reachable => {
-                *state = MinionState::Idling
-            },
+            MinionState::GoingToPlayer if is_target_reachable => *state = MinionState::Idling,
             MinionState::GoingTo(target) if is_target_reachable => {
                 *state = MinionState::Interracting(target);
-            },
+            }
             _ => (),
         }
     }
