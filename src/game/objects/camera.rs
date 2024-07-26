@@ -2,19 +2,15 @@ use super::{assets::GameObjectAssets, definitions::*};
 use crate::{framework::easing::*, game::collision_groups::*};
 use bevy::{color::palettes::tailwind, prelude::*, time::Real};
 use bevy_rapier3d::prelude::*;
+use helpers::is_within_cone_shape;
 use std::{f32::consts::FRAC_PI_2, ops::RangeInclusive};
 
-const _NUM_SPOTLIGHT_RAYS: usize = 16;
 const SPOTLIGHT_ANGLE: f32 = 0.4;
 const SPOTLIGHT_ANGLE_RANGE: RangeInclusive<f32> = 0.3..=0.6; // range that kinda works out for the angle
-const CONE_RADIUS_FACTOR: f32 = 0.8;
-const CONE_RANGE_FACTOR: f32 = 1.2;
-const RAY_RANGE_FACTOR: f32 = 1.2;
+const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.9;
 
 pub const CHARGE_DURATION_SECS: f32 = 1.0;
 pub const BEAM_DURATION_SECS: f32 = 1.0;
-
-// const COLLISION_GROUP_WALL: Group = Group::GROUP_15;
 
 pub struct CameraObjBuilder(pub ObjectDef);
 
@@ -23,21 +19,12 @@ impl CameraObjBuilder {
         let position = self.0.position + Vec3::Y * 3.0;
         let spotlight_position = position + Vec3::new(0.0, 0.1, -0.5);
 
-        let mut max_range = 0.0;
-        for pos in &self.0.pos_refs {
-            max_range = f32::max(max_range, pos.distance(spotlight_position));
-        }
-
-        let angle = FRAC_PI_2
+        let half_angle = FRAC_PI_2
             * f32::clamp(
                 SPOTLIGHT_ANGLE,
                 *SPOTLIGHT_ANGLE_RANGE.start(),
                 *SPOTLIGHT_ANGLE_RANGE.end(),
             );
-        let cone_radius = (max_range * angle.tan()) * CONE_RADIUS_FACTOR;
-        let cone_range = max_range * CONE_RANGE_FACTOR;
-
-        info!("Radius: {cone_radius}");
 
         let root = (
             Name::new(format!(
@@ -76,27 +63,16 @@ impl CameraObjBuilder {
                 color: self.spotlight_color(),
                 shadows_enabled: true,
                 range: 100.0, // ignore calculated range because it doesn't really reach
-                inner_angle: angle,
-                outer_angle: angle * 0.9,
+                inner_angle: half_angle,
+                outer_angle: half_angle * 0.9,
                 ..default()
             },
             ..Default::default()
         },);
         let cone = (
-            SpatialBundle {
-                transform: Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_2))
-                    .with_translation(Vec3::NEG_Z * cone_range * 0.5),
-                ..Default::default()
-            },
-            Sensor,
-            Collider::cone(cone_range * 0.5, cone_radius),
-            CollisionGroups {
-                memberships: G_SENSOR,
-                filters: G_ALL,
-            },
-            ActiveCollisionTypes::STATIC_STATIC,
+            SpatialBundle::default(),
             ShineCone {
-                max_range: cone_range * RAY_RANGE_FACTOR,
+                half_angle: half_angle * CONE_DETECTION_RADIUS_FACTOR,
             },
         );
 
@@ -173,7 +149,7 @@ pub struct Shineable;
 
 #[derive(Component, Reflect)]
 pub struct ShineCone {
-    max_range: f32,
+    half_angle: f32,
 }
 
 #[derive(Component, Default, Reflect)]
@@ -185,53 +161,31 @@ pub fn update_shined_entities(
     rapier: Res<RapierContext>,
     mut state: Query<&mut ShinedEntityList>,
     // mut reader: EventReader<CollisionEvent>,
-    cone: Query<
-        (
-            Entity,
-            &ShineCone,
-            &RootParent,
-            &Transform,
-            &GlobalTransform,
-        ),
-        Without<Shineable>,
-    >,
+    cone: Query<(&ShineCone, &RootParent, &Transform, &GlobalTransform), Without<Shineable>>,
     shineable: Query<(Entity, &GlobalTransform), With<Shineable>>,
     mut gizmos: Gizmos,
 ) {
-    for (cone_ent, cone, root, tx, gx) in cone.iter() {
+    for (cone, root, tx, gx) in cone.iter() {
         let Ok(mut state) = state.get_mut(root.entity) else {
             continue;
         };
         let origin =
             Transform::from_matrix(gx.compute_matrix() * tx.compute_matrix().inverse()).translation;
 
-        let all_ents_in_cone = rapier
-            .intersection_pairs_with(cone_ent)
-            .filter_map(|(a, b, x)| {
-                x.then_some(if cone_ent == a {
-                    b
-                } else if cone_ent == b {
-                    a
-                } else {
-                    None?
-                })
-            })
-            .collect::<Vec<_>>();
-
         state.entities.clear();
         for (shineable, sgx) in shineable.iter() {
-            if !all_ents_in_cone.contains(&shineable) {
-                continue;
-            }
-
             let destination = sgx.translation();
             let direction = (destination - origin).normalize();
             let distance = origin.distance(destination);
 
+            if !is_within_cone_shape(direction, *gx.forward(), cone.half_angle) {
+                continue;
+            }
+
             let raycast = rapier.cast_ray(
                 origin.into(),
                 direction.into(),
-                cone.max_range.into(),
+                bevy_rapier3d::math::Real::INFINITY,
                 true,
                 QueryFilter {
                     groups: Some(CollisionGroups {
@@ -251,11 +205,7 @@ pub fn update_shined_entities(
                 true => tailwind::ORANGE_100,
                 false => tailwind::ORANGE_900,
             };
-            gizmos.ray(
-                origin.into(),
-                direction * f32::min(cone.max_range, distance),
-                color,
-            );
+            gizmos.ray(origin.into(), direction * distance, color);
             if hit {
                 state.entities.push(shineable);
             }
@@ -453,5 +403,9 @@ mod helpers {
                 + ortho_vector2 * sin_half_angle * theta.sin();
             Ray::new(position.into(), cone_direction.normalize().into())
         })
+    }
+
+    pub fn is_within_cone_shape(direction: Vec3, cone_normal: Vec3, cone_half_angle: f32) -> bool {
+        cone_normal.dot(direction) >= cone_half_angle.cos()
     }
 }
