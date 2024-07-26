@@ -59,7 +59,7 @@ pub fn minion_storage_throw(
     };
 
     let minion_pos = tf.translation()
-        + 2.0 * Vec3::X // TODO compute proper pos
+        - 2.0 * Vec3::X // TODO compute proper pos
         + 3.0 * Vec3::Y;
 
     commands.spawn(MinionBundle {

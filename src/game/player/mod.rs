@@ -8,9 +8,11 @@ use bevy::{
     window::{PrimaryWindow, WindowRef},
 };
 use bevy_rapier3d::prelude::*;
+use vleue_navigator::NavMesh;
 
 use super::{
-    collision_groups::*, CharacterWalkControl, KinematicCharacterBundle, MinionKind, MinionStorage,
+    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP},
+    CharacterWalkControl, KinematicCharacterBundle, LevelResources, MinionKind, MinionStorage,
     MinionTarget,
 };
 
@@ -40,6 +42,10 @@ pub fn setup_player(mut commands: Commands) {
                 ..default()
             },
             KinematicCharacterBundle::default(),
+            CollisionGroups {
+                memberships: ACTOR_GROUP,
+                filters: GROUND_GROUP,
+            },
         ))
         .with_children(|b| {
             b.spawn((SpatialBundle { ..default() }, PlayerCollector))
@@ -60,6 +66,10 @@ pub fn setup_player(mut commands: Commands) {
                         },
                         RigidBody::Fixed,
                         Sensor,
+                        CollisionGroups {
+                            memberships: DETECTION_GROUP,
+                            filters: ACTOR_GROUP,
+                        },
                     ));
                 });
         });
@@ -74,7 +84,9 @@ pub fn player_controls(
     mut gizmos: Gizmos,
     mut player: Query<(&mut Transform, &mut CharacterWalkControl), With<PlayerTag>>,
     mut minion: ResMut<MinionStorageInput>,
-    mut minion_targets: Query<Entity, With<MinionTarget>>,
+    minion_targets: Query<Entity, With<MinionTarget>>,
+    level_reses: Res<LevelResources>,
+    navmeshes: Res<Assets<NavMesh>>,
 ) {
     let Ok(window) = window.get_single() else {
         return;
@@ -92,13 +104,22 @@ pub fn player_controls(
     let Some(cursor_ray) = cam.viewport_to_world(cam_tf, pos) else {
         return;
     };
+    let Some(navmesh) = navmeshes.get(&level_reses.navmesh) else {
+        return;
+    };
 
     let Some((ent_hit, ray_hit)) = rap_ctx.cast_ray_and_get_normal(
         cursor_ray.origin,
         cursor_ray.direction.as_vec3(),
         1000.0,
         true,
-        default(),
+        QueryFilter {
+            groups: Some(CollisionGroups {
+                memberships: Group::all(),
+                filters: GROUND_GROUP | TARGET_GROUP,
+            }),
+            ..default()
+        },
     ) else {
         return;
     };
@@ -107,18 +128,15 @@ pub fn player_controls(
         return;
     };
 
-    gizmos.arrow(
-        ray_hit.point + ray_hit.normal * 10.0,
-        ray_hit.point,
-        Color::linear_rgb(1.0, 0.0, 0.0),
-    );
+    let color = if navmesh.transformed_is_in_mesh(ray_hit.point) {
+        Color::linear_rgb(0.0, 1.0, 0.0)
+    } else {
+        Color::linear_rgb(1.0, 0.0, 0.0)
+    };
 
-    gizmos.circle(
-        ray_hit.point,
-        hit_dir,
-        3.0,
-        Color::linear_rgb(1.0, 0.0, 0.0),
-    );
+    gizmos.arrow(ray_hit.point + ray_hit.normal * 10.0, ray_hit.point, color);
+
+    gizmos.circle(ray_hit.point, hit_dir, 3.0, color);
 
     let Ok((player_tf, mut walk)) = player.get_single_mut() else {
         return;
