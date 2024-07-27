@@ -4,3 +4,4 @@
 # Overrides for known binary files
 *.glb binary
 *.png binary
+*.ron binary # *.ron files are large. Don't handle as text
