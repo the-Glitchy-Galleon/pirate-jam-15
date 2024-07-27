@@ -1,6 +1,6 @@
 //! contains a lot of duplicate implementations from `kira` and `bevy_kira_audio`
 //! because people think pub(crate) is a reasonable thing to do. might just have forked it...
-use super::prelude::Easing;
+use crate::framework::easing::Easing;
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 use std::time::Duration;

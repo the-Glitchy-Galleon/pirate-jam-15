@@ -1,15 +1,14 @@
-use crate::{framework::prelude::*, game::objects::definitions::ObjectDef};
+use crate::{framework::raw_mesh::RawMesh, game::objects::definitions::ObjectDef};
 use bevy::{
     asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},
     prelude::*,
     reflect::TypePath,
 };
-use bevy_rapier3d::prelude::Collider;
-use lz4_flex::decompress_size_prepended;
+use bevy_rapier3d::prelude::*;
 use serde::{Deserialize, Serialize};
+
 #[cfg(not(target_family = "wasm"))]
 use {
-    lz4_flex::compress_prepend_size,
     std::fs::File,
     std::io::{BufReader, BufWriter, Read, Write},
 };
@@ -43,7 +42,7 @@ impl LevelAsset {
             anyhow::bail!("Not big enough");
         }
 
-        let data = decompress_size_prepended(&data)?;
+        let data = lz4_flex::decompress_size_prepended(&data)?;
         let version = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
 
         assert_eq!(version, Self::CURRENT_VERSION);
@@ -58,7 +57,7 @@ impl LevelAsset {
         data.extend_from_slice(&self.version.to_le_bytes());
         data.extend_from_slice(&bincode::serialize(&self.data)?);
 
-        let data = compress_prepend_size(&data);
+        let data = lz4_flex::compress_prepend_size(&data);
 
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);

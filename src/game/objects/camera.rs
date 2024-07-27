@@ -1,13 +1,21 @@
-use super::{assets::GameObjectAssets, definitions::*};
-use crate::{framework::easing::*, game::collision_groups::*};
+use crate::{
+    framework::easing::{Easing, TweenList},
+    game::{
+        collision_groups::{ACTOR_GROUP, GROUND_GROUP, WALL_GROUP},
+        objects::{
+            assets::GameObjectAssets,
+            definitions::{ColorDef, ObjectDef},
+        },
+    },
+};
 use bevy::{color::palettes::tailwind, prelude::*, time::Real};
 use bevy_rapier3d::prelude::*;
 use helpers::is_within_cone_shape;
 use std::{f32::consts::FRAC_PI_2, ops::RangeInclusive};
 
-const SPOTLIGHT_ANGLE: f32 = 0.4;
-const SPOTLIGHT_ANGLE_RANGE: RangeInclusive<f32> = 0.3..=0.6; // range that kinda works out for the angle
-const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.9;
+pub const SPOTLIGHT_ANGLE: f32 = 0.4;
+pub const SPOTLIGHT_ANGLE_RANGE: RangeInclusive<f32> = 0.3..=0.6; // range that kinda works out for the angle
+pub const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.9;
 
 pub const CHARGE_DURATION_SECS: f32 = 1.0;
 pub const BEAM_DURATION_SECS: f32 = 1.0;

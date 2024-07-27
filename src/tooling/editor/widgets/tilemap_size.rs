@@ -1,7 +1,6 @@
+use crate::framework::grid::{Anchor, Anchor2};
 use bevy::math::UVec2;
 use bevy_egui::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
-
-use crate::framework::grid::{Anchor, Anchor2};
 
 pub const MAX_GRID_DIMS: UVec2 = UVec2::new(128, 128);
 

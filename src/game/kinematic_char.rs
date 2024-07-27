@@ -2,15 +2,14 @@
 //! provided by `bevy_rapier3d`.
 //! The API supports jumping.
 
+use crate::game::collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use super::collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP};
-
-const GROUND_TIMER: f32 = 0.5;
-const MOVEMENT_SPEED: f32 = 8.0;
-// const JUMP_SPEED: f32 = 20.0;
-const GRAVITY: f32 = -9.81;
+pub const GROUND_TIMER: f32 = 0.5;
+pub const MOVEMENT_SPEED: f32 = 8.0;
+// pub const JUMP_SPEED: f32 = 20.0;
+pub const GRAVITY: f32 = -9.81;
 
 /// Controls how the character shall move.
 #[derive(Clone, Copy, Component, Reflect, Default, Debug)]

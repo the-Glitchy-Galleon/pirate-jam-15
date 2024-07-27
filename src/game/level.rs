@@ -1,9 +1,9 @@
-use super::objects::assets::GameObjectAssets;
 use crate::{
-    framework::prelude::LevelAsset,
+    framework::level_asset::LevelAsset,
     game::{
-        collision_groups::*,
+        collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
         objects::{
+            assets::GameObjectAssets,
             camera::CameraObjBuilder,
             definitions::{ColorDef, ObjectDefKind},
         },

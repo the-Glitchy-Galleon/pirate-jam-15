@@ -1,6 +1,8 @@
-use super::{
+use crate::game::{
     collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP},
-    CharacterWalkControl, KinematicCharacterBundle, LevelResources, PlayerTag,
+    kinematic_char::KinematicCharacterBundle,
+    player::PlayerTag,
+    CharacterWalkControl, LevelResources,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::{
@@ -9,15 +11,12 @@ use bevy_rapier3d::{
 };
 use vleue_navigator::{NavMesh, TransformedPath};
 
-mod collector;
-mod destructible_target;
-mod walk_target;
-pub use collector::*;
-pub use destructible_target::*;
-pub use walk_target::*;
+pub mod collector;
+pub mod destructible_target;
+pub mod walk_target;
 
-const MINION_INTERRACTION_RANGE: f32 = 0.5;
-const MINION_NODE_DIST: f32 = 0.1;
+pub const MINION_INTERRACTION_RANGE: f32 = 0.5;
+pub const MINION_NODE_DIST: f32 = 0.1;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Component, Reflect, Default)]
 pub enum MinionKind {
