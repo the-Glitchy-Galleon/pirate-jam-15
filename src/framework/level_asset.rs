@@ -1,4 +1,7 @@
-use crate::{framework::raw_mesh::RawMesh, game::objects::definitions::ObjectDef};
+use crate::{
+    framework::{raw_mesh::RawMesh, tilemap::Tilemap},
+    game::objects::definitions::ObjectDef,
+};
 use bevy::{
     asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},
     prelude::*,
@@ -19,7 +22,7 @@ pub struct LevelAsset {
     data: LevelAssetData,
 }
 impl LevelAsset {
-    pub const CURRENT_VERSION: u32 = 3;
+    pub const CURRENT_VERSION: u32 = 4;
     pub fn new(data: LevelAssetData) -> Self {
         Self {
             version: Self::CURRENT_VERSION,
@@ -72,15 +75,16 @@ impl LevelAsset {
 
 #[derive(Serialize, Deserialize)]
 pub struct LevelAssetData {
-    pub ground_collider: Collider,
-    pub ground_mesh: RawMesh,
-    pub walls: Vec<WallData>,
+    pub tilemap: Tilemap,
     pub objects: Vec<ObjectDef>,
     pub meshes: Vec<OrnamentalMesh>,
+    pub baked_ground_mesh: RawMesh,
+    pub baked_ground_collider: Collider,
+    pub baked_walls: Vec<BakedWallData>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct WallData {
+pub struct BakedWallData {
     pub collider: Collider,
     pub mesh: RawMesh,
 }

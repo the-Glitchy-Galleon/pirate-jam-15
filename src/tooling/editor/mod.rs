@@ -1,6 +1,9 @@
 #![cfg(not(target_family = "wasm"))]
 use crate::{
-    framework::{global_ui_state::GlobalUiStatePlugin, logical_cursor::LogicalCursorPlugin},
+    framework::{
+        global_ui_state::GlobalUiStatePlugin, logical_cursor::LogicalCursorPlugin,
+        tilemap::SLOPE_HEIGHT,
+    },
     tooling::free_camera::FreeCameraPlugin,
 };
 use bevy::prelude::*;
@@ -9,11 +12,9 @@ use bevy_rapier3d::{
     plugin::{NoUserData, RapierPhysicsPlugin},
     render::{DebugRenderStyle, RapierDebugRenderPlugin},
 };
-use tilemap::SLOPE_HEIGHT;
 use tilemap_editor::TilemapEditorPlugin;
 
 pub mod object_def_builder;
-pub mod tilemap;
 pub mod tilemap_asset;
 pub mod tilemap_controls;
 pub mod tilemap_editor;

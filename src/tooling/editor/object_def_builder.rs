@@ -1,6 +1,6 @@
 use crate::{
+    framework::tilemap::Tilemap,
     game::objects::definitions::{ColorDef, ObjectDef, ObjectDefKind, Tag},
-    tooling::editor::tilemap::Tilemap,
 };
 use bevy::{math::UVec2, reflect::Reflect};
 use serde::{Deserialize, Serialize};

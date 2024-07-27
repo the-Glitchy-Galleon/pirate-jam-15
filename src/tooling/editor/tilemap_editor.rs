@@ -2,7 +2,9 @@ use crate::{
     framework::{
         global_ui_state::GlobalUiState,
         logical_cursor::LogicalCursorPosition,
+        tilemap::{Tilemap, SLOPE_HEIGHT, WALL_HEIGHT},
         tileset::{Tileset, TILESET_TILE_NUM},
+        Pnormal3,
     },
     game::{
         collision_groups::{ACTOR_GROUP, GROUND_GROUP, WALL_GROUP},
@@ -10,13 +12,11 @@ use crate::{
             assets,
             camera::{self, CameraObjBuilder, Shineable},
             definitions::ObjectDefKind,
+            destructible_target_test::DestructibleTargetTestBuilder,
+            physics_cubes_test::PhysicsCubeTestBuilder,
         },
     },
-    tooling::editor::{
-        object_def_builder::ObjectDefBuilder,
-        tilemap::{Pnormal3, Tilemap, SLOPE_HEIGHT, WALL_HEIGHT},
-        tilemap_controls::TilemapControls,
-    },
+    tooling::editor::{object_def_builder::ObjectDefBuilder, tilemap_controls::TilemapControls},
 };
 use bevy::{
     color::palettes::tailwind::{self, *},
@@ -144,7 +144,7 @@ mod oneshot {
     };
     use crate::{
         framework::{
-            level_asset::{LevelAsset, LevelAssetData, WallData},
+            level_asset::{BakedWallData, LevelAsset, LevelAssetData},
             tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL},
         },
         game::collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
@@ -280,7 +280,7 @@ mod oneshot {
                 let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(
                     &mesh.clone().into(),
                 );
-                WallData { mesh, collider }
+                BakedWallData { mesh, collider }
             })
             .collect();
 
@@ -292,9 +292,10 @@ mod oneshot {
             .collect();
 
         let level_asset = LevelAsset::new(LevelAssetData {
-            ground_collider: collider,
-            ground_mesh: mesh,
-            walls,
+            tilemap: state.tilemap.clone(),
+            baked_ground_collider: collider,
+            baked_ground_mesh: mesh,
+            baked_walls: walls,
             objects,
             meshes: vec![], // TODO
         });
@@ -374,6 +375,14 @@ fn process_spawn_object_queue(
                     .id(),
                 ObjectDefKind::Camera => {
                     let builder = CameraObjBuilder(def.build(&state.tilemap));
+                    builder.build(&mut cmd, &assets)
+                }
+                ObjectDefKind::DestructibleTargetTest => {
+                    let builder = DestructibleTargetTestBuilder(def.build(&state.tilemap));
+                    builder.build(&mut cmd, &assets)
+                }
+                ObjectDefKind::PhysicsCubesTest => {
+                    let builder = PhysicsCubeTestBuilder(def.build(&state.tilemap));
                     builder.build(&mut cmd, &assets)
                 }
                 _ => cmd.spawn(marker_dummy).id(),
@@ -921,6 +930,8 @@ mod ui {
             // ObjectDefKind::Book            => "editor-only/404.png",
             // ObjectDefKind::Relic           => "editor-only/404.png",
             // ObjectDefKind::WineBottle      => "editor-only/404.png",
+            ObjectDefKind::DestructibleTargetTest => "editor-only/404.png",
+            ObjectDefKind::PhysicsCubesTest       => "editor-only/404.png",
         }
     }
 

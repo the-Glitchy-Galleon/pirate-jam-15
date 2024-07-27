@@ -27,8 +27,7 @@ impl FaceData {
     };
 }
 
-#[derive(Default, Reflect, Debug, Clone)]
-#[cfg_attr(not(target_family = "wasm"), derive(Serialize, Deserialize))]
+#[derive(Default, Reflect, Debug, Clone, Serialize, Deserialize)]
 pub struct VertData {
     pub elevation: u32,
 }
@@ -85,8 +84,8 @@ impl Tilemap {
         &mut self.vert_data
     }
 
-    pub fn vert_iter(&self) -> VertIter {
-        VertIter::new(
+    pub fn vert_iter(&self) -> VertPosIter {
+        VertPosIter::new(
             &self.vert_data,
             self.vert_grid.dims().x,
             -(self.size() * 0.5),
@@ -190,6 +189,10 @@ impl Tilemap {
         &self.vert_grid
     }
 
+    pub fn faces(&self) -> FaceIter {
+        FaceIter::new(&self.face_data)
+    }
+
     pub fn resize_anchored(&mut self, dims: UVec2, anchor: Anchor2, elevation: u32) {
         let mut face_data = Vec::with_capacity(dims.element_product() as usize);
         let vert_dims = dims + UVec2::ONE;
@@ -215,13 +218,13 @@ impl Tilemap {
     }
 }
 
-pub struct VertIter<'a> {
+pub struct VertPosIter<'a> {
     verts: &'a [VertData],
     stride: usize,
     offset: Vec2,
     index: usize,
 }
-impl<'a> VertIter<'a> {
+impl<'a> VertPosIter<'a> {
     pub fn new(verts: &'a [VertData], stride: u32, offset: Vec2) -> Self {
         Self {
             verts,
@@ -231,7 +234,7 @@ impl<'a> VertIter<'a> {
         }
     }
 }
-impl<'a> Iterator for VertIter<'a> {
+impl<'a> Iterator for VertPosIter<'a> {
     type Item = Vec3;
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.verts.len() {
@@ -262,46 +265,24 @@ pub struct NeighboringFaces8<'a> {
     pub faces: [Option<Face<'a>>; 8],
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-#[rustfmt::skip]
-pub enum Pnormal3 {NOO,ONO,OON,POO,OPO,OOP}
-
-#[rustfmt::skip]
-impl Pnormal3 {
-    pub fn from_normal(normal: Vec3) -> Option<Self> {
-        fn e(a: f32, b: f32) -> bool {
-            (a - b).abs() < f32::EPSILON
-        }
-        Some(match normal {
-            normal if e(normal.x, -1.0) && e(normal.y,  0.0) && e(normal.z,  0.0) => Pnormal3::NOO,
-            normal if e(normal.x,  0.0) && e(normal.y, -1.0) && e(normal.z,  0.0) => Pnormal3::ONO,
-            normal if e(normal.x,  0.0) && e(normal.y,  0.0) && e(normal.z, -1.0) => Pnormal3::OON,
-            normal if e(normal.x,  1.0) && e(normal.y,  0.0) && e(normal.z,  0.0) => Pnormal3::POO,
-            normal if e(normal.x,  0.0) && e(normal.y,  1.0) && e(normal.z,  0.0) => Pnormal3::OPO,
-            normal if e(normal.x,  0.0) && e(normal.y,  0.0) && e(normal.z,  1.0) => Pnormal3::OOP,
-            _ => None?,
-        })
-    }
+pub struct FaceIter<'a> {
+    data: &'a [FaceData],
+    index: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
-#[repr(u32)]
-#[rustfmt::skip]
-pub enum Pnormal2 {NO,ON,PO,OP}
-
-#[rustfmt::skip]
-impl Pnormal2 {
-    pub fn from_normal(normal: Vec3) -> Option<Self> {
-        fn e(a: f32, b: f32) -> bool {
-            (a - b).abs() < f32::EPSILON
+impl<'a> FaceIter<'a> {
+    pub fn new(data: &'a [FaceData]) -> Self {
+        Self { data, index: 0 }
+    }
+}
+impl<'a> Iterator for FaceIter<'a> {
+    type Item = &'a FaceData;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.data.len() {
+            return None;
         }
-        Some(match normal {
-            normal if e(normal.x, -1.0) && e(normal.y,  0.0) => Pnormal2::NO,
-            normal if e(normal.x,  0.0) && e(normal.y, -1.0) => Pnormal2::ON,
-            normal if e(normal.x,  1.0) && e(normal.y,  0.0) => Pnormal2::PO,
-            normal if e(normal.x,  0.0) && e(normal.y,  1.0) => Pnormal2::OP,
-            _ => None?,
-        })
+        let next = &self.data[self.index];
+        self.index += 1;
+        Some(next)
     }
 }

@@ -1,9 +1,7 @@
 use crate::{
+    framework::tilemap::Tilemap,
     game::objects::definitions::{ColorDef, ObjectDefKind},
-    tooling::editor::{
-        object_def_builder::{ObjectDefBuilder, Rot8},
-        tilemap::Tilemap,
-    },
+    tooling::editor::object_def_builder::{ObjectDefBuilder, Rot8},
 };
 use bevy::math::UVec2;
 use bevy_egui::egui::{self, Color32, ScrollArea, Sense, Stroke, TextureId, Ui};

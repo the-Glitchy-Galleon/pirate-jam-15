@@ -1,16 +1,20 @@
 use crate::{
-    framework::level_asset::LevelAsset,
+    framework::{level_asset::LevelAsset, navmesh},
     game::{
         collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
         objects::{
             assets::GameObjectAssets,
             camera::CameraObjBuilder,
             definitions::{ColorDef, ObjectDefKind},
+            destructible_target_test::DestructibleTargetTestBuilder,
+            physics_cubes_test::PhysicsCubeTestBuilder,
         },
+        LevelResources,
     },
 };
 use bevy::{color::palettes::tailwind, prelude::*};
 use bevy_rapier3d::prelude::*;
+use vleue_navigator::NavMesh;
 
 #[derive(Component)]
 pub struct InitLevel {
@@ -32,31 +36,34 @@ pub fn load_preview_scene(
 
 pub fn init_level(
     mut cmd: Commands,
-    level_q: Query<(Entity, &InitLevel)>,
+    init: Query<(Entity, &InitLevel)>,
     ass: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut mats: ResMut<Assets<StandardMaterial>>,
-    levels: Res<Assets<LevelAsset>>,
+    level: Res<Assets<LevelAsset>>,
     assets: Res<GameObjectAssets>,
+    mut navs: ResMut<Assets<NavMesh>>,
 ) {
     use crate::framework::tileset::TILESET_PATH_DIFFUSE;
     use crate::framework::tileset::TILESET_PATH_NORMAL;
 
-    for (ent, init) in level_q.iter() {
-        if let Some(level) = levels.get(&init.handle) {
+    for (ent, init) in init.iter() {
+        if let Some(level) = level.get(&init.handle) {
             info!("Initializing Level");
             cmd.entity(ent).despawn();
 
             let diffuse: Handle<Image> = ass.load(TILESET_PATH_DIFFUSE);
             let normal: Option<Handle<Image>> = TILESET_PATH_NORMAL.map(|f| ass.load(f));
 
-            let handle: Handle<Mesh> = meshes.add(level.data().ground_mesh.clone());
-            let collider = level.data().ground_collider.clone();
+            let ground_mesh: Handle<Mesh> = meshes.add(level.data().baked_ground_mesh.clone());
+            let collider = level.data().baked_ground_collider.clone();
+
+            // Spawn ground Mesh
 
             let _ent = cmd
                 .spawn((
                     PbrBundle {
-                        mesh: handle,
+                        mesh: ground_mesh,
                         material: mats.add(StandardMaterial {
                             base_color_texture: Some(diffuse.clone()),
                             normal_map_texture: normal.clone(),
@@ -67,12 +74,12 @@ pub fn init_level(
                         ..default()
                     },
                     collider,
-                    CollisionGroups::new(GROUND_GROUP, ACTOR_GROUP | ACTOR_GROUP | TARGET_GROUP),
+                    CollisionGroups::new(GROUND_GROUP, ACTOR_GROUP | TARGET_GROUP),
                 ))
                 .id();
 
             let mut walls = vec![];
-            for wall in &level.data().walls {
+            for wall in &level.data().baked_walls {
                 let mesh = wall.mesh.clone();
                 let collider = wall.collider.clone();
                 let handle: Handle<Mesh> = meshes.add(mesh);
@@ -96,8 +103,55 @@ pub fn init_level(
                     .id(),
                 );
             }
-            // as children because the map is scaled for now
-            // cmd.entity(ent).push_children(&walls);
+
+            // create navmesh
+            let dims = level.data().tilemap.dims();
+
+            let walls = level
+                .data()
+                .tilemap
+                .faces()
+                .map(|face| face.wall_height > 0)
+                .collect::<Vec<_>>();
+
+            let objects = vec![];
+
+            let handle = navs.reserve_handle();
+
+            let (vertices, polygons) =
+                navmesh::create_grid_mesh_with_holes(dims, &walls, &objects, 0.4);
+
+            let mut navmesh =
+                NavMesh::from_polyanya_mesh(polyanya::Mesh::new(vertices, polygons).unwrap());
+
+            let transform =
+                Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));
+
+            navmesh.set_transform(transform);
+
+            // use rand::Rng;
+            // let dims_f32 = dims.as_vec2();
+            // let offset_2 = dims_f32 * -0.5;
+            // let offset = Vec3::new(offset_2.x, 0.0, offset_2.y);
+            // let mut rng = rand::thread_rng();
+            // for y in 0..dims.y {
+            //     for x in 0..dims.x {
+            //         let pos = Vec3::new(x as f32, rng.gen_range(0.0..10.0), y as f32)
+            //             + offset
+            //             + Vec3::splat(0.5);
+            //         let point = navmesh.transform().transform_point(pos).xy();
+            //         print!(
+            //             "{:02.02},{:02.02} => {}",
+            //             point.x,
+            //             point.y,
+            //             if navmesh.is_in_mesh(point) { "X" } else { "o" }
+            //         );
+            //     }
+            //     println!();
+            // }
+
+            navs.insert(handle.id(), navmesh);
+            cmd.insert_resource(LevelResources { navmesh: handle });
 
             for object in &level.data().objects {
                 info!(
@@ -108,6 +162,14 @@ pub fn init_level(
                 match object.kind {
                     ObjectDefKind::Camera => {
                         let builder = CameraObjBuilder(object.clone());
+                        builder.build(&mut cmd, &assets);
+                    }
+                    ObjectDefKind::DestructibleTargetTest => {
+                        let builder = DestructibleTargetTestBuilder(object.clone());
+                        builder.build(&mut cmd, &assets);
+                    }
+                    ObjectDefKind::PhysicsCubesTest => {
+                        let builder = PhysicsCubeTestBuilder(object.clone());
                         builder.build(&mut cmd, &assets);
                     }
                     _ => {

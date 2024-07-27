@@ -1,6 +1,7 @@
-use crate::{
-    framework::{raw_mesh::RawMesh, tileset::Tileset},
-    tooling::editor::tilemap::{Tilemap, SLOPE_HEIGHT, TILE_SIZE_X, TILE_SIZE_Y, WALL_HEIGHT},
+use crate::framework::{
+    raw_mesh::RawMesh,
+    tilemap::{Tilemap, SLOPE_HEIGHT, TILE_SIZE_X, TILE_SIZE_Y, WALL_HEIGHT},
+    tileset::Tileset,
 };
 use bevy::{prelude::*, utils::HashSet};
 use bevy_rapier3d::geometry::{Collider, ComputedColliderShape, VHACDParameters};
