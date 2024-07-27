@@ -40,6 +40,7 @@ pub struct ObjectDef {
     pub position: Vec3,
     pub rotation: f32,
     pub color: ColorDef,
+    pub number: u32,
     pub obj_refs: Vec<u32>,
     pub pos_refs: Vec<Vec3>,
     pub tags: Vec<Tag>,

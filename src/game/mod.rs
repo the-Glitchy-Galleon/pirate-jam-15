@@ -16,7 +16,7 @@ use crate::{
 };
 use bevy::{input::InputSystem, prelude::*};
 use bevy_rapier3d::prelude::*;
-use player::PlayerTag;
+use player::{AddPlayerRespawnEvent, PlayerTag};
 use top_down_camera::TopDownCameraControls;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
@@ -68,10 +68,17 @@ impl Plugin for GamePlugin {
         // });
 
         /* Setup */
-        app
+        app.add_event::<AddPlayerRespawnEvent>()
             // .add_systems(Startup, setup_physics)
             .add_systems(Startup, player::setup_player)
-            .add_systems(Startup, spawn_gameplay_camera.after(player::setup_player));
+            .add_systems(Startup, spawn_gameplay_camera.after(player::setup_player))
+            .add_systems(
+                Update,
+                (
+                    player::add_player_respawn,
+                    player::process_player_respawning.after(player::add_player_respawn),
+                ),
+            );
 
         /* Common systems */
         app.add_systems(FixedUpdate, kinematic_char::update_kinematic_character);

@@ -6,7 +6,8 @@ use crate::{
     },
     game::{
         collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
-        objects::{assets::GameObjectAssets, util},
+        objects::{assets::GameObjectAssets, definitions::ObjectDefKind, util},
+        player::AddPlayerRespawnEvent,
         LevelResources,
     },
 };
@@ -32,6 +33,7 @@ pub fn init_level(
     mut load: EventReader<AssetLoadingCompleted<LevelAsset>>,
     level: Res<Assets<LevelAsset>>,
     assets: Res<GameObjectAssets>,
+    mut respawn: EventWriter<AddPlayerRespawnEvent>,
 ) {
     let Some(load) = load.read().last() else {
         return;
@@ -139,6 +141,21 @@ pub fn init_level(
             .with_translation(Vec3::new(5.0, 10.0, -5.0))
             .looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
+    });
+
+    // spawn player
+    let lowest_respawn_pos = level
+        .data()
+        .objects
+        .iter()
+        .filter(|o| o.kind == ObjectDefKind::SpawnPoint)
+        .min_by(|a, b| a.number.cmp(&b.number))
+        .map(|o| o.position)
+        .unwrap_or(Vec3::ZERO + Vec3::Y * 7.0);
+
+    info!("Spawning player at {lowest_respawn_pos:?}");
+    respawn.send(AddPlayerRespawnEvent {
+        position: lowest_respawn_pos,
     });
 }
 
