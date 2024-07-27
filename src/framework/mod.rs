@@ -7,10 +7,10 @@ pub mod global_ui_state;
 pub mod grid;
 pub mod level_asset;
 pub mod logical_cursor;
+pub mod navmesh;
 pub mod raw_mesh;
 pub mod tilemap;
 pub mod tileset;
-pub mod navmesh;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]

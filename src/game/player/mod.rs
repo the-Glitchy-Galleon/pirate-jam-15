@@ -1,5 +1,5 @@
 use crate::game::{
-    collision_groups::{ACTOR_GROUP, WALL_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP},
+    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
     kinematic_char::KinematicCharacterBundle,
     minion::collector::MinionStorage,
     player::minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
