@@ -1,5 +1,5 @@
 use crate::game::{
-    collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP},
+    collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
     kinematic_char::KinematicCharacterBundle,
     player::PlayerTag,
     CharacterWalkControl, LevelResources,
@@ -11,10 +11,7 @@ use bevy_rapier3d::{
 };
 use vleue_navigator::{NavMesh, TransformedPath};
 
-use super::collision_groups::WALL_GROUP;
-
 pub mod collector;
-pub mod destructible_target;
 pub mod walk_target;
 
 pub const MINION_INTERRACTION_RANGE: f32 = 0.5;
@@ -145,6 +142,7 @@ pub fn minion_update_path(
         };
         let target_navmesh_pos = Vec3::new(target_pos.x, 0.0, target_pos.z);
         let Some(last) = path.0.path.last() else {
+            info!("Removing last path");
             commands.entity(ent).remove::<MinionPath>();
             continue;
         };
@@ -152,7 +150,7 @@ pub fn minion_update_path(
         if target_navmesh_pos.distance(*last) < MINION_NODE_DIST {
             continue;
         }
-
+        info!("Removing path at the end of update");
         commands.entity(ent).remove::<MinionPath>();
     }
 }
@@ -187,7 +185,7 @@ pub fn minion_build_path(
 
         if !navmesh.transformed_is_in_mesh(tf.translation()) {
             error!("Minion is not in the navigation: {:?}", tf.translation());
-            // *state = MinionState::Idling;
+            *state = MinionState::Idling;
             continue;
         }
         if !navmesh.transformed_is_in_mesh(target_pos) {
@@ -226,6 +224,7 @@ pub fn minion_walk(
             let p = navmesh.transform().transform_point(p).xy();
             if p.distance(minion_pos) <= MINION_NODE_DIST {
                 path.pop();
+                info!("Popped path, remaining: {}", path.len());
             }
         }
 
@@ -306,10 +305,10 @@ pub fn display_navigator_path(
     navigator: Query<(&Transform, &MinionPath, &GlobalTransform)>,
     mut gizmos: Gizmos,
 ) {
-    for (tx, path, gx) in &navigator {
+    for (_tx, path, gx) in &navigator {
         let y = gx.translation().y + 0.5;
         let mut to_display = path.0.path.clone();
-        to_display.push(tx.translation);
+        // to_display.push(tx.translation);
         // to_display.push(path.current.clone());
         to_display.reverse();
         if to_display.len() >= 1 {

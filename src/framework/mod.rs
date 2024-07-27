@@ -10,6 +10,7 @@ pub mod logical_cursor;
 pub mod raw_mesh;
 pub mod tilemap;
 pub mod tileset;
+pub mod navmesh;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]

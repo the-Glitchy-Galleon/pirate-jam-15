@@ -1,5 +1,5 @@
 use crate::game::{
-    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP},
+    collision_groups::{ACTOR_GROUP, WALL_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP},
     kinematic_char::KinematicCharacterBundle,
     minion::collector::MinionStorage,
     player::minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
@@ -12,8 +12,6 @@ use bevy::{
 };
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
-
-use super::collision_groups::WALL_GROUP;
 
 pub mod minion_storage;
 

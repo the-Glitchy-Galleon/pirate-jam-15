@@ -27,8 +27,7 @@ impl FaceData {
     };
 }
 
-#[derive(Default, Reflect, Debug, Clone)]
-#[cfg_attr(not(target_family = "wasm"), derive(Serialize, Deserialize))]
+#[derive(Default, Reflect, Debug, Clone, Serialize, Deserialize)]
 pub struct VertData {
     pub elevation: u32,
 }

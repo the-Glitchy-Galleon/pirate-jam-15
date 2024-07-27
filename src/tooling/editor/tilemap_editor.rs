@@ -12,6 +12,8 @@ use crate::{
             assets,
             camera::{self, CameraObjBuilder, Shineable},
             definitions::ObjectDefKind,
+            destructible_target_test::DestructibleTargetTestBuilder,
+            physics_cubes_test::PhysicsCubeTestBuilder,
         },
     },
     tooling::editor::{object_def_builder::ObjectDefBuilder, tilemap_controls::TilemapControls},
@@ -373,6 +375,14 @@ fn process_spawn_object_queue(
                     .id(),
                 ObjectDefKind::Camera => {
                     let builder = CameraObjBuilder(def.build(&state.tilemap));
+                    builder.build(&mut cmd, &assets)
+                }
+                ObjectDefKind::DestructibleTargetTest => {
+                    let builder = DestructibleTargetTestBuilder(def.build(&state.tilemap));
+                    builder.build(&mut cmd, &assets)
+                }
+                ObjectDefKind::PhysicsCubesTest => {
+                    let builder = PhysicsCubeTestBuilder(def.build(&state.tilemap));
                     builder.build(&mut cmd, &assets)
                 }
                 _ => cmd.spawn(marker_dummy).id(),
@@ -920,6 +930,8 @@ mod ui {
             // ObjectDefKind::Book            => "editor-only/404.png",
             // ObjectDefKind::Relic           => "editor-only/404.png",
             // ObjectDefKind::WineBottle      => "editor-only/404.png",
+            ObjectDefKind::DestructibleTargetTest => "editor-only/404.png",
+            ObjectDefKind::PhysicsCubesTest       => "editor-only/404.png",
         }
     }
 
