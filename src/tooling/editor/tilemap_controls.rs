@@ -1,4 +1,7 @@
-use crate::tooling::editor::tilemap::{Pnormal3, Tilemap, MAX_NUM_WALLS};
+use crate::framework::{
+    tilemap::{Tilemap, MAX_NUM_WALLS},
+    Pnormal3,
+};
 
 pub struct TilemapControls {
     max_elevation: u32,

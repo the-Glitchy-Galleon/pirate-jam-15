@@ -15,8 +15,9 @@ use crate::{
         player::minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
     },
 };
-use bevy::{input::InputSystem, prelude::*, utils::HashMap};
+use bevy::{color::palettes::tailwind, input::InputSystem, prelude::*, utils::HashMap};
 use bevy_rapier3d::prelude::*;
+use polyanya::Path;
 use vleue_navigator::{
     prelude::{NavmeshUpdaterPlugin, PrimitiveObstacle},
     NavMesh, VleueNavigatorPlugin,
@@ -48,7 +49,6 @@ impl Plugin for GamePlugin {
             RapierDebugRenderPlugin::default(),
             AudioPlugin,
             VleueNavigatorPlugin,
-            NavmeshUpdaterPlugin::<PrimitiveObstacle>::default(),
             bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
         ));
 
@@ -113,7 +113,10 @@ impl Plugin for GamePlugin {
                 Update,
                 minion::destructible_target::update_destructble_target,
             )
-            .add_systems(Update, minion::debug_navmesh);
+            .add_systems(
+                Update,
+                (minion::debug_navmesh, minion::display_navigator_path),
+            );
 
         /* Player systems */
         app.add_systems(PreUpdate, player::player_controls.after(InputSystem))

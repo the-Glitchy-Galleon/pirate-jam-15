@@ -8,7 +8,6 @@ use crate::{
     tooling::fps_counter::FpsCounterPlugin,
 };
 use bevy::prelude::*;
-use bevy_egui::EguiPlugin;
 
 pub mod framework;
 pub mod game;
@@ -33,7 +32,7 @@ fn main() -> AppExit {
     let (mut app, run_args) = runner::create_app();
 
     /* Add the base plugins */
-    app.add_plugins((EguiPlugin, FpsCounterPlugin));
+    app.add_plugins(FpsCounterPlugin);
 
     /* Add the plugins depending on our config */
     if run_args.init {

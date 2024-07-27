@@ -1,6 +1,6 @@
-use crate::tooling::editor::{
-    object_def_builder::{ObjectDefBuilder, Rot8},
-    tilemap::{Pnormal2, Tilemap},
+use crate::{
+    framework::{tilemap::Tilemap, Pnormal2},
+    tooling::editor::object_def_builder::{ObjectDefBuilder, Rot8},
 };
 use bevy::{
     asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},

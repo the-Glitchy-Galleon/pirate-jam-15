@@ -4,7 +4,7 @@ use crate::game::{
     player::PlayerTag,
     CharacterWalkControl, LevelResources,
 };
-use bevy::prelude::*;
+use bevy::{color::palettes::tailwind, prelude::*};
 use bevy_rapier3d::{
     plugin::RapierContext,
     prelude::{Collider, CollisionGroups, Group, QueryFilter},
@@ -184,7 +184,6 @@ pub fn minion_build_path(
             },
             _ => continue,
         };
-        let target_pos = target_pos.with_y(0.0);
 
         if !navmesh.transformed_is_in_mesh(tf.translation()) {
             error!("Minion is not in the navigation: {:?}", tf.translation());
@@ -299,6 +298,25 @@ pub fn cleanup_minion_state(
                 *st = MinionState::Idling;
             }
             _ => continue,
+        }
+    }
+}
+
+pub fn display_navigator_path(
+    navigator: Query<(&Transform, &MinionPath, &GlobalTransform)>,
+    mut gizmos: Gizmos,
+) {
+    for (tx, path, gx) in &navigator {
+        let y = gx.translation().y + 0.5;
+        let mut to_display = path.0.path.clone();
+        to_display.push(tx.translation);
+        // to_display.push(path.current.clone());
+        to_display.reverse();
+        if to_display.len() >= 1 {
+            gizmos.linestrip(
+                to_display.iter().map(|xz| Vec3::new(xz.x, y, xz.z)),
+                tailwind::AMBER_200,
+            );
         }
     }
 }
