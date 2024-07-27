@@ -120,7 +120,26 @@ pub fn init_level(
     // }
 
     navs.insert(handle.id(), navmesh);
-    cmd.insert_resource(LevelResources { navmesh: handle });
+
+    let spawnpoints = level
+        .data()
+        .objects
+        .iter()
+        .filter(|o| o.kind == ObjectDefKind::SpawnPoint)
+        .map(|o| (o.position, o.number, o.number == 0))
+        .collect::<Vec<_>>();
+
+    let lowest_respawn_pos = spawnpoints
+        .iter()
+        .filter(|o| o.2)
+        .min_by(|a, b| a.1.cmp(&b.1))
+        .map(|o| o.0)
+        .unwrap_or(Vec3::ZERO + Vec3::Y * 7.0);
+
+    cmd.insert_resource(LevelResources {
+        navmesh: Some(handle),
+        spawnpoints: Some(spawnpoints),
+    });
 
     for object in &level.data().objects {
         let _ent = util::spawn_object(&mut cmd, object, assets.as_ref());
@@ -142,16 +161,6 @@ pub fn init_level(
             .looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
     });
-
-    // spawn player
-    let lowest_respawn_pos = level
-        .data()
-        .objects
-        .iter()
-        .filter(|o| o.kind == ObjectDefKind::SpawnPoint)
-        .min_by(|a, b| a.number.cmp(&b.number))
-        .map(|o| o.position)
-        .unwrap_or(Vec3::ZERO + Vec3::Y * 7.0);
 
     info!("Spawning player at {lowest_respawn_pos:?}");
     respawn.send(AddPlayerRespawnEvent {

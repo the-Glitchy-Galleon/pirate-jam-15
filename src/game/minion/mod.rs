@@ -1,6 +1,7 @@
 use crate::game::{
     collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
     kinematic_char::KinematicCharacterBundle,
+    objects::camera::Shineable,
     player::PlayerTag,
     CharacterWalkControl, LevelResources,
 };
@@ -54,6 +55,7 @@ pub struct MinionBundle {
     pub character: KinematicCharacterBundle,
     pub kind: MinionKind,
     pub state: MinionState,
+    pub shineable: Shineable,
 }
 
 impl Default for MinionBundle {
@@ -65,6 +67,7 @@ impl Default for MinionBundle {
             kind: Default::default(),
             state: Default::default(),
             collision_groups: CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP | WALL_GROUP),
+            shineable: Shineable,
         }
     }
 }
@@ -74,11 +77,11 @@ pub struct MinionPath(TransformedPath);
 
 // TODO: render it more aligned to the level
 pub fn debug_navmesh(
-    level_reses: Option<Res<LevelResources>>,
+    level_reses: Res<LevelResources>,
     navmeshes: Res<Assets<NavMesh>>,
     mut gizmos: Gizmos,
 ) {
-    let Some(navmesh) = level_reses.as_ref().map(|x| &x.navmesh) else {
+    let Some(navmesh) = &level_reses.navmesh else {
         return;
     };
     let Some(navmesh) = navmeshes.get(navmesh.id()) else {
@@ -166,7 +169,10 @@ pub fn minion_build_path(
     let Ok(player_tf) = player_q.get_single() else {
         return;
     };
-    let Some(navmesh) = navmeshes.get(&level_reses.navmesh) else {
+    let Some(navmesh) = &level_reses.navmesh else {
+        return;
+    };
+    let Some(navmesh) = navmeshes.get(navmesh) else {
         return;
     };
 
@@ -212,7 +218,10 @@ pub fn minion_walk(
     navmeshes: Res<Assets<NavMesh>>,
     mut minion_q: Query<(&GlobalTransform, &mut CharacterWalkControl, &mut MinionPath)>,
 ) {
-    let Some(navmesh) = navmeshes.get(&level_reses.navmesh) else {
+    let Some(navmesh) = &level_reses.navmesh else {
+        return;
+    };
+    let Some(navmesh) = navmeshes.get(navmesh) else {
         return;
     };
 

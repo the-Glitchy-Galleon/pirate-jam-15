@@ -28,9 +28,10 @@ pub mod objects;
 pub mod player;
 pub mod top_down_camera;
 
-#[derive(Debug, Resource)]
+#[derive(Debug, Default, Resource)]
 pub struct LevelResources {
-    pub navmesh: Handle<NavMesh>,
+    pub navmesh: Option<Handle<NavMesh>>,
+    pub spawnpoints: Option<Vec<(Vec3, u32, bool)>>,
 }
 
 pub struct GamePlugin;
@@ -56,6 +57,7 @@ impl Plugin for GamePlugin {
             .register_type::<MinionThrowTarget>()
             .register_type::<MinionInteractionRequirement>();
 
+        app.insert_resource(LevelResources::default());
         app.insert_resource(MinionStorageInput {
             chosen_ty: MinionKind::Void,
             want_to_throw: false,

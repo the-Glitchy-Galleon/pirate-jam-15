@@ -16,6 +16,8 @@ use bevy::{
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
 
+use super::objects::camera::Shineable;
+
 pub mod minion_storage;
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
@@ -42,6 +44,7 @@ pub fn setup_player(mut commands: Commands) {
                 ..default()
             },
             KinematicCharacterBundle::default(),
+            Shineable,
         ))
         .with_children(|b| {
             b.spawn((SpatialBundle { ..default() }, PlayerCollector))
@@ -96,7 +99,10 @@ pub fn player_controls(
     let Some(cursor_ray) = cam.viewport_to_world(cam_tf, pos) else {
         return;
     };
-    let Some(navmesh) = navmeshes.get(&level_reses.navmesh) else {
+    let Some(navmesh) = &level_reses.navmesh else {
+        return;
+    };
+    let Some(navmesh) = navmeshes.get(navmesh) else {
         return;
     };
 
