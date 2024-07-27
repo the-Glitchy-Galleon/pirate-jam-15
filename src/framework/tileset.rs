@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 pub const TILESET_PATH_DIFFUSE: &str = "level/tileset_diff.png";
-pub const TILESET_PATH_NORMAL: Option<&str> = Some("level/tileset_norm.png");
+pub const TILESET_PATH_NORMAL: &str = "level/tileset_norm.png";
 pub const TILESET_TEXTURE_DIMS: [u32; 2] = [256, 256];
 pub const TILESET_TILE_DIMS: [u32; 2] = [128, 128];
 pub const TILESET_TILE_NUM: [u32; 2] = [

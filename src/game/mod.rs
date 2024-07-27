@@ -2,6 +2,7 @@ use crate::{
     framework::{
         audio::AudioPlugin,
         level_asset::{LevelAsset, LevelAssetLoader},
+        loading_queue,
     },
     game::{
         kinematic_char::{CharacterWalkControl, CharacterWalkState},
@@ -43,6 +44,7 @@ impl Plugin for GamePlugin {
             VleueNavigatorPlugin,
             bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
         ));
+        loading_queue::initialize::<LevelAsset>(app);
 
         app.register_type::<CharacterWalkControl>()
             .register_type::<PlayerCollector>()

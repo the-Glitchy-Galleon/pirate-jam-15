@@ -6,6 +6,7 @@ pub mod easing;
 pub mod global_ui_state;
 pub mod grid;
 pub mod level_asset;
+pub mod loading_queue;
 pub mod logical_cursor;
 pub mod navmesh;
 pub mod raw_mesh;

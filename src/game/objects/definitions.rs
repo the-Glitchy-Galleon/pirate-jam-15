@@ -94,6 +94,18 @@ pub enum ColorDef {
 }
 
 impl ColorDef {
+    pub const VARIANTS: [ColorDef; 8] = [
+        ColorDef::Void,
+        ColorDef::Red,
+        ColorDef::Green,
+        ColorDef::Blue,
+        ColorDef::Yellow,
+        ColorDef::Magenta,
+        ColorDef::Cyan,
+        ColorDef::White,
+    ];
+    pub const COUNT: usize = Self::VARIANTS.len();
+
     pub fn contains(&self, color: ColorDef) -> bool {
         (*self as u8 & color as u8) == color as u8
     }

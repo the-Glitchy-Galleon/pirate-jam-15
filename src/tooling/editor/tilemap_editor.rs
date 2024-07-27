@@ -7,14 +7,8 @@ use crate::{
         Pnormal3,
     },
     game::{
-        collision_groups::{ACTOR_GROUP, GROUND_GROUP, WALL_GROUP},
-        objects::{
-            assets,
-            camera::{self, CameraObjBuilder, Shineable},
-            definitions::ObjectDefKind,
-            destructible_target_test::DestructibleTargetTestBuilder,
-            physics_cubes_test::PhysicsCubeTestBuilder,
-        },
+        collision_groups::{GROUND_GROUP, WALL_GROUP},
+        objects::{assets, camera, util},
     },
     tooling::editor::{object_def_builder::ObjectDefBuilder, tilemap_controls::TilemapControls},
 };
@@ -143,11 +137,11 @@ mod oneshot {
         TilemapGroundMesh, TilemapWallMesh,
     };
     use crate::{
-        framework::{
-            level_asset::{BakedWallData, LevelAsset, LevelAssetData},
-            tileset::{TILESET_PATH_DIFFUSE, TILESET_PATH_NORMAL},
+        framework::level_asset::{BakedWallData, LevelAsset, LevelAssetData},
+        game::{
+            collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
+            objects::assets::GameObjectAssets,
         },
-        game::collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
         tooling::editor::tilemap_mesh_builder::{self, RawMeshBuilder},
     };
     use bevy::{ecs::system::SystemId, prelude::*};
@@ -172,13 +166,13 @@ mod oneshot {
 
     fn recreate_scene(
         mut cmd: Commands,
-        ass: Res<AssetServer>,
         state: Res<EditorState>,
         mut egui_state: ResMut<ui::EguiState>,
         mut meshes: ResMut<Assets<Mesh>>,
         mut mats: ResMut<Assets<StandardMaterial>>,
         grounds: Query<Entity, With<TilemapGroundMesh>>,
         walls: Query<Entity, With<TilemapWallMesh>>,
+        assets: Res<GameObjectAssets>,
     ) {
         // despawn existing
         for ex in grounds.iter() {
@@ -187,9 +181,6 @@ mod oneshot {
         for ex in walls.iter() {
             cmd.entity(ex).despawn_recursive();
         }
-        let diffuse: Handle<Image> = ass.load(TILESET_PATH_DIFFUSE);
-        let normal: Option<Handle<Image>> = TILESET_PATH_NORMAL.map(|f| ass.load(f));
-
         let builder = RawMeshBuilder::new(&state.tilemap);
         let mesh = builder.make_ground_mesh(&state.tileset).into();
         // let collider = builder.build_rapier_heightfield_collider();
@@ -200,8 +191,8 @@ mod oneshot {
             PbrBundle {
                 mesh: handle,
                 material: mats.add(StandardMaterial {
-                    base_color_texture: Some(diffuse.clone()),
-                    normal_map_texture: normal.clone(),
+                    base_color_texture: Some(assets.map_base_texture.clone()),
+                    normal_map_texture: Some(assets.map_norm_texture.clone()),
                     perceptual_roughness: 0.9,
                     metallic: 0.0,
                     ..default()
@@ -217,14 +208,13 @@ mod oneshot {
         for mesh in builder.make_wall_meshes(&state.tileset) {
             let mesh = mesh.into();
             let collider = tilemap_mesh_builder::build_rapier_convex_collider_for_preview(&mesh);
-            // let collider = Collider::from_bevy_mesh(&mesh, &ComputedColliderShape::TriMesh).unwrap();
             let handle: Handle<Mesh> = meshes.add(mesh);
             cmd.spawn((
                 PbrBundle {
                     mesh: handle,
                     material: mats.add(StandardMaterial {
-                        base_color_texture: Some(diffuse.clone()),
-                        normal_map_texture: normal.clone(),
+                        base_color_texture: Some(assets.map_base_texture.clone()),
+                        normal_map_texture: Some(assets.map_norm_texture.clone()),
                         perceptual_roughness: 0.9,
                         metallic: 0.0,
                         ..default()
@@ -335,7 +325,6 @@ fn process_spawn_object_queue(
     mut spawn: EventReader<SpawnObject>,
     mut cmd: Commands,
     defs: Res<ObjectDefStorage>,
-    data: Res<ObjectMarkerData>,
     state: Res<EditorState>,
     assets: Res<crate::game::objects::assets::GameObjectAssets>,
     mut selected_change: EventWriter<SelectedObjectChanged>,
@@ -344,49 +333,14 @@ fn process_spawn_object_queue(
         let Some(def) = defs.storage.get(spawn.id as usize) else {
             continue;
         };
-        if let Some(pos) = state
+        if let Some(_) = state
             .tilemap
             .face_id_to_center_pos_3d(state.tilemap.face_grid().coord_to_id(def.coord))
         {
             let is_selected = Some(spawn.id) == defs.selected_id;
-            let material = if is_selected {
-                data.selected_material.clone()
-            } else {
-                data.material.clone()
-            };
+            let built_def = def.build(&state.tilemap);
+            let entity = util::spawn_object(&mut cmd, &built_def, assets.as_ref());
 
-            let marker_dummy = PbrBundle {
-                mesh: data.mesh.clone(),
-                material,
-                transform: Transform::IDENTITY
-                    .with_translation(pos + Vec3::Y * 0.4)
-                    .with_scale(Vec3::splat(0.4)),
-                ..Default::default()
-            };
-
-            let entity = match def.kind {
-                ObjectDefKind::SpawnPoint => cmd
-                    .spawn(marker_dummy)
-                    .insert((
-                        Shineable,
-                        Collider::cuboid(0.5, 0.5, 0.5),
-                        CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP),
-                    ))
-                    .id(),
-                ObjectDefKind::Camera => {
-                    let builder = CameraObjBuilder(def.build(&state.tilemap));
-                    builder.build(&mut cmd, &assets)
-                }
-                ObjectDefKind::DestructibleTargetTest => {
-                    let builder = DestructibleTargetTestBuilder(def.build(&state.tilemap));
-                    builder.build(&mut cmd, &assets)
-                }
-                ObjectDefKind::PhysicsCubesTest => {
-                    let builder = PhysicsCubeTestBuilder(def.build(&state.tilemap));
-                    builder.build(&mut cmd, &assets)
-                }
-                _ => cmd.spawn(marker_dummy).id(),
-            };
             cmd.entity(entity).insert(ObjectMarker { id: spawn.id });
 
             if is_selected {
@@ -406,14 +360,12 @@ pub struct ObjectDefStorage {
 
 #[derive(Resource)]
 pub struct ObjectMarkerData {
-    mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
     selected_material: Handle<StandardMaterial>,
 }
 
 impl FromWorld for ObjectMarkerData {
     fn from_world(world: &mut World) -> Self {
-        let mesh = { world.resource_mut::<Assets<Mesh>>().add(Cuboid::default()) };
         let material = {
             world
                 .resource_mut::<Assets<StandardMaterial>>()
@@ -425,7 +377,6 @@ impl FromWorld for ObjectMarkerData {
                 .add(StandardMaterial::from_color(tailwind::RED_400))
         };
         Self {
-            mesh,
             material,
             selected_material,
         }
