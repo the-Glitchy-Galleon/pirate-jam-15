@@ -40,6 +40,7 @@ pub struct ObjectDef {
     pub position: Vec3,
     pub rotation: f32,
     pub color: ColorDef,
+    pub number: u32,
     pub obj_refs: Vec<u32>,
     pub pos_refs: Vec<Vec3>,
     pub tags: Vec<Tag>,
@@ -94,6 +95,18 @@ pub enum ColorDef {
 }
 
 impl ColorDef {
+    pub const VARIANTS: [ColorDef; 8] = [
+        ColorDef::Void,
+        ColorDef::Red,
+        ColorDef::Green,
+        ColorDef::Blue,
+        ColorDef::Yellow,
+        ColorDef::Magenta,
+        ColorDef::Cyan,
+        ColorDef::White,
+    ];
+    pub const COUNT: usize = Self::VARIANTS.len();
+
     pub fn contains(&self, color: ColorDef) -> bool {
         (*self as u8 & color as u8) == color as u8
     }

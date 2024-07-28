@@ -6,18 +6,23 @@ use crate::{
             assets::GameObjectAssets,
             definitions::{ColorDef, ObjectDef},
         },
+        player::{AddPlayerRespawnEvent, PlayerTag},
+        LevelResources,
     },
 };
 use bevy::{color::palettes::tailwind, prelude::*, time::Real};
 use bevy_rapier3d::prelude::*;
-use helpers::is_within_cone_shape;
-use std::{f32::consts::FRAC_PI_2, ops::RangeInclusive};
+use std::{
+    f32::consts::{FRAC_PI_2, PI, TAU},
+    ops::RangeInclusive,
+};
+use util::is_within_cone_shape;
 
 pub const SPOTLIGHT_ANGLE: f32 = 0.4;
 pub const SPOTLIGHT_ANGLE_RANGE: RangeInclusive<f32> = 0.3..=0.6; // range that kinda works out for the angle
 pub const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.9;
 
-pub const CHARGE_DURATION_SECS: f32 = 1.0;
+pub const CHARGE_DURATION_SECS: f32 = 1.5;
 pub const BEAM_DURATION_SECS: f32 = 1.0;
 
 pub struct CameraObjBuilder(pub ObjectDef);
@@ -46,6 +51,9 @@ impl CameraObjBuilder {
                     .with_rotation(Quat::from_rotation_y(self.0.rotation)),
                 ..Default::default()
             },
+            Colored {
+                color: self.0.color,
+            },
             CameraPhase::Pathing,
             CameraPathState::new(self.0.pos_refs.clone(), position),
             ShinedEntityList::default(),
@@ -68,7 +76,7 @@ impl CameraObjBuilder {
             transform: Transform::from_translation(spotlight_position - position),
             spot_light: SpotLight {
                 intensity: 5_000_000.0, // lumens? but it doesn't do much with reasonable values
-                color: self.spotlight_color(),
+                color: spotlight_color(self.0.color).into(),
                 shadows_enabled: true,
                 range: 100.0, // ignore calculated range because it doesn't really reach
                 inner_angle: half_angle,
@@ -96,19 +104,19 @@ impl CameraObjBuilder {
             })
             .id()
     }
+}
 
-    #[rustfmt::skip]
-    fn spotlight_color(&self) -> Color {
-        match self.0.color {
-            ColorDef::Void    => tailwind::GRAY_500,
-            ColorDef::Red     => tailwind::RED_500,
-            ColorDef::Green   => tailwind::GREEN_500,
-            ColorDef::Blue    => tailwind::BLUE_500,
-            ColorDef::Yellow  => tailwind::YELLOW_500,
-            ColorDef::Magenta => tailwind::PURPLE_500,
-            ColorDef::Cyan    => tailwind::CYAN_500,
-            ColorDef::White   => tailwind::GRAY_100,
-        }.into()
+#[rustfmt::skip]
+const fn spotlight_color(color: ColorDef) -> Srgba {
+    match color {
+        ColorDef::Void    => tailwind::GRAY_500,
+        ColorDef::Red     => tailwind::RED_500,
+        ColorDef::Green   => tailwind::GREEN_500,
+        ColorDef::Blue    => tailwind::BLUE_500,
+        ColorDef::Yellow  => tailwind::YELLOW_500,
+        ColorDef::Magenta => tailwind::PURPLE_500,
+        ColorDef::Cyan    => tailwind::CYAN_500,
+        ColorDef::White   => tailwind::GRAY_100,
     }
 }
 
@@ -125,14 +133,21 @@ pub fn add_systems_and_resources(app: &mut App) {
             look_at_path_state.after(update_path_state),
             update_shined_entities,
             update_phase.after(update_shined_entities),
+            camera_charge_effect.after(update_phase),
             process_spotlight_hit.after(update_phase),
+            spotlight_hit_player.after(update_phase),
         ),
     );
 }
 
+#[derive(Component)]
+pub struct Colored {
+    color: ColorDef,
+}
+
 #[derive(Component, Reflect)]
 pub struct RootParent {
-    entity: Entity,
+    parent: Entity,
 }
 
 // Todo: this does not consider changes in hierarchy while the game is running
@@ -147,7 +162,7 @@ pub fn link_root_parents(
             current_root = parent.get();
         }
         cmd.entity(entity).insert(RootParent {
-            entity: current_root,
+            parent: current_root,
         });
     }
 }
@@ -161,11 +176,11 @@ pub struct ShineCone {
 }
 
 #[derive(Component, Default, Reflect)]
-pub struct ShinedEntityList {
+struct ShinedEntityList {
     entities: Vec<Entity>,
 }
 
-pub fn update_shined_entities(
+fn update_shined_entities(
     rapier: Res<RapierContext>,
     mut state: Query<&mut ShinedEntityList>,
     // mut reader: EventReader<CollisionEvent>,
@@ -174,7 +189,7 @@ pub fn update_shined_entities(
     mut gizmos: Gizmos,
 ) {
     for (cone, root, tx, gx) in cone.iter() {
-        let Ok(mut state) = state.get_mut(root.entity) else {
+        let Ok(mut state) = state.get_mut(root.parent) else {
             continue;
         };
         let origin =
@@ -222,22 +237,33 @@ pub fn update_shined_entities(
 }
 
 #[derive(Component, Reflect, Clone, PartialEq)]
-pub enum CameraPhase {
+enum CameraPhase {
     Pathing,
     Charging(f32),
     Cooldown(f32),
 }
 
-pub fn update_phase(
-    mut phase: Query<(&mut CameraPhase, &ShinedEntityList)>,
+fn update_phase(
+    mut cmd: Commands,
+    mut phase: Query<(Entity, &mut CameraPhase, &ShinedEntityList, &Colored)>,
+    cone: Query<(Entity, &RootParent), With<ShineCone>>,
     time: Res<Time<Real>>,
     mut hit: EventWriter<SpotlightHitEvent>,
 ) {
-    for (mut phase, shined) in phase.iter_mut() {
+    for (ent, mut phase, shined, colored) in phase.iter_mut() {
         match phase.as_mut() {
             CameraPhase::Pathing => {
                 if shined.entities.len() > 0 {
-                    *phase = CameraPhase::Charging(CHARGE_DURATION_SECS)
+                    *phase = CameraPhase::Charging(CHARGE_DURATION_SECS);
+                    for (cone, root) in cone.iter() {
+                        if root.parent == ent {
+                            cmd.entity(cone).insert(CameraChargeEffect {
+                                timer: Timer::from_seconds(CHARGE_DURATION_SECS, TimerMode::Once),
+                                color: colored.color,
+                            });
+                            break;
+                        }
+                    }
                 }
             }
             CameraPhase::Charging(t) => {
@@ -245,7 +271,11 @@ pub fn update_phase(
                 if *t <= 0.0 {
                     *phase = CameraPhase::Cooldown(BEAM_DURATION_SECS);
                     for entity in shined.entities.iter() {
-                        hit.send(SpotlightHitEvent { target: *entity });
+                        hit.send(SpotlightHitEvent {
+                            source: ent,
+                            target: *entity,
+                            color: colored.color,
+                        });
                     }
                 }
             }
@@ -259,13 +289,43 @@ pub fn update_phase(
     }
 }
 
-pub fn process_spotlight_hit(mut hit: EventReader<SpotlightHitEvent>, name: Query<&Name>) {
-    for hit in hit.read() {
-        let name = match name.get(hit.target) {
-            Ok(name) => name.to_string(),
-            _ => format!("{:?}", hit.target),
-        };
-        info!("Hit entity: {name}");
+#[derive(Component)]
+struct CameraChargeEffect {
+    timer: Timer,
+    color: ColorDef,
+}
+
+fn camera_charge_effect(
+    mut cmd: Commands,
+    mut charge: Query<(
+        Entity,
+        &mut CameraChargeEffect,
+        &ShineCone,
+        &GlobalTransform,
+    )>,
+    mut gizmos: Gizmos,
+    time: Res<Time<Real>>,
+) {
+    for (ent, mut charge, cone, gx) in charge.iter_mut() {
+        charge.timer.tick(time.delta());
+        let alpha = 0.6 + (0.4 * (PI / charge.timer.fraction()).sin());
+
+        let rays = util::generate_conical_rays::<16>(
+            gx.translation(),
+            *gx.forward(),
+            cone.half_angle,
+            (charge.timer.fraction()) / TAU,
+        );
+        for ray in rays {
+            gizmos.ray(
+                ray.origin.into(),
+                (ray.dir * 10.0).into(),
+                spotlight_color(charge.color).with_alpha(alpha),
+            );
+        }
+        if charge.timer.finished() {
+            cmd.entity(ent).remove::<CameraChargeEffect>();
+        }
     }
 }
 
@@ -286,7 +346,7 @@ impl CameraPathState {
     }
 }
 
-pub fn update_path_state(
+fn update_path_state(
     mut state: Query<(&mut CameraPathState, &CameraPhase)>,
     time: Res<Time<Real>>,
 ) {
@@ -297,7 +357,7 @@ pub fn update_path_state(
     }
 }
 
-pub fn draw_path_state_gizmo(state: Query<&CameraPathState>, mut gizmos: Gizmos) {
+fn draw_path_state_gizmo(state: Query<&CameraPathState>, mut gizmos: Gizmos) {
     for state in state.iter() {
         gizmos.cuboid(
             Transform::from_translation(state.position).with_scale(Vec3::splat(0.1)),
@@ -309,12 +369,12 @@ pub fn draw_path_state_gizmo(state: Query<&CameraPathState>, mut gizmos: Gizmos)
 #[derive(Component, Reflect)]
 pub struct FollowPathState;
 
-pub fn follow_path_state(
+fn follow_path_state(
     state: Query<&CameraPathState>,
     mut follower: Query<(&RootParent, &mut Transform, &GlobalTransform), With<FollowPathState>>,
 ) {
     for (root, mut tx, gx) in follower.iter_mut() {
-        if let Ok(state) = state.get(root.entity) {
+        if let Ok(state) = state.get(root.parent) {
             let offset = tx.translation - gx.translation();
             tx.translation = state.position + offset;
         }
@@ -324,12 +384,12 @@ pub fn follow_path_state(
 #[derive(Component, Reflect)]
 pub struct LookAtPathState;
 
-pub fn look_at_path_state(
+fn look_at_path_state(
     state: Query<&CameraPathState>,
     mut looker: Query<(&RootParent, &mut Transform, &GlobalTransform), With<LookAtPathState>>,
 ) {
     for (root, mut tx, gx) in looker.iter_mut() {
-        if let Ok(state) = state.get(root.entity) {
+        if let Ok(state) = state.get(root.parent) {
             let transform = compute_parent_transform(gx, &tx);
             let local_point = transform.transform_point(state.position);
             tx.look_at(local_point, Vec3::Y);
@@ -346,13 +406,52 @@ fn compute_parent_transform(
 
 #[derive(Event)]
 pub struct SpotlightHitEvent {
+    pub source: Entity,
     pub target: Entity,
+    pub color: ColorDef,
+}
+
+fn spotlight_hit_player(
+    mut hit: EventReader<SpotlightHitEvent>,
+    player: Query<Entity, With<PlayerTag>>,
+    level: Res<LevelResources>,
+    mut respawn: EventWriter<AddPlayerRespawnEvent>,
+) {
+    for hit in hit.read() {
+        let Ok(_) = player.get(hit.target) else {
+            continue;
+        };
+        let Some(spawnpoints) = &level.spawnpoints else {
+            continue;
+        };
+
+        let highest_respawn_pos = spawnpoints
+            .iter()
+            .filter(|o| o.2)
+            .max_by(|a, b| a.1.cmp(&b.1))
+            .map(|o| o.0)
+            .unwrap_or(Vec3::ZERO + Vec3::Y * 7.0);
+
+        respawn.send(AddPlayerRespawnEvent {
+            position: highest_respawn_pos,
+        });
+    }
+}
+
+pub fn process_spotlight_hit(mut hit: EventReader<SpotlightHitEvent>, name: Query<&Name>) {
+    for hit in hit.read() {
+        let name = match name.get(hit.target) {
+            Ok(name) => name.to_string(),
+            _ => format!("{:?}", hit.target),
+        };
+        info!("Hit entity: {name}");
+    }
 }
 
 #[derive(Component)]
 pub struct ShowForwardGizmo;
 
-pub fn show_forward_gizmo(
+fn show_forward_gizmo(
     forwarder: Query<(&Transform, &GlobalTransform), With<ShowForwardGizmo>>,
     mut gizmos: Gizmos,
 ) {
@@ -371,12 +470,12 @@ pub fn show_forward_gizmo(
     }
 }
 
-mod helpers {
+mod util {
     use bevy::prelude::*;
     use bevy_rapier3d::rapier::prelude::Ray;
     use std::f32::consts::PI;
 
-    pub const fn _gen_range_usize<const N: usize>() -> [usize; N] {
+    pub const fn gen_range_usize<const N: usize>() -> [usize; N] {
         let mut res = [0; N];
         let mut i = 0;
         while i < N {
@@ -386,14 +485,14 @@ mod helpers {
         res
     }
 
-    ///
-    pub fn _generate_conical_rays<const N: usize>(
+    pub fn generate_conical_rays<const N: usize>(
         position: Vec3,
         direction: Vec3,
         half_angle: f32,
+        rotation: f32,
     ) -> [Ray; N] {
         let normal = direction.normalize();
-        let angle_step = (2.0 * PI) / N as f32;
+        let angle_step = (2.0 * PI) / N as f32 + rotation;
 
         let ortho_vector1 = if normal.x.abs() > normal.z.abs() {
             Vec3::new(-normal.y, normal.x, 0.0).normalize()
@@ -403,7 +502,7 @@ mod helpers {
 
         let ortho_vector2 = normal.cross(ortho_vector1).normalize();
 
-        _gen_range_usize().map(|i| {
+        gen_range_usize().map(|i| {
             let theta = angle_step * i as f32;
             let sin_half_angle = half_angle.sin();
             let cone_direction = normal * half_angle.cos()

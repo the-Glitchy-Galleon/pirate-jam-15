@@ -96,6 +96,7 @@ impl ObjectDefBuilder {
             position,
             rotation: self.rotation.into(),
             color: self.color,
+            number: self.number,
             obj_refs: self.obj_refs.clone(),
             pos_refs,
             tags: self.tags.clone(),

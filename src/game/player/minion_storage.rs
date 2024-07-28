@@ -2,6 +2,7 @@ use crate::game::{
     collision_groups::{ACTOR_GROUP, GROUND_GROUP},
     kinematic_char::KinematicCharacterBundle,
     minion::{collector::MinionStorage, walk_target::WalkTargetBundle, MinionBundle},
+    objects::camera::Shineable,
     player::PlayerTag,
     CharacterWalkControl, MinionKind, MinionState,
 };
@@ -72,6 +73,7 @@ pub fn minion_storage_throw(
         character: KinematicCharacterBundle::default(),
         kind: min_inp.chosen_ty,
         state: MinionState::GoingTo(target_id),
+        shineable: Shineable,
     });
 }
 

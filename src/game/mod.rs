@@ -2,6 +2,7 @@ use crate::{
     framework::{
         audio::AudioPlugin,
         level_asset::{LevelAsset, LevelAssetLoader},
+        loading_queue,
     },
     game::{
         kinematic_char::{CharacterWalkControl, CharacterWalkState},
@@ -15,7 +16,7 @@ use crate::{
 };
 use bevy::{input::InputSystem, prelude::*};
 use bevy_rapier3d::prelude::*;
-use player::PlayerTag;
+use player::{AddPlayerRespawnEvent, PlayerTag};
 use top_down_camera::TopDownCameraControls;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
@@ -27,9 +28,10 @@ pub mod objects;
 pub mod player;
 pub mod top_down_camera;
 
-#[derive(Debug, Resource)]
+#[derive(Debug, Default, Resource)]
 pub struct LevelResources {
-    pub navmesh: Handle<NavMesh>,
+    pub navmesh: Option<Handle<NavMesh>>,
+    pub spawnpoints: Option<Vec<(Vec3, u32, bool)>>,
 }
 
 pub struct GamePlugin;
@@ -43,6 +45,7 @@ impl Plugin for GamePlugin {
             VleueNavigatorPlugin,
             bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
         ));
+        loading_queue::initialize::<LevelAsset>(app);
 
         app.register_type::<CharacterWalkControl>()
             .register_type::<PlayerCollector>()
@@ -54,6 +57,7 @@ impl Plugin for GamePlugin {
             .register_type::<MinionThrowTarget>()
             .register_type::<MinionInteractionRequirement>();
 
+        app.insert_resource(LevelResources::default());
         app.insert_resource(MinionStorageInput {
             chosen_ty: MinionKind::Void,
             want_to_throw: false,
@@ -66,10 +70,17 @@ impl Plugin for GamePlugin {
         // });
 
         /* Setup */
-        app
+        app.add_event::<AddPlayerRespawnEvent>()
             // .add_systems(Startup, setup_physics)
             .add_systems(Startup, player::setup_player)
-            .add_systems(Startup, spawn_gameplay_camera.after(player::setup_player));
+            .add_systems(Startup, spawn_gameplay_camera.after(player::setup_player))
+            .add_systems(
+                Update,
+                (
+                    player::add_player_respawn,
+                    player::process_player_respawning.after(player::add_player_respawn),
+                ),
+            );
 
         /* Common systems */
         app.add_systems(FixedUpdate, kinematic_char::update_kinematic_character);

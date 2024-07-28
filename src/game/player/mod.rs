@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::game::{
     collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
     kinematic_char::KinematicCharacterBundle,
@@ -6,12 +8,15 @@ use crate::game::{
     CharacterWalkControl, LevelResources, MinionKind, MinionTarget,
 };
 use bevy::{
+    prelude::Real,
     prelude::*,
     render::camera::RenderTarget,
     window::{PrimaryWindow, WindowRef},
 };
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
+
+use super::objects::camera::Shineable;
 
 pub mod minion_storage;
 
@@ -35,9 +40,11 @@ pub fn setup_player(mut commands: Commands) {
             CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP | WALL_GROUP),
             SpatialBundle {
                 transform: Transform::from_xyz(0.0, 5.0, 0.0),
+                visibility: Visibility::Hidden,
                 ..default()
             },
             KinematicCharacterBundle::default(),
+            Shineable,
         ))
         .with_children(|b| {
             b.spawn((SpatialBundle { ..default() }, PlayerCollector))
@@ -92,7 +99,10 @@ pub fn player_controls(
     let Some(cursor_ray) = cam.viewport_to_world(cam_tf, pos) else {
         return;
     };
-    let Some(navmesh) = navmeshes.get(&level_reses.navmesh) else {
+    let Some(navmesh) = &level_reses.navmesh else {
+        return;
+    };
+    let Some(navmesh) = navmeshes.get(navmesh) else {
         return;
     };
 
@@ -141,4 +151,71 @@ pub fn player_controls(
 
     minion.want_to_throw = mouse_buttons.just_pressed(MouseButton::Left);
     minion.do_pickup = keyboard.pressed(KeyCode::KeyQ);
+}
+
+#[derive(Component)]
+pub struct PlayerRespawning {
+    pub origin: Vec3,
+    position: Vec3,
+    timer: Timer,
+}
+
+impl PlayerRespawning {
+    pub fn new(origin: Vec3, position: Vec3) -> Self {
+        Self {
+            origin,
+            position,
+            timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Once),
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct AddPlayerRespawnEvent {
+    pub position: Vec3,
+}
+
+pub fn add_player_respawn(
+    mut cmd: Commands,
+    player: Query<(Entity, &GlobalTransform), With<PlayerTag>>,
+    mut respawn: EventReader<AddPlayerRespawnEvent>,
+) {
+    let Some(respawn) = respawn.read().last() else {
+        return;
+    };
+
+    let (player, gx) = player.single();
+    cmd.entity(player).insert((
+        PlayerRespawning::new(gx.translation(), respawn.position + Vec3::Y * 1.2),
+        ColliderDisabled,
+    ));
+}
+
+pub fn process_player_respawning(
+    mut cmd: Commands,
+    mut respawn: Query<(
+        Entity,
+        &mut Visibility,
+        &mut Transform,
+        &GlobalTransform,
+        &mut PlayerRespawning,
+    )>,
+    time: Res<Time<Real>>,
+) {
+    for (ent, mut vis, mut tx, gx, mut respawn) in respawn.iter_mut() {
+        respawn.timer.tick(time.delta());
+        let offset = tx.translation - gx.translation();
+        let origin = respawn.origin + offset;
+        let target = respawn.position + offset;
+
+        if respawn.timer.finished() {
+            tx.translation = target;
+            *vis = Visibility::Inherited;
+            cmd.entity(ent)
+                .remove::<PlayerRespawning>()
+                .remove::<ColliderDisabled>();
+        } else {
+            tx.translation = Vec3::lerp(origin, target, respawn.timer.fraction());
+        }
+    }
 }
