@@ -7,7 +7,7 @@ edition = "2021"
 debug_visuals = [] # Toggle for rapier debug and gizmos
 
 default = [
-    # "debug_visuals", # Toggle for rapier debug render plugin
+    # "debug_visuals",
 ]
 
 [dependencies]

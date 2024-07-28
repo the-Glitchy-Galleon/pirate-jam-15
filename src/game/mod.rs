@@ -22,7 +22,7 @@ use crate::{
         top_down_camera::TopDownCameraControls,
     },
 };
-use bevy::{core_pipeline::prepass::DepthPrepass, prelude::*};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
@@ -195,6 +195,5 @@ pub fn spawn_gameplay_camera(mut commands: Commands, player: Query<Entity, With<
                 .looking_at(Vec3::new(10.0, 0.0, 7.0), Vec3::Y),
             ..Default::default()
         },
-        DepthPrepass, // required for decals
     ));
 }
