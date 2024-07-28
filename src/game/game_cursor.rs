@@ -283,7 +283,7 @@ pub fn update_point_cursor_decal(
 pub struct TargetCursorHud;
 
 pub fn setup_target_cursor_hud(mut cmd: Commands, ass: Res<AssetServer>) {
-    let image = ass.load("ui/ground_cursor.png");
+    let image = ass.load("ui/target_cursor.png");
     let root = (
         TargetCursorHud,
         NodeBundle {
