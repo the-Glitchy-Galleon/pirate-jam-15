@@ -3,17 +3,18 @@ use crate::{
         audio::AudioPlugin,
         level_asset::{LevelAsset, LevelAssetLoader},
         loading_queue,
-        logical_cursor::{self, LogicalCursorPlugin},
+        logical_cursor::LogicalCursorPlugin,
     },
     game::{
         common::PrimaryCamera,
+        game_cursor::GameCursorPlugin,
         kinematic_char::{CharacterWalkControl, CharacterWalkState},
         minion::{
             collector::{MinionInteractionRequirement, MinionStorage},
             minion_builder::MinionAssets,
             MinionKind, MinionStartedInteraction, MinionState, MinionTarget,
         },
-        objects::{assets::GameObjectAssets, camera, cauldron},
+        objects::{assets::GameObjectAssets, camera::CameraObjPlugin, cauldron},
         player::{
             minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
             AddPlayerRespawnEvent, PlayerTag,
@@ -23,8 +24,6 @@ use crate::{
 };
 use bevy::{core_pipeline::prepass::DepthPrepass, prelude::*};
 use bevy_rapier3d::prelude::*;
-use game_cursor::{GameCursor, GameCursorPlugin};
-use objects::camera::CameraObjPlugin;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
 pub mod collision_groups;
