@@ -1,9 +1,13 @@
 use crate::game::objects::definitions::ColorDef;
-use bevy::{color::palettes::tailwind, prelude::*};
+use bevy::prelude::*;
+
+#[derive(Component)]
+pub struct PrimaryCamera; // make sure there's only one in the scene
 
 #[derive(Component)]
 pub struct ShowForwardGizmo;
 
+#[cfg(feature = "debug_visuals")]
 pub fn show_forward_gizmo(
     forwarder: Query<(&Transform, &GlobalTransform), With<ShowForwardGizmo>>,
     mut gizmos: Gizmos,

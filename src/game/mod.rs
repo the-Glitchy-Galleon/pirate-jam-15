@@ -3,15 +3,18 @@ use crate::{
         audio::AudioPlugin,
         level_asset::{LevelAsset, LevelAssetLoader},
         loading_queue,
+        logical_cursor::LogicalCursorPlugin,
     },
     game::{
+        common::PrimaryCamera,
+        game_cursor::GameCursorPlugin,
         kinematic_char::{CharacterWalkControl, CharacterWalkState},
         minion::{
             collector::{MinionInteractionRequirement, MinionStorage},
             minion_builder::MinionAssets,
             MinionKind, MinionStartedInteraction, MinionState, MinionTarget,
         },
-        objects::{assets::GameObjectAssets, camera, cauldron},
+        objects::{assets::GameObjectAssets, camera::CameraObjPlugin, cauldron},
         player::{
             minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
             AddPlayerRespawnEvent, PlayerTag,
@@ -19,12 +22,13 @@ use crate::{
         top_down_camera::TopDownCameraControls,
     },
 };
-use bevy::{input::InputSystem, prelude::*};
+use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
 pub mod collision_groups;
 pub mod common;
+pub mod game_cursor;
 pub mod kinematic_char;
 pub mod level;
 pub mod minion;
@@ -44,11 +48,16 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin::default(),
             AudioPlugin,
             VleueNavigatorPlugin,
             bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
+            LogicalCursorPlugin,
+            GameCursorPlugin,
         ));
+
+        #[cfg(feature = "debug_visuals")]
+        app.add_plugins(RapierDebugRenderPlugin::default());
+
         loading_queue::initialize::<LevelAsset>(app);
 
         app.register_type::<CharacterWalkControl>()
@@ -88,7 +97,6 @@ impl Plugin for GamePlugin {
         /* Common systems */
         app.add_systems(PreUpdate, common::link_root_parents);
         app.add_systems(FixedUpdate, kinematic_char::update_kinematic_character);
-        app.add_systems(Update, common::show_forward_gizmo);
 
         /* Minion systems */
         app.add_systems(Update, minion::cleanup_minion_state)
@@ -121,25 +129,27 @@ impl Plugin for GamePlugin {
             .add_systems(
                 Update,
                 (
-                    minion::debug_navmesh,
                     minion::display_navigator_path,
                     minion::update_chosen_minion_ui,
                 ),
             );
 
         /* Player systems */
-        app.add_systems(PreUpdate, player::player_controls.after(InputSystem))
-            .add_systems(
-                Update,
-                (
-                    player::minion_storage::minion_storage_throw,
-                    player::minion_storage::minion_storage_pickup,
-                    player::minion_storage::debug_minion_to_where_ui,
-                    player::add_player_respawn,
-                    player::process_player_respawning.after(player::add_player_respawn),
-                    top_down_camera::update,
-                ),
-            );
+        app.add_systems(
+            PreUpdate,
+            (player::player_controls.after(game_cursor::update_game_cursor),),
+        )
+        .add_systems(
+            Update,
+            (
+                player::minion_storage::minion_storage_throw,
+                player::minion_storage::minion_storage_pickup,
+                player::minion_storage::debug_minion_to_where_ui,
+                player::add_player_respawn,
+                player::process_player_respawning.after(player::add_player_respawn),
+                top_down_camera::update,
+            ),
+        );
 
         /* Level and Objects */
         app.add_systems(PreUpdate, level::init_level);
@@ -148,7 +158,7 @@ impl Plugin for GamePlugin {
             Update,
             objects::destructible_target_test::update_destructble_target,
         );
-        camera::add_systems_and_resources(app);
+        app.add_plugins(CameraObjPlugin);
         app.add_systems(
             Update,
             (
@@ -156,13 +166,26 @@ impl Plugin for GamePlugin {
                 cauldron::queue_minion_for_cauldron,
             ),
         );
+
+        /* Gizmos */
+        #[cfg(feature = "debug_visuals")]
+        {
+            app.add_systems(
+                Update,
+                (
+                    minion::debug_navmesh,
+                    player::show_player_control_gizmos,
+                    common::show_forward_gizmo,
+                ),
+            );
+        }
     }
 }
 
 pub fn spawn_gameplay_camera(mut commands: Commands, player: Query<Entity, With<PlayerTag>>) {
     let player = player.single();
-
     commands.spawn((
+        PrimaryCamera,
         TopDownCameraControls {
             target: Some(player),
             offset: Vec3::new(0.0, 10.0, 10.0),

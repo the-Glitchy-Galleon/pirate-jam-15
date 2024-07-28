@@ -26,6 +26,27 @@ pub const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.9;
 pub const CHARGE_DURATION_SECS: f32 = 1.5;
 pub const BEAM_DURATION_SECS: f32 = 1.0;
 
+pub struct CameraObjPlugin;
+
+impl Plugin for CameraObjPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<SpotlightHitEvent>();
+        app.add_systems(
+            Update,
+            (
+                update_path_state,
+                draw_path_state_gizmo.after(update_path_state),
+                follow_path_state.after(update_path_state),
+                look_at_path_state.after(update_path_state),
+                update_shined_entities,
+                update_phase.after(update_shined_entities),
+                camera_charge_effect.after(update_phase),
+                spotlight_hit_player.after(update_phase),
+            ),
+        );
+    }
+}
+
 pub struct CameraObjBuilder<'a>(pub &'a ObjectDef);
 
 impl CameraObjBuilder<'_> {
@@ -117,23 +138,6 @@ const fn spotlight_color(color: ColorDef) -> Srgba {
         ColorDef::Cyan    => tailwind::CYAN_500,
         ColorDef::White   => tailwind::GRAY_900,
     }
-}
-
-pub fn add_systems_and_resources(app: &mut App) {
-    app.add_event::<SpotlightHitEvent>();
-    app.add_systems(
-        Update,
-        (
-            update_path_state,
-            draw_path_state_gizmo.after(update_path_state),
-            follow_path_state.after(update_path_state),
-            look_at_path_state.after(update_path_state),
-            update_shined_entities,
-            update_phase.after(update_shined_entities),
-            camera_charge_effect.after(update_phase),
-            spotlight_hit_player.after(update_phase),
-        ),
-    );
 }
 
 #[derive(Component, Reflect)]
