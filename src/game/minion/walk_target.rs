@@ -1,4 +1,7 @@
-use crate::game::{collision_groups::TARGET_GROUP, minion::{MinionPath, MinionState, MinionTarget}};
+use crate::game::{
+    collision_groups::TARGET_GROUP,
+    minion::{MinionPath, MinionState, MinionTarget},
+};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
@@ -22,7 +25,10 @@ impl Default for WalkTargetBundle {
             target_tag: Default::default(),
             walk_tag: Default::default(),
             walk_collider: Collider::cuboid(2.0, 10.0, 2.0),
-            group: CollisionGroups { memberships: TARGET_GROUP, filters: TARGET_GROUP },
+            group: CollisionGroups {
+                memberships: TARGET_GROUP,
+                filters: TARGET_GROUP,
+            },
         }
     }
 }
