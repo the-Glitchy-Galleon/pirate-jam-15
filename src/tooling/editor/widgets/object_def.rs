@@ -165,22 +165,9 @@ impl ObjectDefWidget {
             egui::ComboBox::from_label("")
                 .selected_text(def.color.as_str())
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut def.color, ColorDef::Void, ColorDef::Void.as_str());
-                    ui.selectable_value(&mut def.color, ColorDef::Red, ColorDef::Red.as_str());
-                    ui.selectable_value(&mut def.color, ColorDef::Green, ColorDef::Green.as_str());
-                    ui.selectable_value(&mut def.color, ColorDef::Blue, ColorDef::Blue.as_str());
-                    ui.selectable_value(
-                        &mut def.color,
-                        ColorDef::Yellow,
-                        ColorDef::Yellow.as_str(),
-                    );
-                    ui.selectable_value(
-                        &mut def.color,
-                        ColorDef::Magenta,
-                        ColorDef::Magenta.as_str(),
-                    );
-                    ui.selectable_value(&mut def.color, ColorDef::Cyan, ColorDef::Cyan.as_str());
-                    ui.selectable_value(&mut def.color, ColorDef::White, ColorDef::White.as_str());
+                    ColorDef::VARIANTS.map(|color| {
+                        ui.selectable_value(&mut def.color, color, color.as_str());
+                    })
                 });
         });
         ui.horizontal(|ui| {

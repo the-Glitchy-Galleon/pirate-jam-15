@@ -4,19 +4,17 @@ use crate::game::{
     collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
     kinematic_char::KinematicCharacterBundle,
     minion::collector::MinionStorage,
+    objects::{camera::Shineable, definitions::ColorDef},
     player::minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
     CharacterWalkControl, LevelResources, MinionKind, MinionTarget,
 };
 use bevy::{
-    prelude::Real,
-    prelude::*,
+    prelude::{Real, *},
     render::camera::RenderTarget,
     window::{PrimaryWindow, WindowRef},
 };
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
-
-use super::objects::camera::Shineable;
 
 pub mod minion_storage;
 
@@ -27,10 +25,12 @@ pub struct PlayerTag;
 pub fn setup_player(mut commands: Commands) {
     let mut minion_st = MinionStorage::new();
 
-    minion_st.add_minion(MinionKind::Void);
-    minion_st.add_minion(MinionKind::Void);
-    minion_st.add_minion(MinionKind::Void);
-    minion_st.add_minion(MinionKind::Void);
+    for color in ColorDef::VARIANTS {
+        let kind = MinionKind::from(color);
+        for _ in 0..5 {
+            minion_st.add_minion(kind);
+        }
+    }
 
     commands
         .spawn((
@@ -151,6 +151,31 @@ pub fn player_controls(
 
     minion.want_to_throw = mouse_buttons.just_pressed(MouseButton::Left);
     minion.do_pickup = keyboard.pressed(KeyCode::KeyQ);
+
+    if keyboard.just_pressed(KeyCode::Digit1) {
+        minion.chosen_ty = MinionKind::Void;
+    }
+    if keyboard.just_pressed(KeyCode::Digit2) {
+        minion.chosen_ty = MinionKind::Red;
+    }
+    if keyboard.just_pressed(KeyCode::Digit3) {
+        minion.chosen_ty = MinionKind::Green;
+    }
+    if keyboard.just_pressed(KeyCode::Digit4) {
+        minion.chosen_ty = MinionKind::Blue;
+    }
+    if keyboard.just_pressed(KeyCode::Digit5) {
+        minion.chosen_ty = MinionKind::Yellow;
+    }
+    if keyboard.just_pressed(KeyCode::Digit6) {
+        minion.chosen_ty = MinionKind::Magenta;
+    }
+    if keyboard.just_pressed(KeyCode::Digit7) {
+        minion.chosen_ty = MinionKind::Cyan;
+    }
+    if keyboard.just_pressed(KeyCode::Digit8) {
+        minion.chosen_ty = MinionKind::White;
+    }
 }
 
 #[derive(Component)]

@@ -8,7 +8,7 @@ use crate::{
     },
     game::{
         collision_groups::{GROUND_GROUP, WALL_GROUP},
-        objects::{assets, camera, util},
+        common, objects,
     },
     tooling::editor::{object_def_builder::ObjectDefBuilder, tilemap_controls::TilemapControls},
 };
@@ -112,17 +112,12 @@ impl Plugin for TilemapEditorPlugin {
                     apply_deferred,
                     process_despawn_object_queue,
                     apply_deferred,
-                    process_spawn_object_queue.before(camera::link_root_parents),
+                    process_spawn_object_queue.before(common::link_root_parents),
                     apply_deferred,
                 )
                     .chain(),
             )
             .add_systems(Startup, (setup, ui::setup));
-
-        // Object Spawning compatibility
-        app.init_resource::<assets::GameObjectAssets>();
-
-        camera::add_systems_and_resources(app);
     }
 }
 
@@ -339,7 +334,7 @@ fn process_spawn_object_queue(
         {
             let is_selected = Some(spawn.id) == defs.selected_id;
             let built_def = def.build(&state.tilemap);
-            let entity = util::spawn_object(&mut cmd, &built_def, assets.as_ref());
+            let entity = objects::spawn_object(&mut cmd, &built_def, assets.as_ref());
 
             cmd.entity(entity).insert(ObjectMarker { id: spawn.id });
 

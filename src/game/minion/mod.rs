@@ -1,8 +1,9 @@
 use crate::game::{
     collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
     kinematic_char::KinematicCharacterBundle,
+    minion::collector::MinionStorage,
     objects::camera::Shineable,
-    player::PlayerTag,
+    player::{minion_storage::MinionStorageInput, PlayerTag},
     CharacterWalkControl, LevelResources,
 };
 use bevy::{color::palettes::tailwind, prelude::*};
@@ -13,6 +14,7 @@ use bevy_rapier3d::{
 use vleue_navigator::{NavMesh, TransformedPath};
 
 pub mod collector;
+pub mod minion_builder;
 pub mod walk_target;
 
 pub const MINION_INTERRACTION_RANGE: f32 = 0.5;
@@ -29,6 +31,41 @@ pub enum MinionKind {
     Magenta,
     Cyan,
     White,
+}
+
+impl MinionKind {
+    /// careful using this as index, because yellow < blue
+    pub const VARIANTS: [MinionKind; 8] = [
+        /* 000 */ MinionKind::Void,
+        /* 001 */ MinionKind::Red,
+        /* 010 */ MinionKind::Green,
+        /* 100 */ MinionKind::Blue,
+        /* 011 */ MinionKind::Yellow,
+        /* 101 */ MinionKind::Magenta,
+        /* 110 */ MinionKind::Cyan,
+        /* 111 */ MinionKind::White,
+    ];
+    pub const COUNT: usize = Self::VARIANTS.len();
+
+    #[rustfmt::skip]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MinionKind::Void    => "Void",
+            MinionKind::Red     => "Red",
+            MinionKind::Green   => "Green",
+            MinionKind::Blue    => "Blue",
+            MinionKind::Yellow  => "Yellow",
+            MinionKind::Magenta => "Magenta",
+            MinionKind::Cyan    => "Cyan",
+            MinionKind::White   => "White",
+        }
+    }
+}
+
+impl AsRef<str> for MinionKind {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
 }
 
 /// A component to mark an eligible target for the minions. The presence of that
@@ -245,16 +282,17 @@ pub fn minion_walk(
 }
 
 pub fn update_minion_state(
-    mut minion_q: Query<(&GlobalTransform, &mut MinionState)>,
+    mut minion_q: Query<(Entity, &GlobalTransform, &mut MinionState)>,
     target_q: Query<&GlobalTransform, With<MinionTarget>>,
     player_q: Query<&GlobalTransform, With<PlayerTag>>,
     rap_ctx: ResMut<RapierContext>,
+    mut started: EventWriter<MinionStartedInteraction>,
 ) {
     let Ok(player_tf) = player_q.get_single() else {
         return;
     };
 
-    for (tf, mut state) in minion_q.iter_mut() {
+    for (minion, tf, mut state) in minion_q.iter_mut() {
         let target_pos = match state.as_ref() {
             MinionState::GoingToPlayer => player_tf.translation(),
             MinionState::GoingTo(target) => match target_q.get(*target) {
@@ -270,7 +308,7 @@ pub fn update_minion_state(
         let is_target_reachable = rap_ctx
             .cast_ray(
                 tf.translation(),
-                target_pos - tf.translation(),
+                (target_pos - tf.translation()).normalize(),
                 MINION_INTERRACTION_RANGE,
                 true,
                 QueryFilter {
@@ -287,10 +325,20 @@ pub fn update_minion_state(
             MinionState::GoingToPlayer if is_target_reachable => *state = MinionState::Idling,
             MinionState::GoingTo(target) if is_target_reachable => {
                 *state = MinionState::Interracting(target);
+                started.send(MinionStartedInteraction {
+                    source: minion,
+                    target,
+                });
             }
             _ => (),
         }
     }
+}
+
+#[derive(Event)]
+pub struct MinionStartedInteraction {
+    pub source: Entity,
+    pub target: Entity,
 }
 
 pub fn cleanup_minion_state(
@@ -326,5 +374,50 @@ pub fn display_navigator_path(
                 tailwind::AMBER_200,
             );
         }
+    }
+}
+
+#[derive(Component)]
+pub struct ChosenMinionUi;
+
+pub fn setup_chosen_minion_ui(mut cmd: Commands) {
+    let sections =
+        MinionKind::VARIANTS.map(|kind| TextSection::new(kind.as_str(), TextStyle::default()));
+    cmd.spawn((
+        TextBundle::from_sections(sections).with_style(Style {
+            position_type: PositionType::Absolute,
+            top: Val::Px(5.0),
+            right: Val::Px(15.0),
+            ..default()
+        }),
+        ChosenMinionUi,
+    ));
+}
+
+pub fn update_chosen_minion_ui(
+    mut text: Query<&mut Text, With<ChosenMinionUi>>,
+    minion: ResMut<MinionStorageInput>,
+    mut storage: Query<&MinionStorage>,
+) {
+    let storage = storage.single_mut();
+    let mut text = text.single_mut();
+
+    for (i, kind) in MinionKind::VARIANTS.into_iter().enumerate() {
+        let num_minions = storage.num_minions(kind);
+        text.sections[i].value = format!("{}: {}\n", kind.as_str(), num_minions);
+
+        text.sections[i].style.color = if kind == minion.chosen_ty {
+            if num_minions == 0 {
+                tailwind::AMBER_300.into()
+            } else {
+                tailwind::AMBER_50.into()
+            }
+        } else {
+            if num_minions == 0 {
+                tailwind::AMBER_900.into()
+            } else {
+                tailwind::AMBER_700.into()
+            }
+        };
     }
 }

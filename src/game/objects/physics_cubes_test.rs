@@ -4,9 +4,9 @@ use crate::game::objects::{assets::GameObjectAssets, definitions::ObjectDef};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-pub struct PhysicsCubeTestBuilder(pub ObjectDef);
+pub struct PhysicsCubeTestBuilder<'a>(pub &'a ObjectDef);
 
-impl PhysicsCubeTestBuilder {
+impl PhysicsCubeTestBuilder<'_> {
     pub fn build(self, cmd: &mut Commands, _assets: &GameObjectAssets) -> Entity {
         /*
          * Create the cubes

@@ -8,19 +8,23 @@ use crate::{
         kinematic_char::{CharacterWalkControl, CharacterWalkState},
         minion::{
             collector::{MinionInteractionRequirement, MinionStorage},
-            MinionKind, MinionState, MinionTarget,
+            minion_builder::MinionAssets,
+            MinionKind, MinionStartedInteraction, MinionState, MinionTarget,
         },
-        objects::{assets::GameObjectAssets, camera},
-        player::minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
+        objects::{assets::GameObjectAssets, camera, cauldron},
+        player::{
+            minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
+            AddPlayerRespawnEvent, PlayerTag,
+        },
+        top_down_camera::TopDownCameraControls,
     },
 };
 use bevy::{input::InputSystem, prelude::*};
 use bevy_rapier3d::prelude::*;
-use player::{AddPlayerRespawnEvent, PlayerTag};
-use top_down_camera::TopDownCameraControls;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
 pub mod collision_groups;
+pub mod common;
 pub mod kinematic_char;
 pub mod level;
 pub mod minion;
@@ -55,35 +59,36 @@ impl Plugin for GamePlugin {
             .register_type::<MinionState>()
             .register_type::<MinionTarget>()
             .register_type::<MinionThrowTarget>()
-            .register_type::<MinionInteractionRequirement>();
-
-        app.insert_resource(LevelResources::default());
-        app.insert_resource(MinionStorageInput {
-            chosen_ty: MinionKind::Void,
-            want_to_throw: false,
-            to_where: MinionThrowTarget::Location(Vec3::ZERO),
-            do_pickup: false,
-        });
-
-        // app.insert_resource(LevelResources {
-        //     navmesh: Handle::inva
-        // });
+            .register_type::<MinionInteractionRequirement>()
+            .init_asset::<LevelAsset>()
+            .init_asset_loader::<LevelAssetLoader>()
+            .insert_resource(LevelResources::default())
+            .insert_resource(MinionStorageInput {
+                chosen_ty: MinionKind::Void,
+                want_to_throw: false,
+                to_where: MinionThrowTarget::Location(Vec3::ZERO),
+                do_pickup: false,
+            })
+            .init_resource::<MinionAssets>()
+            .init_resource::<GameObjectAssets>()
+            .add_event::<MinionStartedInteraction>()
+            .add_event::<AddPlayerRespawnEvent>();
 
         /* Setup */
-        app.add_event::<AddPlayerRespawnEvent>()
-            // .add_systems(Startup, setup_physics)
-            .add_systems(Startup, player::setup_player)
-            .add_systems(Startup, spawn_gameplay_camera.after(player::setup_player))
-            .add_systems(
-                Update,
-                (
-                    player::add_player_respawn,
-                    player::process_player_respawning.after(player::add_player_respawn),
-                ),
-            );
+        app.add_systems(
+            Startup,
+            (
+                player::setup_player,
+                spawn_gameplay_camera.after(player::setup_player),
+                minion::setup_chosen_minion_ui,
+                level::load_preview_scene,
+            ),
+        );
 
         /* Common systems */
+        app.add_systems(PreUpdate, common::link_root_parents);
         app.add_systems(FixedUpdate, kinematic_char::update_kinematic_character);
+        app.add_systems(Update, common::show_forward_gizmo);
 
         /* Minion systems */
         app.add_systems(Update, minion::cleanup_minion_state)
@@ -115,27 +120,42 @@ impl Plugin for GamePlugin {
             )
             .add_systems(
                 Update,
-                (minion::debug_navmesh, minion::display_navigator_path),
+                (
+                    minion::debug_navmesh,
+                    minion::display_navigator_path,
+                    minion::update_chosen_minion_ui,
+                ),
             );
 
         /* Player systems */
         app.add_systems(PreUpdate, player::player_controls.after(InputSystem))
-            .add_systems(Update, player::minion_storage::minion_storage_throw)
-            .add_systems(Update, player::minion_storage::minion_storage_pickup);
+            .add_systems(
+                Update,
+                (
+                    player::minion_storage::minion_storage_throw,
+                    player::minion_storage::minion_storage_pickup,
+                    player::minion_storage::debug_minion_to_where_ui,
+                    player::add_player_respawn,
+                    player::process_player_respawning.after(player::add_player_respawn),
+                    top_down_camera::update,
+                ),
+            );
 
-        app.init_asset::<LevelAsset>()
-            .init_asset_loader::<LevelAssetLoader>()
-            .init_resource::<GameObjectAssets>();
-
-        app.add_systems(Startup, level::load_preview_scene);
+        /* Level and Objects */
         app.add_systems(PreUpdate, level::init_level);
-        app.add_systems(Update, top_down_camera::update);
 
         app.add_systems(
             Update,
             objects::destructible_target_test::update_destructble_target,
         );
         camera::add_systems_and_resources(app);
+        app.add_systems(
+            Update,
+            (
+                cauldron::process_cauldron_queue,
+                cauldron::queue_minion_for_cauldron,
+            ),
+        );
     }
 }
 

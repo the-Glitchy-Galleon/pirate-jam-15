@@ -2,6 +2,7 @@ use crate::{
     framework::easing::{Easing, TweenList},
     game::{
         collision_groups::{ACTOR_GROUP, GROUND_GROUP, WALL_GROUP},
+        common::{Colored, RootParent, ShowForwardGizmo},
         objects::{
             assets::GameObjectAssets,
             definitions::{ColorDef, ObjectDef},
@@ -25,9 +26,9 @@ pub const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.9;
 pub const CHARGE_DURATION_SECS: f32 = 1.5;
 pub const BEAM_DURATION_SECS: f32 = 1.0;
 
-pub struct CameraObjBuilder(pub ObjectDef);
+pub struct CameraObjBuilder<'a>(pub &'a ObjectDef);
 
-impl CameraObjBuilder {
+impl CameraObjBuilder<'_> {
     pub fn build(self, cmd: &mut Commands, assets: &GameObjectAssets) -> Entity {
         let position = self.0.position + Vec3::Y * 3.0;
         let spotlight_position = position + Vec3::new(0.0, 0.1, -0.5);
@@ -51,9 +52,7 @@ impl CameraObjBuilder {
                     .with_rotation(Quat::from_rotation_y(self.0.rotation)),
                 ..Default::default()
             },
-            Colored {
-                color: self.0.color,
-            },
+            Colored::new(self.0.color),
             CameraPhase::Pathing,
             CameraPathState::new(self.0.pos_refs.clone(), position),
             ShinedEntityList::default(),
@@ -109,24 +108,22 @@ impl CameraObjBuilder {
 #[rustfmt::skip]
 const fn spotlight_color(color: ColorDef) -> Srgba {
     match color {
-        ColorDef::Void    => tailwind::GRAY_500,
+        ColorDef::Void    => tailwind::GRAY_100,
         ColorDef::Red     => tailwind::RED_500,
         ColorDef::Green   => tailwind::GREEN_500,
         ColorDef::Blue    => tailwind::BLUE_500,
         ColorDef::Yellow  => tailwind::YELLOW_500,
         ColorDef::Magenta => tailwind::PURPLE_500,
         ColorDef::Cyan    => tailwind::CYAN_500,
-        ColorDef::White   => tailwind::GRAY_100,
+        ColorDef::White   => tailwind::GRAY_900,
     }
 }
 
 pub fn add_systems_and_resources(app: &mut App) {
     app.add_event::<SpotlightHitEvent>();
-    app.add_systems(PreUpdate, link_root_parents);
     app.add_systems(
         Update,
         (
-            show_forward_gizmo,
             update_path_state,
             draw_path_state_gizmo.after(update_path_state),
             follow_path_state.after(update_path_state),
@@ -134,37 +131,9 @@ pub fn add_systems_and_resources(app: &mut App) {
             update_shined_entities,
             update_phase.after(update_shined_entities),
             camera_charge_effect.after(update_phase),
-            process_spotlight_hit.after(update_phase),
             spotlight_hit_player.after(update_phase),
         ),
     );
-}
-
-#[derive(Component)]
-pub struct Colored {
-    color: ColorDef,
-}
-
-#[derive(Component, Reflect)]
-pub struct RootParent {
-    parent: Entity,
-}
-
-// Todo: this does not consider changes in hierarchy while the game is running
-pub fn link_root_parents(
-    mut cmd: Commands,
-    entity: Query<Entity, Without<RootParent>>,
-    hierarchy: Query<&Parent>,
-) {
-    for entity in entity.iter() {
-        let mut current_root = entity;
-        while let Ok(parent) = hierarchy.get(current_root) {
-            current_root = parent.get();
-        }
-        cmd.entity(entity).insert(RootParent {
-            parent: current_root,
-        });
-    }
 }
 
 #[derive(Component, Reflect)]
@@ -189,7 +158,7 @@ fn update_shined_entities(
     mut gizmos: Gizmos,
 ) {
     for (cone, root, tx, gx) in cone.iter() {
-        let Ok(mut state) = state.get_mut(root.parent) else {
+        let Ok(mut state) = state.get_mut(root.parent()) else {
             continue;
         };
         let origin =
@@ -256,10 +225,10 @@ fn update_phase(
                 if shined.entities.len() > 0 {
                     *phase = CameraPhase::Charging(CHARGE_DURATION_SECS);
                     for (cone, root) in cone.iter() {
-                        if root.parent == ent {
+                        if root.parent() == ent {
                             cmd.entity(cone).insert(CameraChargeEffect {
                                 timer: Timer::from_seconds(CHARGE_DURATION_SECS, TimerMode::Once),
-                                color: colored.color,
+                                color: colored.color(),
                             });
                             break;
                         }
@@ -274,7 +243,7 @@ fn update_phase(
                         hit.send(SpotlightHitEvent {
                             source: ent,
                             target: *entity,
-                            color: colored.color,
+                            color: colored.color(),
                         });
                     }
                 }
@@ -374,7 +343,7 @@ fn follow_path_state(
     mut follower: Query<(&RootParent, &mut Transform, &GlobalTransform), With<FollowPathState>>,
 ) {
     for (root, mut tx, gx) in follower.iter_mut() {
-        if let Ok(state) = state.get(root.parent) {
+        if let Ok(state) = state.get(root.parent()) {
             let offset = tx.translation - gx.translation();
             tx.translation = state.position + offset;
         }
@@ -389,7 +358,7 @@ fn look_at_path_state(
     mut looker: Query<(&RootParent, &mut Transform, &GlobalTransform), With<LookAtPathState>>,
 ) {
     for (root, mut tx, gx) in looker.iter_mut() {
-        if let Ok(state) = state.get(root.parent) {
+        if let Ok(state) = state.get(root.parent()) {
             let transform = compute_parent_transform(gx, &tx);
             let local_point = transform.transform_point(state.position);
             tx.look_at(local_point, Vec3::Y);
@@ -435,38 +404,6 @@ fn spotlight_hit_player(
         respawn.send(AddPlayerRespawnEvent {
             position: highest_respawn_pos,
         });
-    }
-}
-
-pub fn process_spotlight_hit(mut hit: EventReader<SpotlightHitEvent>, name: Query<&Name>) {
-    for hit in hit.read() {
-        let name = match name.get(hit.target) {
-            Ok(name) => name.to_string(),
-            _ => format!("{:?}", hit.target),
-        };
-        info!("Hit entity: {name}");
-    }
-}
-
-#[derive(Component)]
-pub struct ShowForwardGizmo;
-
-fn show_forward_gizmo(
-    forwarder: Query<(&Transform, &GlobalTransform), With<ShowForwardGizmo>>,
-    mut gizmos: Gizmos,
-) {
-    for (tx, gx) in forwarder.iter() {
-        let offset = tx.translation - gx.translation();
-        gizmos.arrow(
-            tx.translation + offset,
-            tx.translation + offset + *tx.forward(),
-            tailwind::BLUE_700,
-        );
-        gizmos.arrow(
-            gx.translation(),
-            gx.translation() + *gx.forward(),
-            tailwind::CYAN_500,
-        );
     }
 }
 

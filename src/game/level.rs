@@ -6,7 +6,7 @@ use crate::{
     },
     game::{
         collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
-        objects::{assets::GameObjectAssets, definitions::ObjectDefKind, util},
+        objects::{self, assets::GameObjectAssets, definitions::ObjectDefKind},
         player::AddPlayerRespawnEvent,
         LevelResources,
     },
@@ -142,7 +142,7 @@ pub fn init_level(
     });
 
     for object in &level.data().objects {
-        let _ent = util::spawn_object(&mut cmd, object, assets.as_ref());
+        let _ent = objects::spawn_object(&mut cmd, object, assets.as_ref());
     }
 
     cmd.insert_resource(AmbientLight {

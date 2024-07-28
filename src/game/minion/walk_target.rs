@@ -24,7 +24,7 @@ pub fn walk_target_update(
             .iter()
             .filter_map(|(st, pt)| match (st, pt) {
                 (MinionState::GoingTo(t), _) => Some(*t),
-                // (_, Some(pt)) if pt.0.path.len() > 0 => Some(target), // keep as long theres a path?
+                (_, Some(pt)) if pt.0.path.len() > 0 => Some(target), // keep as long theres a path?
                 _ => None,
             })
             .filter(|t| *t == target)
