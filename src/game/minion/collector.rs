@@ -28,6 +28,10 @@ impl MinionStorage {
 
         true
     }
+
+    pub fn num_minions(&self, ty: MinionKind) -> u32 {
+        self.storage.get(&ty).cloned().unwrap_or_default()
+    }
 }
 
 #[derive(Clone, Debug, Component, Default, Reflect)]

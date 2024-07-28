@@ -1,13 +1,15 @@
 use crate::game::{
-    collision_groups::{ACTOR_GROUP, GROUND_GROUP},
-    kinematic_char::KinematicCharacterBundle,
-    minion::{collector::MinionStorage, walk_target::WalkTargetBundle, MinionBundle},
-    objects::camera::Shineable,
-    player::PlayerTag,
+    minion::{
+        collector::MinionStorage,
+        minion_builder::{MinionAssets, MinionBuilder},
+        walk_target::WalkTargetBundle,
+    },
     CharacterWalkControl, MinionKind, MinionState,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+
+use super::PlayerTag;
 
 #[derive(Clone, Copy, Debug, Reflect)]
 pub enum MinionThrowTarget {
@@ -30,6 +32,7 @@ pub fn minion_storage_throw(
     mut min_inp: ResMut<MinionStorageInput>,
     mut player_q: Query<(&GlobalTransform, &mut MinionStorage)>,
     mut commands: Commands,
+    assets: Res<MinionAssets>,
 ) {
     let Ok((tf, mut mins)) = player_q.get_single_mut() else {
         return;
@@ -63,18 +66,37 @@ pub fn minion_storage_throw(
         - 2.0 * Vec3::X // TODO compute proper pos
         + 3.0 * Vec3::Y;
 
-    commands.spawn(MinionBundle {
-        spatial: SpatialBundle {
-            transform: Transform::from_translation(minion_pos),
-            ..default()
-        },
-        collider: Collider::cuboid(0.3, 0.3, 0.3),
-        collision_groups: CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP),
-        character: KinematicCharacterBundle::default(),
-        kind: min_inp.chosen_ty,
-        state: MinionState::GoingTo(target_id),
-        shineable: Shineable,
-    });
+    MinionBuilder::new(
+        min_inp.chosen_ty,
+        minion_pos,
+        MinionState::GoingTo(target_id),
+    )
+    .build(&mut commands, &assets);
+}
+
+#[derive(Component)]
+pub struct MinionToWhereDebugUi;
+
+pub fn debug_minion_to_where_ui(
+    mut cmd: Commands,
+    mut text: Query<&mut Text, With<MinionToWhereDebugUi>>,
+    input: Res<MinionStorageInput>,
+) {
+    let Some(mut text) = text.iter_mut().last() else {
+        cmd.spawn((
+            TextBundle::from_sections([TextSection::new("", TextStyle::default())]).with_style(
+                Style {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(5.0),
+                    left: Val::Px(15.0),
+                    ..default()
+                },
+            ),
+            MinionToWhereDebugUi,
+        ));
+        return;
+    };
+    text.sections[0].value = format!("{:?}", input.to_where);
 }
 
 pub fn minion_storage_pickup(

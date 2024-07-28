@@ -18,9 +18,9 @@ pub struct DestructibleTargetBundle {
     pub target_tag: MinionTarget,
 }
 
-pub struct DestructibleTargetTestBuilder(pub ObjectDef);
+pub struct DestructibleTargetTestBuilder<'a>(pub &'a ObjectDef);
 
-impl DestructibleTargetTestBuilder {
+impl DestructibleTargetTestBuilder<'_> {
     pub fn build(self, cmd: &mut Commands, _assets: &GameObjectAssets) -> Entity {
         cmd.spawn((
             DestructibleTargetBundle {

@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Sub};
 
+use crate::game::minion::MinionKind;
+
 macro_rules! object_enum { // pfft, strum..
     (
         $(#[$meta:meta])*
@@ -95,15 +97,16 @@ pub enum ColorDef {
 }
 
 impl ColorDef {
+    /// careful when using as index, because yellow < blue
     pub const VARIANTS: [ColorDef; 8] = [
-        ColorDef::Void,
-        ColorDef::Red,
-        ColorDef::Green,
-        ColorDef::Blue,
-        ColorDef::Yellow,
-        ColorDef::Magenta,
-        ColorDef::Cyan,
-        ColorDef::White,
+        /* 000 */ ColorDef::Void,
+        /* 001 */ ColorDef::Red,
+        /* 010 */ ColorDef::Green,
+        /* 100 */ ColorDef::Blue,
+        /* 011 */ ColorDef::Yellow,
+        /* 101 */ ColorDef::Magenta,
+        /* 110 */ ColorDef::Cyan,
+        /* 111 */ ColorDef::White,
     ];
     pub const COUNT: usize = Self::VARIANTS.len();
 
@@ -136,6 +139,44 @@ impl Sub<ColorDef> for ColorDef {
     type Output = ColorDef;
     fn sub(self, rhs: ColorDef) -> Self::Output {
         unsafe { core::mem::transmute(self as u8 ^ rhs as u8) }
+    }
+}
+
+impl AsRef<str> for ColorDef {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+#[rustfmt::skip]
+impl From<MinionKind> for ColorDef {
+    fn from(kind: MinionKind) -> Self {
+        match kind {
+            MinionKind::Void    => ColorDef::Void,
+            MinionKind::Red     => ColorDef::Red,
+            MinionKind::Green   => ColorDef::Green,
+            MinionKind::Blue    => ColorDef::Blue,
+            MinionKind::Yellow  => ColorDef::Yellow,
+            MinionKind::Magenta => ColorDef::Magenta,
+            MinionKind::Cyan    => ColorDef::Cyan,
+            MinionKind::White   => ColorDef::White,
+        }
+    }
+}
+
+#[rustfmt::skip]
+impl From<ColorDef> for MinionKind {
+    fn from(kind: ColorDef) -> Self {
+        match kind {
+            ColorDef::Void    => MinionKind::Void,
+            ColorDef::Red     => MinionKind::Red,
+            ColorDef::Green   => MinionKind::Green,
+            ColorDef::Blue    => MinionKind::Blue,
+            ColorDef::Yellow  => MinionKind::Yellow,
+            ColorDef::Magenta => MinionKind::Magenta,
+            ColorDef::Cyan    => MinionKind::Cyan,
+            ColorDef::White   => MinionKind::White,
+        }
     }
 }
 

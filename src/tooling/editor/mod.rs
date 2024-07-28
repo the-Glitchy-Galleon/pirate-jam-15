@@ -4,7 +4,11 @@ use crate::{
         global_ui_state::GlobalUiStatePlugin, logical_cursor::LogicalCursorPlugin,
         tilemap::SLOPE_HEIGHT,
     },
-    game::objects::assets::GameObjectAssets,
+    game::{
+        objects::{assets::GameObjectAssets, camera},
+        player::AddPlayerRespawnEvent,
+        LevelResources,
+    },
     tooling::free_camera::FreeCameraPlugin,
 };
 use bevy::prelude::*;
@@ -51,12 +55,16 @@ impl Plugin for LevelEditorPlugin {
             },
             TilemapEditorPlugin,
         ))
-        .init_resource::<GameObjectAssets>()
         .insert_resource(AmbientLight {
             color: Color::WHITE,
             brightness: 500.,
         })
+        .init_resource::<GameObjectAssets>()
+        .init_resource::<LevelResources>()
+        .add_event::<AddPlayerRespawnEvent>()
         .add_systems(Startup, setup);
+
+        camera::add_systems_and_resources(app);
     }
 }
 
