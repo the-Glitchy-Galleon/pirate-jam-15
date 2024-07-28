@@ -1,20 +1,17 @@
 use std::time::Duration;
 
 use crate::game::{
-    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
+    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, WALL_GROUP},
     kinematic_char::KinematicCharacterBundle,
     minion::collector::MinionStorage,
     objects::{camera::Shineable, definitions::ColorDef},
     player::minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
-    CharacterWalkControl, LevelResources, MinionKind, MinionTarget,
+    CharacterWalkControl, MinionKind,
 };
-use bevy::{
-    prelude::{Real, *},
-    render::camera::RenderTarget,
-    window::{PrimaryWindow, WindowRef},
-};
+use bevy::prelude::{Real, *};
 use bevy_rapier3d::prelude::*;
-use vleue_navigator::NavMesh;
+
+use super::game_cursor::GameCursor;
 
 pub mod minion_storage;
 
@@ -68,86 +65,34 @@ pub fn setup_player(mut commands: Commands) {
 }
 
 pub fn player_controls(
-    window: Query<&Window, With<PrimaryWindow>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     keyboard: Res<ButtonInput<KeyCode>>,
-    rap_ctx: ResMut<RapierContext>,
-    cam: Query<(&GlobalTransform, &Camera)>,
-    mut gizmos: Gizmos,
     mut player: Query<(&mut Transform, &mut CharacterWalkControl), With<PlayerTag>>,
     mut minion: ResMut<MinionStorageInput>,
-    minion_targets: Query<Entity, With<MinionTarget>>,
-    level_reses: Option<Res<LevelResources>>,
-    navmeshes: Res<Assets<NavMesh>>,
+
+    cursor: Res<GameCursor>,
 ) {
-    let Ok(window) = window.get_single() else {
-        return;
-    };
-    let Some(pos) = window.cursor_position() else {
-        return;
-    };
-    let Some(level_reses) = level_reses else {
-        return;
-    };
-    let Some((cam_tf, cam)) = cam
-        .iter()
-        .filter(|(_, cam)| matches!(cam.target, RenderTarget::Window(WindowRef::Primary)))
-        .next()
-    else {
-        return;
-    };
-    let Some(cursor_ray) = cam.viewport_to_world(cam_tf, pos) else {
-        return;
-    };
-    let Some(navmesh) = &level_reses.navmesh else {
-        return;
-    };
-    let Some(navmesh) = navmeshes.get(navmesh) else {
-        return;
-    };
-
-    let Some((ent_hit, ray_hit)) = rap_ctx.cast_ray_and_get_normal(
-        cursor_ray.origin,
-        cursor_ray.direction.as_vec3(),
-        bevy_rapier3d::math::Real::INFINITY,
-        true,
-        QueryFilter {
-            groups: Some(CollisionGroups::new(
-                Group::all(),
-                GROUND_GROUP | WALL_GROUP | TARGET_GROUP,
-            )),
-            ..default()
-        },
-    ) else {
-        return;
-    };
-
-    let Ok(hit_dir) = Dir3::new(ray_hit.normal) else {
-        return;
-    };
-
-    let color = if navmesh.transformed_is_in_mesh(ray_hit.point) {
-        Color::linear_rgb(0.0, 1.0, 0.0)
-    } else {
-        Color::linear_rgb(1.0, 0.0, 0.0)
-    };
-
-    gizmos.arrow(ray_hit.point + ray_hit.normal * 10.0, ray_hit.point, color);
-
-    gizmos.circle(ray_hit.point, hit_dir, 3.0, color);
-
     let Ok((player_tf, mut walk)) = player.get_single_mut() else {
         return;
     };
-    let walk_dir = (ray_hit.point - player_tf.translation).normalize_or_zero();
 
-    walk.direction = walk_dir;
+    walk.direction = match &cursor.hit {
+        Some(hit) => (hit.point - player_tf.translation).normalize_or_zero(),
+        None => {
+            // Should probably clear the direction, cursor not in window.
+            walk.direction
+        }
+    };
     walk.do_move = mouse_buttons.pressed(MouseButton::Right);
 
-    minion.to_where = MinionThrowTarget::Location(ray_hit.point);
-    if minion_targets.contains(ent_hit) {
-        minion.to_where = MinionThrowTarget::Ent(ent_hit);
-    }
+    minion.to_where = match (cursor.lock, &cursor.hit) {
+        (Some(lock), _) => MinionThrowTarget::Ent(lock),
+        (None, Some(hit)) => MinionThrowTarget::Location(hit.point),
+        _ => {
+            // Should probably clear to_where, cursor not in window.
+            minion.to_where
+        }
+    };
 
     minion.want_to_throw = mouse_buttons.just_pressed(MouseButton::Left);
     minion.do_pickup = keyboard.pressed(KeyCode::KeyQ);
@@ -175,6 +120,39 @@ pub fn player_controls(
     }
     if keyboard.just_pressed(KeyCode::Digit8) {
         minion.chosen_ty = MinionKind::White;
+    }
+}
+
+#[cfg(feature = "debug_visuals")]
+pub fn show_player_control_gizmos(
+    cursor: Res<GameCursor>,
+    mut gizmos: Gizmos,
+    navmeshes: Res<Assets<NavMesh>>,
+    level_reses: Option<Res<LevelResources>>,
+) {
+    let Some(level_reses) = level_reses else {
+        return;
+    };
+    let Some(navmesh) = &level_reses.navmesh else {
+        return;
+    };
+    let Some(navmesh) = navmeshes.get(navmesh) else {
+        return;
+    };
+    match &cursor.hit {
+        Some(hit) => {
+            let color = if navmesh.transformed_is_in_mesh(hit.point) {
+                Color::linear_rgb(0.0, 1.0, 0.0)
+            } else {
+                Color::linear_rgb(1.0, 0.0, 0.0)
+            };
+
+            gizmos.arrow(hit.point + hit.normal * 5.0, hit.point, color);
+            if let Ok(dir) = Dir3::new(hit.normal) {
+                gizmos.circle(hit.point, dir, 3.0, color);
+            }
+        }
+        _ => {}
     }
 }
 

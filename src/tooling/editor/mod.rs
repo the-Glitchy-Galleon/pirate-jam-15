@@ -5,7 +5,7 @@ use crate::{
         tilemap::SLOPE_HEIGHT,
     },
     game::{
-        objects::{assets::GameObjectAssets, camera},
+        objects::{assets::GameObjectAssets, camera::CameraObjPlugin},
         player::AddPlayerRespawnEvent,
         LevelResources,
     },
@@ -13,10 +13,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_rapier3d::{
-    plugin::{NoUserData, RapierPhysicsPlugin},
-    render::{DebugRenderStyle, RapierDebugRenderPlugin},
-};
+use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
 use tilemap_editor::TilemapEditorPlugin;
 
 pub mod object_def_builder;
@@ -38,15 +35,6 @@ impl Plugin for LevelEditorPlugin {
         app.add_plugins((
             WorldInspectorPlugin::default(),
             RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin {
-                style: DebugRenderStyle {
-                    // subdivisions: 1,
-                    // border_subdivisions: 2,
-                    collider_dynamic_color: [340.0, 1.0, 0.2, 1.0],
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
             GlobalUiStatePlugin,
             LogicalCursorPlugin,
             FreeCameraPlugin {
@@ -64,7 +52,22 @@ impl Plugin for LevelEditorPlugin {
         .add_event::<AddPlayerRespawnEvent>()
         .add_systems(Startup, setup);
 
-        camera::add_systems_and_resources(app);
+        #[cfg(feature = "debug_visuals")]
+        {
+            use bevy_rapier3d::render::{DebugRenderStyle, RapierDebugRenderPlugin};
+
+            app.add_plugins(RapierDebugRenderPlugin {
+                style: DebugRenderStyle {
+                    // subdivisions: 1,
+                    // border_subdivisions: 2,
+                    collider_dynamic_color: [340.0, 1.0, 0.2, 1.0],
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+        }
+
+        app.add_plugins(CameraObjPlugin);
     }
 }
 

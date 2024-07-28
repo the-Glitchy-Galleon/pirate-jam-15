@@ -26,6 +26,9 @@ pub fn load_preview_scene(
     }
 }
 
+#[derive(Component)]
+pub struct GroundTag;
+
 pub fn init_level(
     mut cmd: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -48,6 +51,7 @@ pub fn init_level(
 
     // Spawn ground Mesh
     cmd.spawn((
+        GroundTag,
         PbrBundle {
             mesh: ground_mesh,
             material: assets.map_ground_material.clone(),

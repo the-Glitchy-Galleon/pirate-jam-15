@@ -1,7 +1,7 @@
 use crate::{
     framework::{
         global_ui_state::GlobalUiState,
-        logical_cursor::LogicalCursorPosition,
+        logical_cursor::LogicalCursor,
         tilemap::{Tilemap, SLOPE_HEIGHT, WALL_HEIGHT},
         tileset::{Tileset, TILESET_TILE_NUM},
         Pnormal3,
@@ -448,7 +448,7 @@ fn _draw_vert_gizmos(
 fn update_hovered_states(
     camera: Query<(&Camera, &GlobalTransform)>,
     rapier: Res<RapierContext>,
-    cursor: Res<LogicalCursorPosition>,
+    cursor: Res<LogicalCursor>,
     ground: Query<&Transform, With<TilemapGroundMesh>>,
     mut state: ResMut<EditorState>,
 ) {
@@ -458,7 +458,7 @@ fn update_hovered_states(
     state.hovered_wall_normal = None;
 
     let offset = ground.single().translation;
-    let Some(cursor_position) = cursor.0 else {
+    let Some(cursor_position) = cursor.position else {
         return;
     };
 

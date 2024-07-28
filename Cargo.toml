@@ -3,6 +3,13 @@ name = "pirate-jam-15"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+debug_visuals = [] # Toggle for rapier debug and gizmos
+
+default = [
+    # "debug_visuals", # Toggle for rapier debug render plugin
+]
+
 [dependencies]
 cfg-if = "^1"
 anyhow = "^1"

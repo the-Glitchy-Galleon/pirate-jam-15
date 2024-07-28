@@ -113,6 +113,7 @@ impl Default for MinionBundle {
 pub struct MinionPath(TransformedPath);
 
 // TODO: render it more aligned to the level
+#[cfg(feature = "debug_visuals")]
 pub fn debug_navmesh(
     level_reses: Res<LevelResources>,
     navmeshes: Res<Assets<NavMesh>>,
