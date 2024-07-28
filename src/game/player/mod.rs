@@ -11,7 +11,7 @@ use crate::game::{
 use bevy::prelude::{Real, *};
 use bevy_rapier3d::prelude::*;
 
-use super::game_cursor::GameCursor;
+use super::{collision_groups::TARGET_GROUP, game_cursor::GameCursor};
 
 pub mod minion_storage;
 
@@ -34,7 +34,7 @@ pub fn setup_player(mut commands: Commands) {
             PlayerTag,
             minion_st,
             Collider::round_cylinder(0.9, 0.3, 0.2),
-            CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP | WALL_GROUP),
+            CollisionGroups::new(ACTOR_GROUP | TARGET_GROUP, GROUND_GROUP | WALL_GROUP),
             SpatialBundle {
                 transform: Transform::from_xyz(0.0, 5.0, 0.0),
                 visibility: Visibility::Hidden,

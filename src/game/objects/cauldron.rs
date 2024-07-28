@@ -31,7 +31,7 @@ impl CauldronBuilder<'_> {
             CauldronQueue::default(),
             Colored::new(self.0.color),
             Collider::cylinder(1.0, 1.5),
-            CollisionGroups::new(TARGET_GROUP, GROUND_GROUP | ACTOR_GROUP),
+            CollisionGroups::new(TARGET_GROUP | GROUND_GROUP, GROUND_GROUP | ACTOR_GROUP),
         );
         let base = (
             SpatialBundle::default(),

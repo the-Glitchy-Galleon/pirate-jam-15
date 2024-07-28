@@ -1,15 +1,30 @@
-use crate::game::minion::{MinionPath, MinionState, MinionTarget};
+use crate::game::{collision_groups::TARGET_GROUP, minion::{MinionPath, MinionState, MinionTarget}};
 use bevy::prelude::*;
+use bevy_rapier3d::prelude::*;
 
-#[derive(Component, Default, Debug, Reflect)]
+#[derive(Component, Debug, Reflect, Default)]
 #[reflect(Component)]
 pub struct WalkTargetTag;
 
-#[derive(Bundle, Default)]
+#[derive(Bundle, Debug)]
 pub struct WalkTargetBundle {
     pub spatial: SpatialBundle,
     pub target_tag: MinionTarget,
     pub walk_tag: WalkTargetTag,
+    pub walk_collider: Collider,
+    pub group: CollisionGroups,
+}
+
+impl Default for WalkTargetBundle {
+    fn default() -> Self {
+        Self {
+            spatial: Default::default(),
+            target_tag: Default::default(),
+            walk_tag: Default::default(),
+            walk_collider: Collider::cuboid(2.0, 10.0, 2.0),
+            group: CollisionGroups { memberships: TARGET_GROUP, filters: TARGET_GROUP },
+        }
+    }
 }
 
 /// Unlike other potential targets -- the walk target is purely temporary

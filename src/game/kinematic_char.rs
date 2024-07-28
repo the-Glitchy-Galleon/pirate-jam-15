@@ -60,7 +60,7 @@ impl Default for KinematicCharacterBundle {
                 snap_to_ground: None,
                 filter_groups: Some(CollisionGroups::new(
                     ACTOR_GROUP,
-                    GROUND_GROUP | WALL_GROUP | TARGET_GROUP,
+                    GROUND_GROUP | WALL_GROUP,
                 )),
                 ..default()
             },
