@@ -1,6 +1,7 @@
 use crate::game::{
     collision_groups::TARGET_GROUP,
     minion::{MinionPath, MinionState, MinionTarget},
+    objects::assets::GameObjectAssets,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
@@ -9,27 +10,43 @@ use bevy_rapier3d::prelude::*;
 #[reflect(Component)]
 pub struct WalkTargetTag;
 
-#[derive(Bundle, Debug)]
-pub struct WalkTargetBundle {
-    pub spatial: SpatialBundle,
-    pub target_tag: MinionTarget,
-    pub walk_tag: WalkTargetTag,
-    pub walk_collider: Collider,
-    pub group: CollisionGroups,
+pub struct WalkTargetBuilder {
+    position: Vec3,
 }
-
-impl Default for WalkTargetBundle {
-    fn default() -> Self {
-        Self {
-            spatial: Default::default(),
-            target_tag: Default::default(),
-            walk_tag: Default::default(),
-            walk_collider: Collider::cuboid(2.0, 10.0, 2.0),
-            group: CollisionGroups {
+impl WalkTargetBuilder {
+    pub fn new(position: Vec3) -> Self {
+        Self { position }
+    }
+    pub fn build(self, cmd: &mut Commands, assets: &GameObjectAssets) -> Entity {
+        let root = (
+            SpatialBundle {
+                transform: Transform::from_translation(self.position),
+                ..Default::default()
+            },
+            MinionTarget,
+            WalkTargetTag,
+            Collider::cuboid(2.0, 10.0, 2.0),
+            CollisionGroups {
                 memberships: TARGET_GROUP,
                 filters: TARGET_GROUP,
             },
-        }
+        );
+        let flag_base = PbrBundle {
+            mesh: assets.flag_meshes[0].clone(),
+            material: assets.flag_materials[0].clone(),
+            ..Default::default()
+        };
+        let flag = PbrBundle {
+            mesh: assets.flag_meshes[1].clone(),
+            material: assets.flag_materials[1].clone(),
+            ..Default::default()
+        };
+        cmd.spawn(root)
+            .with_children(|cmd| {
+                cmd.spawn(flag_base);
+                cmd.spawn(flag);
+            })
+            .id()
     }
 }
 

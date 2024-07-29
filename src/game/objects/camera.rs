@@ -22,7 +22,7 @@ use util::is_within_cone_shape;
 pub const SPOTLIGHT_ANGLE: f32 = 0.4;
 pub const SPOTLIGHT_ANGLE_RANGE: RangeInclusive<f32> = 0.3..=0.6; // range that kinda works out for the angle
 pub const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.9;
-
+pub const MAX_SHINE_DISTANCE: f32 = 10.0;
 pub const CHARGE_DURATION_SECS: f32 = 1.5;
 pub const BEAM_DURATION_SECS: f32 = 1.0;
 
@@ -159,7 +159,6 @@ fn update_shined_entities(
     // mut reader: EventReader<CollisionEvent>,
     cone: Query<(&ShineCone, &RootParent, &Transform, &GlobalTransform), Without<Shineable>>,
     shineable: Query<(Entity, &GlobalTransform), With<Shineable>>,
-    mut gizmos: Gizmos,
 ) {
     for (cone, root, tx, gx) in cone.iter() {
         let Ok(mut state) = state.get_mut(root.parent()) else {
@@ -172,7 +171,6 @@ fn update_shined_entities(
         for (shineable, sgx) in shineable.iter() {
             let destination = sgx.translation();
             let direction = (destination - origin).normalize();
-            let distance = origin.distance(destination);
 
             if !is_within_cone_shape(direction, *gx.forward(), cone.half_angle) {
                 continue;
@@ -181,7 +179,7 @@ fn update_shined_entities(
             let raycast = rapier.cast_ray(
                 origin.into(),
                 direction.into(),
-                bevy_rapier3d::math::Real::INFINITY,
+                MAX_SHINE_DISTANCE,
                 true,
                 QueryFilter {
                     groups: Some(CollisionGroups::new(
@@ -197,11 +195,6 @@ fn update_shined_entities(
                 _ => false,
             };
 
-            let color = match hit {
-                true => tailwind::ORANGE_100,
-                false => tailwind::ORANGE_900,
-            };
-            gizmos.ray(origin.into(), direction * distance, color);
             if hit {
                 state.entities.push(shineable);
             }

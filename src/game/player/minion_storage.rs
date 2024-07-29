@@ -2,8 +2,9 @@ use crate::game::{
     minion::{
         collector::MinionStorage,
         minion_builder::{MinionAssets, MinionBuilder},
-        walk_target::WalkTargetBundle,
+        walk_target::WalkTargetBuilder,
     },
+    objects::assets::GameObjectAssets,
     CharacterWalkControl, MinionKind, MinionState,
 };
 use bevy::prelude::*;
@@ -32,7 +33,8 @@ pub fn minion_storage_throw(
     mut min_inp: ResMut<MinionStorageInput>,
     mut player_q: Query<(&GlobalTransform, &mut MinionStorage)>,
     mut commands: Commands,
-    assets: Res<MinionAssets>,
+    minion_assets: Res<MinionAssets>,
+    object_assets: Res<GameObjectAssets>,
 ) {
     let Ok((tf, mut mins)) = player_q.get_single_mut() else {
         return;
@@ -51,15 +53,9 @@ pub fn minion_storage_throw(
 
     let target_id = match min_inp.to_where {
         MinionThrowTarget::Ent(e) => e,
-        MinionThrowTarget::Location(pos) => commands
-            .spawn(WalkTargetBundle {
-                spatial: SpatialBundle {
-                    transform: Transform::from_translation(pos),
-                    ..default()
-                },
-                ..default()
-            })
-            .id(),
+        MinionThrowTarget::Location(pos) => {
+            WalkTargetBuilder::new(pos).build(&mut commands, &object_assets)
+        }
     };
 
     let minion_pos = tf.translation()
@@ -71,7 +67,7 @@ pub fn minion_storage_throw(
         minion_pos,
         MinionState::GoingTo(target_id),
     )
-    .build(&mut commands, &assets);
+    .build(&mut commands, &minion_assets);
 }
 
 #[derive(Component)]
