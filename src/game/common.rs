@@ -1,5 +1,7 @@
-use crate::game::objects::definitions::ColorDef;
 use bevy::prelude::*;
+
+#[cfg(feature = "debug_visuals")]
+use bevy::color::palettes::tailwind;
 
 #[derive(Component)]
 pub struct PrimaryCamera; // make sure there's only one in the scene
@@ -51,19 +53,5 @@ pub fn link_root_parents(
         cmd.entity(entity).insert(RootParent {
             parent: current_root,
         });
-    }
-}
-
-#[derive(Component)]
-pub struct Colored {
-    color: ColorDef,
-}
-
-impl Colored {
-    pub fn new(color: ColorDef) -> Self {
-        Self { color }
-    }
-    pub fn color(&self) -> ColorDef {
-        self.color
     }
 }

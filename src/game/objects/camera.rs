@@ -2,7 +2,7 @@ use crate::{
     framework::easing::{Easing, TweenList},
     game::{
         collision_groups::{ACTOR_GROUP, GROUND_GROUP, WALL_GROUP},
-        common::{Colored, RootParent, ShowForwardGizmo},
+        common::{RootParent, ShowForwardGizmo},
         objects::{
             assets::GameObjectAssets,
             definitions::{ColorDef, ObjectDef},
@@ -73,7 +73,7 @@ impl CameraObjBuilder<'_> {
                     .with_rotation(Quat::from_rotation_y(self.0.rotation)),
                 ..Default::default()
             },
-            Colored::new(self.0.color),
+            self.0.color,
             CameraPhase::Pathing,
             CameraPathState::new(self.0.pos_refs.clone(), position),
             ShinedEntityList::default(),
@@ -211,12 +211,12 @@ enum CameraPhase {
 
 fn update_phase(
     mut cmd: Commands,
-    mut phase: Query<(Entity, &mut CameraPhase, &ShinedEntityList, &Colored)>,
+    mut phase: Query<(Entity, &mut CameraPhase, &ShinedEntityList, &ColorDef)>,
     cone: Query<(Entity, &RootParent), With<ShineCone>>,
     time: Res<Time<Real>>,
     mut hit: EventWriter<SpotlightHitEvent>,
 ) {
-    for (ent, mut phase, shined, colored) in phase.iter_mut() {
+    for (ent, mut phase, shined, color) in phase.iter_mut() {
         match phase.as_mut() {
             CameraPhase::Pathing => {
                 if shined.entities.len() > 0 {
@@ -225,7 +225,7 @@ fn update_phase(
                         if root.parent() == ent {
                             cmd.entity(cone).insert(CameraChargeEffect {
                                 timer: Timer::from_seconds(CHARGE_DURATION_SECS, TimerMode::Once),
-                                color: colored.color(),
+                                color: *color,
                             });
                             break;
                         }
@@ -240,7 +240,7 @@ fn update_phase(
                         hit.send(SpotlightHitEvent {
                             source: ent,
                             target: *entity,
-                            color: colored.color(),
+                            color: *color,
                         });
                     }
                 }

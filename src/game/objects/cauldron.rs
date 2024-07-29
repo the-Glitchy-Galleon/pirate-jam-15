@@ -1,6 +1,5 @@
 use crate::game::{
     collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP},
-    common::Colored,
     minion::{
         minion_builder::{MinionAssets, MinionBuilder},
         MinionKind, MinionPath, MinionStartedInteraction, MinionState, MinionTarget,
@@ -29,7 +28,7 @@ impl CauldronBuilder<'_> {
             MinionTarget,
             CauldronTag,
             CauldronQueue::default(),
-            Colored::new(self.0.color),
+            self.0.color,
             Collider::cylinder(1.0, 1.5),
             CollisionGroups::new(TARGET_GROUP | GROUND_GROUP, GROUND_GROUP | ACTOR_GROUP),
         );
@@ -89,17 +88,24 @@ impl Default for CauldronQueueState {
 pub struct CauldronTag;
 
 pub fn queue_minion_for_cauldron(
-    mut cauldron: Query<(Entity, &mut CauldronQueue), With<CauldronTag>>,
+    mut cauldron: Query<(Entity, &mut CauldronQueue, &ColorDef), With<CauldronTag>>,
     mut started: EventReader<MinionStartedInteraction>,
+    mut minion: Query<(&MinionKind, &mut MinionState)>,
 ) {
     for started in started.read() {
-        for (cauldron, mut queue) in cauldron.iter_mut() {
+        for (cauldron, mut queue, cauldron_color) in cauldron.iter_mut() {
             if started.target != cauldron {
                 continue;
             }
             if !queue.minions.contains(&started.source) {
-                info!("Queued a minion for cauldron");
-                queue.minions.push_back(started.source);
+                let Ok((minion_kind, mut minion_state)) = minion.get_mut(started.source) else {
+                    continue;
+                };
+                if ColorDef::from(*minion_kind).contains(*cauldron_color) {
+                    *minion_state = MinionState::GoingToPlayer;
+                } else {
+                    queue.minions.push_back(started.source);
+                }
             }
         }
     }
@@ -107,7 +113,7 @@ pub fn queue_minion_for_cauldron(
 
 pub fn process_cauldron_queue(
     mut cmd: Commands,
-    mut cauldron: Query<(Entity, &mut CauldronQueue, &Colored, &GlobalTransform)>,
+    mut cauldron: Query<(Entity, &mut CauldronQueue, &ColorDef, &GlobalTransform)>,
     mut minion: Query<(
         Entity,
         &mut Transform,
@@ -118,7 +124,7 @@ pub fn process_cauldron_queue(
     assets: Res<MinionAssets>,
     time: Res<Time<Real>>,
 ) {
-    for (cauldron, mut queue, colored, gx) in cauldron.iter_mut() {
+    for (cauldron, mut queue, color, gx) in cauldron.iter_mut() {
         match &mut queue.state {
             CauldronQueueState::Cooldown(timer) => {
                 timer.tick(time.delta());
@@ -169,7 +175,7 @@ pub fn process_cauldron_queue(
                 mtx.rotation = Quat::from_axis_angle(Vec3::X, timer.fraction() * TAU * 2.0);
 
                 if timer.finished() {
-                    let new_color = ColorDef::from(*kind) + colored.color();
+                    let new_color = ColorDef::from(*kind) + *color;
                     cmd.entity(minion).despawn_recursive();
 
                     let minion = MinionBuilder::new(

@@ -1,7 +1,6 @@
-use std::time::Duration;
-
 use crate::game::{
-    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, WALL_GROUP},
+    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
+    game_cursor::GameCursor,
     kinematic_char::KinematicCharacterBundle,
     minion::collector::MinionStorage,
     objects::{camera::Shineable, definitions::ColorDef},
@@ -10,8 +9,10 @@ use crate::game::{
 };
 use bevy::prelude::{Real, *};
 use bevy_rapier3d::prelude::*;
+use std::time::Duration;
 
-use super::{collision_groups::TARGET_GROUP, game_cursor::GameCursor};
+#[cfg(feature = "debug_visuals")]
+use {crate::game::LevelResources, vleue_navigator::NavMesh};
 
 pub mod minion_storage;
 
