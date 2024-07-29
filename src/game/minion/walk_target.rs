@@ -25,7 +25,7 @@ impl WalkTargetBuilder {
             },
             MinionTarget,
             WalkTargetTag,
-            Collider::cuboid(2.0, 10.0, 2.0),
+            Collider::cuboid(1.0, 2.0, 1.0),
             CollisionGroups {
                 memberships: TARGET_GROUP,
                 filters: TARGET_GROUP,

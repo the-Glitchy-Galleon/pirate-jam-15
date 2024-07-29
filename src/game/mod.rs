@@ -96,7 +96,15 @@ impl Plugin for GamePlugin {
 
         /* Common systems */
         app.add_systems(PreUpdate, common::link_root_parents);
-        app.add_systems(FixedUpdate, kinematic_char::update_kinematic_character);
+
+        app.add_systems(
+            FixedUpdate,
+            (
+                minion::minion_walk,
+                minion::update_animation.after(minion::minion_walk),
+                kinematic_char::update_kinematic_character.after(minion::update_animation),
+            ),
+        );
 
         /* Minion systems */
         app.add_systems(Update, minion::cleanup_minion_state)
@@ -115,11 +123,7 @@ impl Plugin for GamePlugin {
             )
             .add_systems(
                 Update,
-                minion::minion_walk.run_if(resource_exists::<LevelResources>),
-            )
-            .add_systems(
-                Update,
-                minion::walk_target::walk_target_update.after(minion::update_minion_state),
+                (minion::walk_target::walk_target_update.after(minion::update_minion_state),),
             )
             .add_systems(
                 Update,

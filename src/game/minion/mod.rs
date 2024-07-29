@@ -1,16 +1,22 @@
-use crate::game::{
-    collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
-    kinematic_char::KinematicCharacterBundle,
-    minion::collector::MinionStorage,
-    objects::camera::Shineable,
-    player::{minion_storage::MinionStorageInput, PlayerTag},
-    CharacterWalkControl, LevelResources,
+use crate::{
+    framework::easing::Easing,
+    game::{
+        collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
+        common::RootParent,
+        kinematic_char::KinematicCharacterBundle,
+        minion::collector::MinionStorage,
+        objects::camera::Shineable,
+        player::{minion_storage::MinionStorageInput, PlayerTag},
+        CharacterWalkControl, LevelResources,
+    },
 };
-use bevy::{color::palettes::tailwind, prelude::*};
+use bevy::{color::palettes::tailwind, prelude::*, time::Real};
 use bevy_rapier3d::{
     plugin::RapierContext,
     prelude::{Collider, CollisionGroups, Group, QueryFilter},
 };
+use minion_builder::MinionMeshTag;
+use std::f32::consts::{PI, TAU};
 use vleue_navigator::{NavMesh, TransformedPath};
 
 pub mod collector;
@@ -34,16 +40,15 @@ pub enum MinionKind {
 }
 
 impl MinionKind {
-    /// careful using this as index, because yellow < blue
     pub const VARIANTS: [MinionKind; 8] = [
-        /* 000 */ MinionKind::Void,
-        /* 001 */ MinionKind::Red,
-        /* 010 */ MinionKind::Green,
-        /* 100 */ MinionKind::Blue,
-        /* 011 */ MinionKind::Yellow,
-        /* 101 */ MinionKind::Magenta,
-        /* 110 */ MinionKind::Cyan,
-        /* 111 */ MinionKind::White,
+        MinionKind::Void,
+        MinionKind::Red,
+        MinionKind::Green,
+        MinionKind::Blue,
+        MinionKind::Yellow,
+        MinionKind::Magenta,
+        MinionKind::Cyan,
+        MinionKind::White,
     ];
     pub const COUNT: usize = Self::VARIANTS.len();
 
@@ -421,5 +426,46 @@ pub fn update_chosen_minion_ui(
                 tailwind::AMBER_700.into()
             }
         };
+    }
+}
+
+#[derive(Component, Default)]
+pub struct MinionAnimation {
+    walk_speed: f32, // 0.0..=1.0
+    hop_t: f32,      // 0.0..=1.0
+}
+
+pub fn update_animation(
+    mut walk: Query<(&CharacterWalkControl, &mut MinionAnimation)>,
+    mut mesh: Query<(&RootParent, &mut Transform), With<MinionMeshTag>>,
+    time: Res<Time<Real>>,
+) {
+    for (root, mut tx) in mesh.iter_mut() {
+        if let Ok((walk, mut anim)) = walk.get_mut(root.parent()) {
+            anim.walk_speed = {
+                let target = if walk.do_move { 1.0 } else { 0.0 };
+                let distance = (target - anim.walk_speed).abs();
+                let step = time.delta_seconds() * 3.0;
+                if step >= distance {
+                    target
+                } else {
+                    let direction = (target - anim.walk_speed).signum();
+                    anim.walk_speed + step * direction
+                }
+            };
+            anim.hop_t = (anim.hop_t + time.delta_seconds()) % 1.0;
+            let x = anim.walk_speed
+                * 0.1
+                * (Easing::InOutPowf(3.0).apply(anim.hop_t as f64) as f32 * TAU).sin() as f32;
+            let z = anim.walk_speed
+                * 0.2
+                * (Easing::InOutPowf(2.0).apply(anim.hop_t as f64) as f32 * TAU).cos() as f32;
+            let offset = walk.direction;
+            let y = f32::atan2(offset.x, offset.z) - PI;
+            tx.rotation = Quat::from_euler(EulerRot::XYZ, x, y, z);
+
+            let y = anim.hop_t * anim.walk_speed;
+            tx.translation.y = -minion_builder::COLLIDER_HALF_HEIGHT + y * 0.5;
+        }
     }
 }

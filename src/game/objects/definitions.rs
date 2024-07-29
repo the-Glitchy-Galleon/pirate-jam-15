@@ -82,7 +82,7 @@ object_enum! {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Serialize, Deserialize, Component)]
 #[repr(u8)]
 #[rustfmt::skip]
 pub enum ColorDef {
