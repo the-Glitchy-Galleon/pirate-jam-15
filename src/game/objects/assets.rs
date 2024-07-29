@@ -26,6 +26,9 @@ pub struct GameObjectAssets {
     pub map_ground_material: Handle<StandardMaterial>,
     pub map_wall_material: Handle<StandardMaterial>,
 
+    pub flag_meshes: [Handle<Mesh>; 2],
+    pub flag_materials: [Handle<StandardMaterial>; 2],
+
     pub dummy_cube_mesh: Handle<Mesh>,
     dummy_cube_materials: [Handle<StandardMaterial>; ColorDef::COUNT],
 }
@@ -98,6 +101,23 @@ impl FromWorld for GameObjectAssets {
                 ..default()
             })
         };
+        let flag_meshes = {
+            let ass = world.resource::<AssetServer>();
+            [
+                ass.load("objects.glb#Mesh3/Primitive0"),
+                ass.load("objects.glb#Mesh3/Primitive1"),
+            ]
+        };
+        let flag_materials = {
+            let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
+            [
+                cauldron_material.clone(),
+                materials.add(StandardMaterial {
+                    base_color: cauldron::fluid_base_color(ColorDef::Red).into(),
+                    ..Default::default()
+                }),
+            ]
+        };
 
         let dummy_cube_mesh = {
             let mut meshes = world.resource_mut::<Assets<Mesh>>();
@@ -161,6 +181,8 @@ impl FromWorld for GameObjectAssets {
             camera_wall_mount,
             camera_rotating_mesh,
             camera_material,
+            flag_meshes,
+            flag_materials,
             map_base_texture,
             map_norm_texture,
             map_ground_material,

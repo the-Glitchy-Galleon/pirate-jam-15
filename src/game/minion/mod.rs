@@ -285,19 +285,19 @@ pub fn minion_walk(
 pub fn update_minion_state(
     mut minion_q: Query<(Entity, &GlobalTransform, &mut MinionState)>,
     target_q: Query<&GlobalTransform, With<MinionTarget>>,
-    player_q: Query<&GlobalTransform, With<PlayerTag>>,
+    player_q: Query<(Entity, &GlobalTransform), With<PlayerTag>>,
     rap_ctx: ResMut<RapierContext>,
     mut started: EventWriter<MinionStartedInteraction>,
 ) {
-    let Ok(player_tf) = player_q.get_single() else {
+    let Ok((player_ent, player_tf)) = player_q.get_single() else {
         return;
     };
 
     for (minion, tf, mut state) in minion_q.iter_mut() {
-        let target_pos = match state.as_ref() {
-            MinionState::GoingToPlayer => player_tf.translation(),
+        let (target_pos, target_ent) = match state.as_ref() {
+            MinionState::GoingToPlayer => (player_tf.translation(), player_ent),
             MinionState::GoingTo(target) => match target_q.get(*target) {
-                Ok(tf) => tf.translation(),
+                Ok(tf) => (tf.translation(), *target),
                 Err(e) => {
                     warn!("Failed to get target pos: {e}");
                     continue;
@@ -320,7 +320,8 @@ pub fn update_minion_state(
                     ..Default::default()
                 },
             )
-            .is_some();
+            .map(|(e, _)| e == target_ent)
+            .unwrap_or_default();
 
         match *state {
             MinionState::GoingToPlayer if is_target_reachable => *state = MinionState::Idling,

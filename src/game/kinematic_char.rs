@@ -2,7 +2,7 @@
 //! provided by `bevy_rapier3d`.
 //! The API supports jumping.
 
-use crate::game::collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP};
+use crate::game::collision_groups::{ACTOR_GROUP, GROUND_GROUP, WALL_GROUP};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
@@ -58,10 +58,7 @@ impl Default for KinematicCharacterBundle {
                 min_slope_slide_angle: 30.0_f32.to_radians(),
                 apply_impulse_to_dynamic_bodies: true,
                 snap_to_ground: None,
-                filter_groups: Some(CollisionGroups::new(
-                    ACTOR_GROUP,
-                    GROUND_GROUP | WALL_GROUP | TARGET_GROUP,
-                )),
+                filter_groups: Some(CollisionGroups::new(ACTOR_GROUP, GROUND_GROUP | WALL_GROUP)),
                 ..default()
             },
             rigid_body: RigidBody::KinematicPositionBased,

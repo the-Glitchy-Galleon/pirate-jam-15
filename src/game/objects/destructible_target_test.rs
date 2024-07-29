@@ -34,7 +34,7 @@ impl DestructibleTargetTestBuilder<'_> {
             },
             TransformBundle::from(Transform::from_translation(self.0.position)),
             Collider::cuboid(1.0, 1.0, 1.0),
-            CollisionGroups::new(TARGET_GROUP, GROUND_GROUP | ACTOR_GROUP),
+            CollisionGroups::new(TARGET_GROUP | GROUND_GROUP, GROUND_GROUP | ACTOR_GROUP),
         ))
         .id()
     }
