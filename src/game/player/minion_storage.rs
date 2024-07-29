@@ -1,4 +1,5 @@
 use crate::game::{
+    game_cursor::GameCursor,
     minion::{
         collector::MinionStorage,
         minion_builder::{MinionAssets, MinionBuilder},
@@ -35,6 +36,7 @@ pub fn minion_storage_throw(
     mut commands: Commands,
     minion_assets: Res<MinionAssets>,
     object_assets: Res<GameObjectAssets>,
+    cursor: Res<GameCursor>,
 ) {
     let Ok((tf, mut mins)) = player_q.get_single_mut() else {
         return;
@@ -58,9 +60,13 @@ pub fn minion_storage_throw(
         }
     };
 
-    let minion_pos = tf.translation()
-        - 2.0 * Vec3::X // TODO compute proper pos
-        + 3.0 * Vec3::Y;
+    let player_position = tf.translation();
+    let minion_pos = match &cursor.hit {
+        Some(hit) => {
+            player_position + (hit.point - player_position).normalize() * 0.5 + Vec3::Y * 0.5
+        }
+        None => player_position + tf.forward() * 0.5 + Vec3::Y * 0.5,
+    };
 
     MinionBuilder::new(
         min_inp.chosen_ty,
