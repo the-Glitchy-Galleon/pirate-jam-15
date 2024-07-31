@@ -212,10 +212,18 @@ pub fn update_animation(
     let hover = 0.5 + 0.5 * (time.elapsed_seconds() * 2.0 % TAU).sin();
     let y = -COLLIDER_HALF_HEIGHT + hover * 0.3 - 0.2;
     let translation = translation + Vec3::Y * y;
-    mesh.translation = Vec3::lerp(mesh.translation, translation, time.delta_seconds() * 15.0);
+    mesh.translation = Vec3::lerp(
+        mesh.translation,
+        translation,
+        f32::clamp(time.delta_seconds() * 5.0, 0.0, 0.5),
+    );
 
     let lean = Quat::from_axis_angle(Vec3::NEG_X, anim.walk_speed * TAU * 0.05);
     let rotation = rotation * lean;
 
-    mesh.rotation = Quat::slerp(mesh.rotation, rotation, time.delta_seconds() * PI * 1.2);
+    mesh.rotation = Quat::slerp(
+        mesh.rotation,
+        rotation,
+        f32::clamp(time.delta_seconds() * PI * 1.2, 0.0, 0.5),
+    );
 }

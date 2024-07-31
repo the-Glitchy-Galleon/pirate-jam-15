@@ -1,6 +1,7 @@
 use crate::game::{
     game_cursor::GameCursor,
     player::minion_storage::{MinionStorageInput, MinionThrowTarget},
+    top_down_camera::TopDownCamera,
     CharacterWalkControl, MinionKind,
 };
 use bevy::prelude::{Real, *};
@@ -28,7 +29,7 @@ pub fn player_controls(
     mut player: Query<(&mut Transform, &mut CharacterWalkControl), With<PlayerTag>>,
     mut minion: ResMut<MinionStorageInput>,
     cursor: Res<GameCursor>,
-    // mut camera: Query<&mut TopDownCamera>,
+    mut camera: Query<&mut TopDownCamera>,
 ) {
     let Ok((player_tf, mut walk)) = player.get_single_mut() else {
         return;
@@ -43,16 +44,16 @@ pub fn player_controls(
     };
     walk.do_move = mouse_buttons.pressed(MouseButton::Right);
 
-    // if keyboard.just_pressed(KeyCode::Space) {
-    //     let mut camera = camera.single_mut();
+    if keyboard.just_pressed(KeyCode::Space) {
+        let mut camera = camera.single_mut();
 
-    //     if let Some(hit) = &cursor.hit {
-    //         let direction = (hit.point - player_tf.translation).normalize();
-    //         camera.set_target_angle_from_direction(direction);
-    //     } else {
-    //         camera.set_target_angle_from_direction(*player_tf.forward());
-    //     }
-    // }
+        if let Some(hit) = &cursor.hit {
+            let direction = (hit.point - player_tf.translation).normalize();
+            camera.set_target_angle_from_direction(direction);
+        } else {
+            camera.set_target_angle_from_direction(*player_tf.forward());
+        }
+    }
 
     minion.to_where = match (cursor.lock, &cursor.hit) {
         (Some(lock), _) => MinionThrowTarget::Ent(lock),
@@ -162,8 +163,8 @@ pub fn add_player_respawn(
     cmd.entity(player).insert((
         PlayerRespawning::new(
             gx.translation(),
-            // idk why he still gets stuck in the floor
-            respawn.position + Vec3::Y * (COLLIDER_HALF_HEIGHT + 3.0),
+            // idk why he still gets stuck in the floor when collider height is added
+            respawn.position + Vec3::Y * (COLLIDER_HALF_HEIGHT + 1.5),
         ),
         ColliderDisabled,
     ));

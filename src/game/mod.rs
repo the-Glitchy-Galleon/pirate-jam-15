@@ -7,7 +7,6 @@ use crate::{
         logical_cursor::LogicalCursorPlugin,
     },
     game::{
-        common::PrimaryCamera,
         game_cursor::GameCursorPlugin,
         kinematic_char::{CharacterWalkControl, CharacterWalkState},
         minion::{
@@ -18,14 +17,15 @@ use crate::{
         objects::{assets::GameObjectAssets, camera::CameraObjPlugin, cauldron},
         player::{
             minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
-            AddPlayerRespawnEvent, PlayerTag,
+            player_builder,
+            player_builder::PlayerAssets,
+            AddPlayerRespawnEvent,
         },
-        top_down_camera::TopDownCameraControls,
+        top_down_camera::{TopDownCameraBuilder, TopDownCameraPlugin},
     },
 };
 use bevy::{prelude::*, window::CursorGrabMode};
 use bevy_rapier3d::prelude::*;
-use player::player_builder::{self, PlayerAssets};
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
 pub mod collision_groups;
@@ -52,11 +52,12 @@ impl Plugin for GamePlugin {
             RapierPhysicsPlugin::<NoUserData>::default(),
             AudioPlugin,
             VleueNavigatorPlugin,
-            GlobalUiStatePlugin,
             LogicalCursorPlugin {
                 target_grab_mode: Some((CursorGrabMode::Confined, false)),
             },
+            GlobalUiStatePlugin,
             GameCursorPlugin,
+            TopDownCameraPlugin,
         ));
 
         #[cfg(feature = "debug_visuals")]
@@ -109,6 +110,7 @@ impl Plugin for GamePlugin {
             FixedUpdate,
             (
                 minion::minion_walk,
+                // sneak in before the kinematic char, because the walk information gets erased
                 minion::update_animation.after(minion::minion_walk),
                 player_builder::update_animation.after(minion::update_animation),
                 kinematic_char::update_kinematic_character.after(player_builder::update_animation),
@@ -159,10 +161,8 @@ impl Plugin for GamePlugin {
                 player::minion_storage::minion_storage_pickup,
                 player::add_player_respawn,
                 player::process_player_respawning.after(player::add_player_respawn),
-                top_down_camera::update,
             ),
         );
-
         #[cfg(feature = "debug_visuals")]
         app.add_systems(Update, player::minion_storage::debug_minion_to_where_ui);
 
@@ -197,18 +197,6 @@ impl Plugin for GamePlugin {
     }
 }
 
-pub fn spawn_gameplay_camera(mut commands: Commands, player: Query<Entity, With<PlayerTag>>) {
-    let player = player.single();
-    commands.spawn((
-        PrimaryCamera,
-        TopDownCameraControls {
-            target: Some(player),
-            offset: Vec3::new(0.0, 10.0, 10.0),
-        },
-        Camera3dBundle {
-            transform: Transform::from_xyz(-30.0, 30.0, 30.0)
-                .looking_at(Vec3::new(10.0, 0.0, 7.0), Vec3::Y),
-            ..Default::default()
-        },
-    ));
+pub fn spawn_gameplay_camera(mut cmd: Commands) {
+    TopDownCameraBuilder::new(7.5, 10.0).build(&mut cmd);
 }

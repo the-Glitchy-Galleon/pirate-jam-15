@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 pub const GROUND_TIMER: f32 = 0.5;
-pub const MOVEMENT_SPEED: f32 = 8.0;
+pub const MOVEMENT_SPEED: f32 = 4.0;
 // pub const JUMP_SPEED: f32 = 20.0;
 pub const GRAVITY: f32 = -9.81;
 
@@ -71,7 +71,6 @@ impl Default for KinematicCharacterBundle {
 pub fn update_kinematic_character(
     time: Res<Time>,
     mut player: Query<(
-        &mut Transform,
         &mut KinematicCharacterController,
         Option<&KinematicCharacterControllerOutput>,
         &mut CharacterWalkControl,
@@ -80,7 +79,7 @@ pub fn update_kinematic_character(
 ) {
     let delta_time = time.delta_seconds();
 
-    for (transform, mut controller, output, mut walk, mut state) in player.iter_mut() {
+    for (mut controller, output, mut walk, mut state) in player.iter_mut() {
         /* Retrieve input */
         let mut movement = Vec3::ZERO;
         if walk.do_move {
@@ -106,6 +105,6 @@ pub fn update_kinematic_character(
         }
         movement.y = state.vertical_movement;
         state.vertical_movement += GRAVITY * delta_time * controller.custom_mass.unwrap_or(1.0);
-        controller.translation = Some(transform.rotation * (movement * delta_time));
+        controller.translation = Some(movement * delta_time);
     }
 }

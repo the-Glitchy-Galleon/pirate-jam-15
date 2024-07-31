@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use crate::game::{
     game_cursor::GameCursor,
     minion::{
@@ -79,6 +81,7 @@ pub fn minion_storage_throw(
 #[derive(Component)]
 pub struct MinionToWhereDebugUi;
 
+#[cfg(feature = "debug_visuals")]
 pub fn debug_minion_to_where_ui(
     mut cmd: Commands,
     mut text: Query<&mut Text, With<MinionToWhereDebugUi>>,
@@ -105,26 +108,31 @@ pub fn minion_storage_pickup(
     mut min_inp: ResMut<MinionStorageInput>,
     rap_ctx: ResMut<RapierContext>,
     dropped_mins: Query<(Entity, &MinionKind)>,
-    mut collector: Query<(&mut Transform, &Children), With<PlayerCollector>>,
-    mut player_q: Query<(&mut MinionStorage, &CharacterWalkControl), With<PlayerTag>>,
+    mut collector: Query<&Children, With<PlayerCollector>>,
+    mut player_q: Query<
+        (&mut Transform, &mut MinionStorage, &CharacterWalkControl),
+        With<PlayerTag>,
+    >,
     mut commands: Commands,
 ) {
-    let Ok((mut mins, walk)) = player_q.get_single_mut() else {
+    let Ok((mut player_tx, mut mins, walk)) = player_q.get_single_mut() else {
         return;
     };
-    let Ok((mut coll_tf, children)) = collector.get_single_mut() else {
+    let Ok(children) = collector.get_single_mut() else {
         return;
     };
     let Some(&collider) = children.first() else {
         return;
     };
-    let angle = walk.direction.xz().to_angle();
+
+    let angle = f32::atan2(walk.direction.x, walk.direction.z) - PI;
+    // let angle = walk.direction.xz().to_angle() + FRAC_PI_2;
 
     if angle.is_nan() {
         return;
     }
 
-    *coll_tf = Transform::from_rotation(Quat::from_rotation_y(-angle));
+    player_tx.rotation = Quat::from_rotation_y(angle);
 
     if !min_inp.do_pickup {
         return;
