@@ -13,7 +13,7 @@ use std::f32::consts::{PI, TAU};
 pub const COLLIDER_HALF_HEIGHT: f32 = 0.6;
 
 pub struct PlayerBuilder {
-     position: Vec3
+    position: Vec3,
 }
 
 #[derive(Component)]
@@ -21,7 +21,7 @@ pub struct PlayerMeshTag;
 
 impl PlayerBuilder {
     pub fn new(position: Vec3) -> Self {
-        Self {position }
+        Self { position }
     }
 
     pub fn build(self, cmd: &mut Commands, assets: &PlayerAssets) -> Entity {
@@ -42,7 +42,9 @@ impl PlayerBuilder {
             Collider::round_cylinder(COLLIDER_HALF_HEIGHT, 0.15, 0.2),
             CollisionGroups::new(ACTOR_GROUP | TARGET_GROUP, GROUND_GROUP | WALL_GROUP),
             SpatialBundle {
-                transform: Transform::from_translation(self.position + Vec3::Y * (COLLIDER_HALF_HEIGHT + 0.5)),
+                transform: Transform::from_translation(
+                    self.position + Vec3::Y * (COLLIDER_HALF_HEIGHT + 0.5),
+                ),
                 visibility: Visibility::Hidden,
                 ..default()
             },

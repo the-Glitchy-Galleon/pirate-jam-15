@@ -113,10 +113,11 @@ impl ColorDef {
     pub fn contains(&self, color: ColorDef) -> bool {
         (*self as u8 & color as u8) == color as u8
     }
+
     pub fn contains_any(&self, color: ColorDef) -> bool {
         (*self as u8 & color as u8) != 0
     }
-    
+
     #[rustfmt::skip]
     pub fn as_str(self) -> &'static str {
         match self {

@@ -3,7 +3,8 @@ use crate::{
     game::{
         common::{self, PrimaryCamera},
         player::PlayerTag,
-    }, AppState,
+    },
+    AppState,
 };
 use bevy::{prelude::*, time::Real};
 use std::f32::consts::{PI, TAU};
