@@ -25,6 +25,7 @@ use crate::{
 };
 use bevy::{prelude::*, window::CursorGrabMode};
 use bevy_rapier3d::prelude::*;
+use player::player_builder::{self, PlayerAssets};
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
 pub mod collision_groups;
@@ -86,6 +87,7 @@ impl Plugin for GamePlugin {
             })
             .init_resource::<MinionAssets>()
             .init_resource::<GameObjectAssets>()
+            .init_resource::<PlayerAssets>()
             .add_event::<MinionStartedInteraction>()
             .add_event::<AddPlayerRespawnEvent>();
 
@@ -108,7 +110,8 @@ impl Plugin for GamePlugin {
             (
                 minion::minion_walk,
                 minion::update_animation.after(minion::minion_walk),
-                kinematic_char::update_kinematic_character.after(minion::update_animation),
+                player_builder::update_animation.after(minion::update_animation),
+                kinematic_char::update_kinematic_character.after(player_builder::update_animation),
             ),
         );
 
