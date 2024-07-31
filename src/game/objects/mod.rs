@@ -37,6 +37,14 @@ pub fn spawn_object(
             let builder = PhysicsCubeTestBuilder(object);
             builder.build(&mut cmd, &assets)
         }
+        ObjectDefKind::SpawnPoint => cmd
+            .spawn(SpatialBundle {
+                transform: Transform::IDENTITY
+                    .with_translation(object.position)
+                    .with_rotation(Quat::from_rotation_y(object.rotation)),
+                ..Default::default()
+            })
+            .id(),
         _ => cmd
             .spawn(PbrBundle {
                 mesh: assets.dummy_cube_mesh.clone(),
