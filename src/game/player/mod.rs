@@ -172,12 +172,15 @@ pub fn add_player_respawn(
 
 pub fn process_player_respawning(
     mut cmd: Commands,
-    mut respawn: Query<(
-        Entity,
-        &mut Transform,
-        &GlobalTransform,
-        &mut PlayerRespawning,
-    ), (With<PlayerTag>, Without<PlayerMeshTag>)>,
+    mut respawn: Query<
+        (
+            Entity,
+            &mut Transform,
+            &GlobalTransform,
+            &mut PlayerRespawning,
+        ),
+        (With<PlayerTag>, Without<PlayerMeshTag>),
+    >,
     mut mesh: Query<(Entity, &mut Transform), (With<PlayerMeshTag>, Without<PlayerTag>)>,
     time: Res<Time<Real>>,
 ) {

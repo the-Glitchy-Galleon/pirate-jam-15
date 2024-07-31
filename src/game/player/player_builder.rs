@@ -21,7 +21,7 @@ impl PlayerBuilder {
     pub fn new() -> Self {
         Self {}
     }
-    
+
     pub fn build(self, cmd: &mut Commands, assets: &PlayerAssets) -> Entity {
         let mut minion_storage = MinionStorage::new();
 
