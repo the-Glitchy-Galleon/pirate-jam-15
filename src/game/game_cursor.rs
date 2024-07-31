@@ -6,6 +6,7 @@ use super::{
 use crate::{
     framework::logical_cursor::{self, CursorModeChanged, LogicalCursor},
     game::common::PrimaryCamera,
+    AppState,
 };
 use bevy::{
     pbr::NotShadowCaster,
@@ -28,7 +29,7 @@ impl Plugin for GameCursorPlugin {
         .insert_resource(ShowCursorMode::None)
         .init_resource::<GameCursor>()
         .add_systems(
-            Startup,
+            OnEnter(AppState::Ingame),
             (
                 setup_game_cursor,
                 setup_ground_cursor_decal,
@@ -38,7 +39,8 @@ impl Plugin for GameCursorPlugin {
         )
         .add_systems(
             PreUpdate,
-            update_game_cursor.after(logical_cursor::update_position),
+            (update_game_cursor.after(logical_cursor::update_position),)
+                .run_if(in_state(AppState::Ingame)),
         )
         .add_systems(
             Update,
@@ -47,7 +49,8 @@ impl Plugin for GameCursorPlugin {
                 update_ground_cursor_decal.after(update_show_cursor_mode),
                 update_point_cursor_decal.after(update_show_cursor_mode),
                 update_target_cursor_hud.after(update_show_cursor_mode),
-            ),
+            )
+                .run_if(in_state(AppState::Ingame)),
         );
     }
 }

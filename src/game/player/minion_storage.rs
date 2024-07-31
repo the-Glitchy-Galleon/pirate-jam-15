@@ -1,14 +1,18 @@
 use std::f32::consts::PI;
 
-use crate::game::{
-    game_cursor::GameCursor,
-    minion::{
-        collector::MinionStorage,
-        minion_builder::{MinionAssets, MinionBuilder},
-        walk_target::WalkTargetBuilder,
+use crate::{
+    framework::audio::{Audio, AudioChannel, Volume},
+    game::{
+        audio::AudioAssets,
+        game_cursor::GameCursor,
+        minion::{
+            collector::MinionStorage,
+            minion_builder::{MinionAssets, MinionBuilder},
+            walk_target::WalkTargetBuilder,
+        },
+        objects::assets::GameObjectAssets,
+        CharacterWalkControl, MinionKind, MinionState,
     },
-    objects::assets::GameObjectAssets,
-    CharacterWalkControl, MinionKind, MinionState,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
@@ -39,6 +43,8 @@ pub fn minion_storage_throw(
     minion_assets: Res<MinionAssets>,
     object_assets: Res<GameObjectAssets>,
     cursor: Res<GameCursor>,
+    mut audio: ResMut<Audio>,
+    sfx: Res<AudioAssets>,
 ) {
     let Ok((tf, mut mins)) = player_q.get_single_mut() else {
         return;
@@ -70,12 +76,19 @@ pub fn minion_storage_throw(
         None => player_position + tf.forward() * 0.5 + Vec3::Y * 0.5,
     };
 
-    MinionBuilder::new(
+    let minion = MinionBuilder::new(
         min_inp.chosen_ty,
         minion_pos,
         MinionState::GoingTo(target_id),
     )
     .build(&mut commands, &minion_assets);
+
+    audio.play_spatial_vol(
+        sfx.send_minion_1.clone(),
+        AudioChannel::SFX,
+        minion,
+        Volume::Amplitude(0.6),
+    );
 }
 
 #[derive(Component)]
@@ -142,7 +155,7 @@ pub fn minion_storage_pickup(
 
     for (min, ty) in dropped_mins.iter() {
         let result = rap_ctx.intersection_pair(min, collider);
-        info!("{min:?} {collider:?}: {:?}", result);
+        // info!("{min:?} {collider:?}: {:?}", result);
         let Some(coll) = result else {
             continue;
         };

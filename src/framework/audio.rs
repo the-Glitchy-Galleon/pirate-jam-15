@@ -1,9 +1,9 @@
 //! contains a lot of duplicate implementations from `kira` and `bevy_kira_audio`
 //! because people think pub(crate) is a reasonable thing to do. might just have forked it...
 use crate::framework::easing::Easing;
-use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 use std::time::Duration;
+use {bevy::prelude::*, bevy::time::Real};
 
 // Use `AudioAsset` to disambiguate from the `AudioSource` exported by bevy::prelude
 pub use bevy_kira_audio::prelude::AudioControl;
@@ -34,6 +34,7 @@ impl Plugin for AudioPlugin {
             .init_resource::<AudioInstances>()
             .insert_resource(AudioChannels::zero_volume())
             .insert_resource(GlobalVolume::new(0.5))
+            .add_systems(Startup, stop_audio)
             .add_systems(
                 PreUpdate,
                 (
@@ -45,6 +46,15 @@ impl Plugin for AudioPlugin {
             .add_systems(PostUpdate, exec_audio_commands);
     }
 }
+
+pub fn stop_audio(track: Res<bevy_kira_audio::AudioChannel<MainTrack>>) {
+    track.stop();
+}
+
+// masterplan: stop audio and never resume it = still plays back garbage
+// pub fn start_audio(track: Res<bevy_kira_audio::AudioChannel<MainTrack>>) {
+//     track.resume();
+// }
 
 // Todo: could group some components
 #[derive(Bundle, Default)]
@@ -61,9 +71,9 @@ pub struct AudioInstanceState(PlaybackState);
 
 #[derive(Default)]
 pub struct LoopConfig {
-    looping: bool,
-    start: Option<f64>,
-    end: Option<f64>,
+    pub looping: bool,
+    pub start: Option<f64>,
+    pub end: Option<f64>,
 }
 
 #[derive(Default)]
@@ -91,6 +101,14 @@ impl Audio {
         self.commands.push(AudioCommand::Play(PlayCommand {
             asset,
             channel: Some(channel),
+            ..Default::default()
+        }));
+    }
+    pub fn play_vol(&mut self, asset: Handle<AudioAsset>, channel: AudioChannel, volume: Volume) {
+        self.commands.push(AudioCommand::Play(PlayCommand {
+            asset,
+            channel: Some(channel),
+            volume,
             ..Default::default()
         }));
     }
@@ -141,7 +159,22 @@ impl Audio {
             asset,
             channel: Some(channel),
             emitter: Some(entity),
-            volume: Volume::Amplitude(0.0),
+            // volume: Volume::Amplitude(0.0),
+            ..Default::default()
+        }));
+    }
+    pub fn play_spatial_vol(
+        &mut self,
+        asset: Handle<AudioAsset>,
+        channel: AudioChannel,
+        entity: Entity,
+        volume: Volume,
+    ) {
+        self.commands.push(AudioCommand::Play(PlayCommand {
+            asset,
+            channel: Some(channel),
+            emitter: Some(entity),
+            volume,
             ..Default::default()
         }));
     }
@@ -157,7 +190,7 @@ impl Audio {
             channel: Some(channel),
             loop_config,
             emitter: Some(emitter),
-            volume: Volume::Amplitude(0.0),
+            // volume: Volume::Amplitude(0.0),
             ..Default::default()
         }));
     }
@@ -169,8 +202,13 @@ fn exec_audio_commands(
     mut instances: ResMut<AudioInstances>,
     channels: ResMut<AudioChannels>,
     global_vol: Res<GlobalVolume>,
+    mut sfx_dampening_fix: Local<f64>,
+    time: Res<Time<Real>>,
 ) {
     let global_vol = global_vol.volume.as_amplitude();
+
+    // prevents too many sfx from playing too loudly
+    *sfx_dampening_fix = f64::min(*sfx_dampening_fix + time.delta_seconds() as f64 * 0.4, 1.0);
 
     for cmd in audio.commands.drain(..) {
         match cmd {
@@ -182,6 +220,15 @@ fn exec_audio_commands(
                 channel,
                 volume,
             }) => {
+                let volume = match channel {
+                    Some(AudioChannel::SFX) => {
+                        *sfx_dampening_fix = f64::max(*sfx_dampening_fix - 0.15, 0.0);
+                        Volume::Amplitude(volume.as_amplitude() * *sfx_dampening_fix)
+                    }
+                    _ => volume,
+                };
+                info!("{}", volume.as_amplitude());
+
                 let chan_vol = channel
                     .map(|i| channels.get(i).as_amplitude())
                     .unwrap_or(1.0);
@@ -203,6 +250,7 @@ fn exec_audio_commands(
                     cmd.with_panning(pan);
                 }
                 instances.0.push(AudioInstance {
+                    volume: AudioInstanceVolume(volume),
                     handle: cmd.handle().clone(),
                     channel,
                     emitter,
@@ -373,6 +421,7 @@ pub struct AudioInstance {
     handle: Handle<bevy_kira_audio::AudioInstance>,
     channel: Option<AudioChannel>,
     emitter: Option<Entity>,
+    volume: AudioInstanceVolume,
 }
 
 #[derive(Resource, Default)]
@@ -384,7 +433,6 @@ fn update_audio_instances(
     mut emitters: Query<(
         Option<&GlobalTransform>,
         Option<&mut AudioInstanceState>,
-        Option<&AudioInstanceVolume>,
         Option<&mut AudioInstanceControl>,
         Option<&AudioSpatialRange>,
     )>,
@@ -400,7 +448,7 @@ fn update_audio_instances(
     for instance in instances.0.iter() {
         // Todo: Check if there needs to be some cleanup for stopped audio instances
         let Some(bevy_instance) = bevy_instances.get_mut(&instance.handle) else {
-            warn!("Failed to get audio instance");
+            // warn!("Failed to get audio instance");
             continue;
         };
 
@@ -410,7 +458,7 @@ fn update_audio_instances(
             .unwrap_or(1.0);
 
         if let Some(emitter) = instance.emitter {
-            if let Ok((transform, mut state, vol, mut ctrl, range)) = emitters.get_mut(emitter) {
+            if let Ok((transform, mut state, mut ctrl, range)) = emitters.get_mut(emitter) {
                 if let Some(ctrl) = &mut ctrl {
                     match ctrl.0.take() {
                         Some(Control::Pause) => {
@@ -447,7 +495,8 @@ fn update_audio_instances(
                 if let Some(state) = &mut state {
                     state.0 = bevy_instance.state();
                 }
-                let vol = vol.map(|v| v.0.as_amplitude()).unwrap_or(1.0);
+                // let vol = vol.map(|v| v.0.as_amplitude()).unwrap_or(1.0);
+                let vol = instance.volume.0.as_amplitude();
 
                 bevy_instance.set_volume(
                     chan_vol * global_vol * vol * spatial_vol,
@@ -456,8 +505,9 @@ fn update_audio_instances(
                 bevy_instance.set_panning(spatial_pan, AudioTween::default());
             }
         } else {
-            // Todo: provide audio controls for non-emitter sounds
-            bevy_instance.set_volume(1.0 * global_vol * chan_vol, AudioTween::default());
+            let volume = instance.volume.0.as_amplitude() * global_vol * chan_vol;
+            // info!("VOL: {}", volume);
+            bevy_instance.set_volume(volume, AudioTween::default());
         }
     }
 }

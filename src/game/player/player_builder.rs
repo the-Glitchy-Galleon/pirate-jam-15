@@ -6,20 +6,22 @@ use crate::game::{
     objects::{camera::Shineable, definitions::ColorDef},
     player::{minion_storage::PlayerCollector, PlayerTag},
 };
-use bevy::{color::palettes::tailwind, prelude::*, time::Real};
+use bevy::{asset::LoadState, color::palettes::tailwind, prelude::*, time::Real};
 use bevy_rapier3d::prelude::*;
 use std::f32::consts::{PI, TAU};
 
 pub const COLLIDER_HALF_HEIGHT: f32 = 0.6;
 
-pub struct PlayerBuilder {}
+pub struct PlayerBuilder {
+    position: Vec3,
+}
 
 #[derive(Component)]
 pub struct PlayerMeshTag;
 
 impl PlayerBuilder {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(position: Vec3) -> Self {
+        Self { position }
     }
 
     pub fn build(self, cmd: &mut Commands, assets: &PlayerAssets) -> Entity {
@@ -40,7 +42,9 @@ impl PlayerBuilder {
             Collider::round_cylinder(COLLIDER_HALF_HEIGHT, 0.15, 0.2),
             CollisionGroups::new(ACTOR_GROUP | TARGET_GROUP, GROUND_GROUP | WALL_GROUP),
             SpatialBundle {
-                transform: Transform::from_xyz(0.0, COLLIDER_HALF_HEIGHT, 0.0),
+                transform: Transform::from_translation(
+                    self.position + Vec3::Y * (COLLIDER_HALF_HEIGHT + 0.5),
+                ),
                 visibility: Visibility::Hidden,
                 ..default()
             },
@@ -128,55 +132,72 @@ pub struct PlayerAssets {
     orb_material: Handle<StandardMaterial>,
 }
 
-impl FromWorld for PlayerAssets {
-    fn from_world(world: &mut World) -> Self {
-        let ass = world.resource::<AssetServer>();
-        let clothing_mesh = ass.load("player.glb#Mesh0/Primitive0");
-        let head_mesh = ass.load("player.glb#Mesh0/Primitive1");
-        let eyes_mesh = ass.load("player.glb#Mesh0/Primitive2");
-        let staff_mesh = ass.load("player.glb#Mesh0/Primitive3");
-        let orb_mesh = ass.load("player.glb#Mesh0/Primitive4");
+pub fn load_player_assets(
+    mut cmd: Commands,
+    ass: Res<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let clothing_mesh = ass.load("player.glb#Mesh0/Primitive0");
+    let head_mesh = ass.load("player.glb#Mesh0/Primitive1");
+    let eyes_mesh = ass.load("player.glb#Mesh0/Primitive2");
+    let staff_mesh = ass.load("player.glb#Mesh0/Primitive3");
+    let orb_mesh = ass.load("player.glb#Mesh0/Primitive4");
 
-        let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
-        let clothing_material = materials.add(StandardMaterial {
-            base_color: tailwind::GRAY_100.into(),
-            emissive: (tailwind::GRAY_100 * 0.1).into(),
-            ..Default::default()
-        });
-        let head_material = materials.add(StandardMaterial {
-            base_color: tailwind::GRAY_950.into(),
-            emissive: (tailwind::GRAY_950 * 0.1).into(),
-            ..Default::default()
-        });
-        let eyes_material = materials.add(StandardMaterial {
-            base_color: Color::WHITE,
-            emissive: (Srgba::WHITE * 0.1).into(),
-            ..Default::default()
-        });
-        let staff_material = materials.add(StandardMaterial {
-            base_color: tailwind::RED_800.into(),
-            emissive: (tailwind::RED_800 * 0.1).into(),
-            ..Default::default()
-        });
-        let orb_material = materials.add(StandardMaterial {
-            base_color: tailwind::PURPLE_500.into(),
-            emissive: (tailwind::PURPLE_500 * 0.1).into(),
-            ..Default::default()
-        });
+    let clothing_material = materials.add(StandardMaterial {
+        base_color: tailwind::GRAY_100.into(),
+        emissive: (tailwind::GRAY_100 * 0.1).into(),
+        ..Default::default()
+    });
+    let head_material = materials.add(StandardMaterial {
+        base_color: tailwind::GRAY_950.into(),
+        emissive: (tailwind::GRAY_950 * 0.1).into(),
+        ..Default::default()
+    });
+    let eyes_material = materials.add(StandardMaterial {
+        base_color: Color::WHITE,
+        emissive: (Srgba::WHITE * 0.1).into(),
+        ..Default::default()
+    });
+    let staff_material = materials.add(StandardMaterial {
+        base_color: tailwind::RED_800.into(),
+        emissive: (tailwind::RED_800 * 0.1).into(),
+        ..Default::default()
+    });
+    let orb_material = materials.add(StandardMaterial {
+        base_color: tailwind::PURPLE_500.into(),
+        emissive: (tailwind::PURPLE_500 * 0.1).into(),
+        ..Default::default()
+    });
 
-        Self {
-            clothing_mesh,
-            head_mesh,
-            eyes_mesh,
-            staff_mesh,
-            orb_mesh,
-            clothing_material,
-            head_material,
-            eyes_material,
-            staff_material,
-            orb_material,
-        }
-    }
+    cmd.insert_resource(PlayerAssets {
+        clothing_mesh,
+        head_mesh,
+        eyes_mesh,
+        staff_mesh,
+        orb_mesh,
+        clothing_material,
+        head_material,
+        eyes_material,
+        staff_material,
+        orb_material,
+    });
+}
+
+#[rustfmt::skip]
+pub fn are_player_assets_ready(
+    ass: &AssetServer,
+    assets: &PlayerAssets,
+) -> bool {
+    ass.load_state(&assets.clothing_mesh)     != LoadState::Loading && 
+    ass.load_state(&assets.head_mesh)         != LoadState::Loading && 
+    ass.load_state(&assets.eyes_mesh)         != LoadState::Loading && 
+    ass.load_state(&assets.staff_mesh)        != LoadState::Loading && 
+    ass.load_state(&assets.orb_mesh)          != LoadState::Loading && 
+    ass.load_state(&assets.clothing_material) != LoadState::Loading && 
+    ass.load_state(&assets.head_material)     != LoadState::Loading && 
+    ass.load_state(&assets.eyes_material)     != LoadState::Loading && 
+    ass.load_state(&assets.staff_material)    != LoadState::Loading && 
+    ass.load_state(&assets.orb_material)      != LoadState::Loading
 }
 
 #[derive(Component, Default)]
