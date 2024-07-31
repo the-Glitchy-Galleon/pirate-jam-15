@@ -1,6 +1,6 @@
 ## What is this
 
-Submission for the Pirate Jam 15 by fabi337, hquil and InnocentusLime
+Submission for the Pirate Jam 15 by anti.negative, fabi337, hquil, InnocentusLime and Redderick
 
 ## Get Started
 
