@@ -1,6 +1,9 @@
-use crate::game::{
-    common::{self, PrimaryCamera},
-    player::PlayerTag,
+use crate::{
+    framework::audio::AudioReceiver,
+    game::{
+        common::{self, PrimaryCamera},
+        player::PlayerTag,
+    }, AppState,
 };
 use bevy::{prelude::*, time::Real};
 use std::f32::consts::{PI, TAU};
@@ -22,6 +25,7 @@ impl TopDownCameraBuilder {
     pub fn build(self, cmd: &mut Commands) -> Entity {
         let camera = (
             Name::new("Top-Down Camera"),
+            AudioReceiver,
             PrimaryCamera,
             TopDownCamera::new(self.height, self.distance),
             Camera3dBundle {
@@ -37,7 +41,10 @@ pub struct TopDownCameraPlugin;
 
 impl Plugin for TopDownCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, update_camera_root);
+        app.add_systems(
+            FixedUpdate,
+            (update_camera_root).run_if(in_state(AppState::Ingame)),
+        );
     }
 }
 

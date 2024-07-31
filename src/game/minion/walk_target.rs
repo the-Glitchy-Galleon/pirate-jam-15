@@ -71,7 +71,7 @@ pub fn walk_target_update(
         if count > 0 {
             continue;
         }
-        info!("Removing path through walk_target_update");
+        // info!("Removing path through walk_target_update");
         commands.entity(target).despawn_recursive();
     }
 }

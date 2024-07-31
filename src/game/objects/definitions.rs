@@ -113,6 +113,10 @@ impl ColorDef {
     pub fn contains(&self, color: ColorDef) -> bool {
         (*self as u8 & color as u8) == color as u8
     }
+    pub fn contains_any(&self, color: ColorDef) -> bool {
+        (*self as u8 & color as u8) != 0
+    }
+    
     #[rustfmt::skip]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -138,7 +142,7 @@ impl Add<ColorDef> for ColorDef {
 impl Sub<ColorDef> for ColorDef {
     type Output = ColorDef;
     fn sub(self, rhs: ColorDef) -> Self::Output {
-        unsafe { core::mem::transmute(self as u8 ^ rhs as u8) }
+        unsafe { core::mem::transmute(self as u8 & !(rhs as u8)) }
     }
 }
 

@@ -11,22 +11,23 @@ use crate::{
         kinematic_char::{CharacterWalkControl, CharacterWalkState},
         minion::{
             collector::{MinionInteractionRequirement, MinionStorage},
-            minion_builder::MinionAssets,
             MinionKind, MinionStartedInteraction, MinionState, MinionTarget,
         },
-        objects::{assets::GameObjectAssets, camera::CameraObjPlugin, cauldron},
+        objects::{camera::CameraObjPlugin, cauldron},
         player::{
             minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
-            player_builder::{self, PlayerAssets},
+            player_builder::{self},
             AddPlayerRespawnEvent,
         },
         top_down_camera::{TopDownCameraBuilder, TopDownCameraPlugin},
     },
+    AppState,
 };
 use bevy::{prelude::*, window::CursorGrabMode};
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
+pub mod audio;
 pub mod collision_groups;
 pub mod common;
 pub mod game_cursor;
@@ -89,27 +90,28 @@ impl Plugin for GamePlugin {
             to_where: MinionThrowTarget::Location(Vec3::ZERO),
             do_pickup: false,
         })
-        .init_resource::<MinionAssets>()
-        .init_resource::<GameObjectAssets>()
-        .init_resource::<PlayerAssets>()
         .add_event::<MinionStartedInteraction>()
         .add_event::<AddPlayerRespawnEvent>()
         .add_systems(
-            Startup,
+            OnEnter(AppState::Ingame),
             (
+                // crate::framework::audio::start_audio,
+                audio::fade_in_channels,
+                // after(crate::framework::audio::start_audio),
                 player::setup_player,
                 spawn_gameplay_camera.after(player::setup_player),
                 minion::setup_chosen_minion_ui,
-                level::load_preview_scene,
+                // level::load_preview_scene,
             ),
         )
         .add_systems(
             PreUpdate,
             (
-                level::init_level,
+                // level::init_level,
                 common::link_root_parents,
                 player::player_controls.after(game_cursor::update_game_cursor),
-            ),
+            )
+                .run_if(in_state(AppState::Ingame)),
         )
         .add_systems(
             FixedUpdate,
@@ -119,18 +121,19 @@ impl Plugin for GamePlugin {
                 minion::update_animation.after(minion::minion_walk),
                 player_builder::update_animation.after(minion::update_animation),
                 kinematic_char::update_kinematic_character.after(player_builder::update_animation),
-            ),
+            )
+                .run_if(in_state(AppState::Ingame)),
         )
         .add_systems(
             Update,
             (
+                audio::start_bgm_delayed,
                 minion::cleanup_minion_state,
                 minion::update_minion_state,
                 minion::minion_update_path.after(minion::update_minion_state),
                 minion::walk_target::walk_target_update.after(minion::update_minion_state),
                 minion::collector::update_minion_interaction_requirements
                     .after(minion::update_minion_state),
-                minion::display_navigator_path,
                 minion::update_chosen_minion_debug_ui,
                 player::minion_storage::minion_storage_throw,
                 player::minion_storage::minion_storage_pickup,
@@ -139,11 +142,13 @@ impl Plugin for GamePlugin {
                 objects::destructible_target_test::update_destructble_target,
                 cauldron::process_cauldron_queue,
                 cauldron::queue_minion_for_cauldron,
-            ),
+            )
+                .run_if(in_state(AppState::Ingame)),
         )
         .add_systems(
             PostUpdate,
-            minion::minion_build_path.after(TransformSystem::TransformPropagate),
+            (minion::minion_build_path.after(TransformSystem::TransformPropagate))
+                .run_if(in_state(AppState::Ingame)),
         );
 
         /* Gizmos */
@@ -156,11 +161,13 @@ impl Plugin for GamePlugin {
             app.add_systems(
                 Update,
                 (
+                    minion::display_navigator_path,
                     player::minion_storage::debug_minion_to_where_ui,
                     minion::debug_navmesh,
                     player::show_player_control_gizmos,
                     common::show_forward_gizmo,
-                ),
+                )
+                    .run_if(in_state(AppState::Ingame)),
             );
         }
     }
