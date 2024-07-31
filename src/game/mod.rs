@@ -1,6 +1,7 @@
 use crate::{
     framework::{
         audio::AudioPlugin,
+        global_ui_state::GlobalUiStatePlugin,
         level_asset::{LevelAsset, LevelAssetLoader},
         loading_queue,
         logical_cursor::LogicalCursorPlugin,
@@ -22,7 +23,7 @@ use crate::{
         top_down_camera::TopDownCameraControls,
     },
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, window::CursorGrabMode};
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::{NavMesh, VleueNavigatorPlugin};
 
@@ -50,13 +51,18 @@ impl Plugin for GamePlugin {
             RapierPhysicsPlugin::<NoUserData>::default(),
             AudioPlugin,
             VleueNavigatorPlugin,
-            bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
-            LogicalCursorPlugin,
+            GlobalUiStatePlugin,
+            LogicalCursorPlugin {
+                target_grab_mode: Some((CursorGrabMode::Confined, false)),
+            },
             GameCursorPlugin,
         ));
 
         #[cfg(feature = "debug_visuals")]
-        app.add_plugins(RapierDebugRenderPlugin::default());
+        app.add_plugins((
+            RapierDebugRenderPlugin::default(),
+            bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
+        ));
 
         loading_queue::initialize::<LevelAsset>(app);
 

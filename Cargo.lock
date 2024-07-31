@@ -406,6 +406,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy-pointerlockchange-hook"
+version = "0.14.0"
+source = "git+https://github.com/the-Glitchy-Galleon/bevy-pointerlockchange-hook.git#a3094369178eac239f14c3e77c92f56f355c5878"
+dependencies = [
+ "bevy",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "bevy_a11y"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3551,6 +3561,7 @@ dependencies = [
  "anyhow",
  "bevy",
  "bevy-inspector-egui",
+ "bevy-pointerlockchange-hook",
  "bevy_egui",
  "bevy_kira_audio",
  "bevy_rapier3d",

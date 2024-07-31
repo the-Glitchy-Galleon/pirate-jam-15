@@ -534,7 +534,7 @@ fn change_control_mode(
     mut next_mode: ResMut<NextState<ControlMode>>,
     global_ui_state: Res<GlobalUiState>,
 ) {
-    if global_ui_state.is_any_focused {
+    if global_ui_state.is_egui_input_focused {
         return;
     }
 
@@ -567,7 +567,7 @@ fn perform_click_actions(
     sys: Res<oneshot::Systems>,
     mut defs: ResMut<ObjectDefStorage>,
 ) {
-    let over_ui = global_ui_state.is_pointer_captured || global_ui_state.is_any_focused;
+    let over_ui = global_ui_state.is_pointer_over_ui || global_ui_state.is_egui_input_focused;
     let mut is_dirty = false;
     match control_mode.get() {
         ControlMode::ShapeTerrain => {
