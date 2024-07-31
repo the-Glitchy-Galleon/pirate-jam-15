@@ -1,8 +1,12 @@
-use crate::game::{
-    game_cursor::GameCursor,
-    player::minion_storage::{MinionStorageInput, MinionThrowTarget},
-    top_down_camera::TopDownCamera,
-    CharacterWalkControl, MinionKind,
+use super::{audio::AudioAssets, LevelResources};
+use crate::{
+    framework::audio::{Audio, AudioChannel},
+    game::{
+        game_cursor::GameCursor,
+        player::minion_storage::{MinionStorageInput, MinionThrowTarget},
+        top_down_camera::TopDownCamera,
+        CharacterWalkControl, MinionKind,
+    },
 };
 use bevy::prelude::{Real, *};
 use bevy_rapier3d::prelude::*;
@@ -19,8 +23,27 @@ pub mod player_builder;
 #[reflect(Component)]
 pub struct PlayerTag;
 
-pub fn setup_player(mut cmd: Commands, assets: Res<PlayerAssets>) {
-    PlayerBuilder::new().build(&mut cmd, &assets);
+pub fn setup_player(
+    mut cmd: Commands,
+    assets: Res<PlayerAssets>,
+    // mut respawn: EventWriter<AddPlayerRespawnEvent>,
+    level: Res<LevelResources>,
+) {
+    let lowest_respawn_pos = match &level.spawnpoints {
+        Some(spawnpoints) => spawnpoints
+            .iter()
+            .filter(|o| o.2)
+            .min_by(|a, b| a.1.cmp(&b.1))
+            .map(|o| o.0)
+            .unwrap_or(Vec3::ZERO + Vec3::Y * 7.0),
+        None => Vec3::ZERO + Vec3::Y * 7.0,
+    };
+    let _ent = PlayerBuilder::new(lowest_respawn_pos).build(&mut cmd, &assets);
+
+    // info!("Spawning player at {lowest_respawn_pos:?}");
+    // respawn.send(AddPlayerRespawnEvent {
+    //     position: lowest_respawn_pos,
+    // });
 }
 
 pub fn player_controls(
@@ -168,6 +191,7 @@ pub fn add_player_respawn(
         ),
         ColliderDisabled,
     ));
+
     cmd.entity(mesh).insert(Visibility::Hidden);
 }
 
@@ -184,6 +208,8 @@ pub fn process_player_respawning(
     >,
     mut mesh: Query<(Entity, &mut Transform), (With<PlayerMeshTag>, Without<PlayerTag>)>,
     time: Res<Time<Real>>,
+    mut audio: ResMut<Audio>,
+    sfx: Res<AudioAssets>,
 ) {
     for (ent, mut tx, gx, mut respawn) in respawn.iter_mut() {
         respawn.timer.tick(time.delta());
@@ -192,6 +218,7 @@ pub fn process_player_respawning(
         let target = respawn.position + offset;
 
         if respawn.timer.finished() {
+            audio.play(sfx.respawn_1.clone(), AudioChannel::SFX);
             tx.translation = target;
             cmd.entity(ent)
                 .remove::<PlayerRespawning>()

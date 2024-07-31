@@ -7,7 +7,6 @@ use crate::{
     game::{
         collision_groups::{ACTOR_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
         objects::{self, assets::GameObjectAssets, definitions::ObjectDefKind},
-        player::AddPlayerRespawnEvent,
         LevelResources,
     },
 };
@@ -15,19 +14,11 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use vleue_navigator::NavMesh;
 
-pub fn load_preview_scene(
-    ass: Res<AssetServer>,
-    already_init: Option<Res<UserDefinedStartupLevel>>,
-    mut load: EventWriter<WatchAssetLoading<LevelAsset>>,
-) {
-    if !already_init.is_some() {
-        info!("Loading Preview Scene");
-        load.send(WatchAssetLoading::new(ass.load("level/preview.level")));
-    }
-}
-
 #[derive(Component)]
 pub struct GroundTag;
+
+#[derive(Event)]
+pub struct LevelInitialized;
 
 pub fn init_level(
     mut cmd: Commands,
@@ -36,7 +27,7 @@ pub fn init_level(
     mut load: EventReader<AssetLoadingCompleted<LevelAsset>>,
     level: Res<Assets<LevelAsset>>,
     assets: Res<GameObjectAssets>,
-    mut respawn: EventWriter<AddPlayerRespawnEvent>,
+    mut initialized: EventWriter<LevelInitialized>,
 ) {
     let Some(load) = load.read().last() else {
         return;
@@ -133,13 +124,6 @@ pub fn init_level(
         .map(|o| (o.position, o.number, o.number == 0))
         .collect::<Vec<_>>();
 
-    let lowest_respawn_pos = spawnpoints
-        .iter()
-        .filter(|o| o.2)
-        .min_by(|a, b| a.1.cmp(&b.1))
-        .map(|o| o.0)
-        .unwrap_or(Vec3::ZERO + Vec3::Y * 7.0);
-
     cmd.insert_resource(LevelResources {
         navmesh: Some(handle),
         spawnpoints: Some(spawnpoints),
@@ -168,10 +152,7 @@ pub fn init_level(
         ..Default::default()
     });
 
-    info!("Spawning player at {lowest_respawn_pos:?}");
-    respawn.send(AddPlayerRespawnEvent {
-        position: lowest_respawn_pos,
-    });
+    initialized.send(LevelInitialized);
 }
 
 #[derive(Resource)]

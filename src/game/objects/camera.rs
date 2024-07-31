@@ -1,8 +1,16 @@
 use crate::{
-    framework::easing::{Easing, TweenList},
+    framework::{
+        audio::{Audio, AudioChannel, Volume},
+        easing::{Easing, TweenList},
+    },
     game::{
-        collision_groups::{ACTOR_GROUP, GROUND_GROUP, WALL_GROUP},
+        audio::AudioAssets,
+        collision_groups::{GROUND_GROUP, WALL_GROUP},
         common::{RootParent, ShowForwardGizmo},
+        minion::{
+            minion_builder::{MinionAssets, MinionBuilder},
+            MinionKind, MinionState,
+        },
         objects::{
             assets::GameObjectAssets,
             definitions::{ColorDef, ObjectDef},
@@ -10,6 +18,7 @@ use crate::{
         player::{AddPlayerRespawnEvent, PlayerTag},
         LevelResources,
     },
+    AppState,
 };
 use bevy::{color::palettes::tailwind, prelude::*, time::Real};
 use bevy_rapier3d::prelude::*;
@@ -21,9 +30,9 @@ use util::is_within_cone_shape;
 
 pub const SPOTLIGHT_ANGLE: f32 = 0.4;
 pub const SPOTLIGHT_ANGLE_RANGE: RangeInclusive<f32> = 0.3..=0.6; // range that kinda works out for the angle
-pub const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.9;
-pub const MAX_SHINE_DISTANCE: f32 = 20.0;
-pub const CHARGE_DURATION_SECS: f32 = 0.2;
+pub const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.95;
+pub const MAX_SHINE_DISTANCE: f32 = 15.0;
+pub const CHARGE_DURATION_SECS: f32 = 0.3;
 pub const BEAM_DURATION_SECS: f32 = 1.0;
 
 pub struct CameraObjPlugin;
@@ -41,11 +50,18 @@ impl Plugin for CameraObjPlugin {
                 update_phase.after(update_shined_entities),
                 camera_charge_effect.after(update_phase),
                 spotlight_hit_player.after(update_phase),
-            ),
+                spotlight_hit_minion.after(update_phase),
+            )
+                .run_if(in_state(AppState::Ingame)),
         );
 
         #[cfg(feature = "debug_visuals")]
-        app.add_systems(Update, draw_path_state_gizmo.after(update_path_state));
+        app.add_systems(
+            Update,
+            draw_path_state_gizmo
+                .after(update_path_state)
+                .run_if(in_state(AppState::Ingame)),
+        );
     }
 }
 
@@ -101,8 +117,8 @@ impl CameraObjBuilder<'_> {
                 color: spotlight_color(self.0.color).into(),
                 shadows_enabled: true,
                 range: 100.0, // ignore calculated range because it doesn't really reach
-                inner_angle: half_angle,
-                outer_angle: half_angle * 0.9,
+                inner_angle: half_angle * CONE_DETECTION_RADIUS_FACTOR,
+                outer_angle: half_angle,
                 ..default()
             },
             ..Default::default()
@@ -173,8 +189,13 @@ fn update_shined_entities(
         for (shineable, sgx) in shineable.iter() {
             let destination = sgx.translation();
             let direction = (destination - origin).normalize();
+            let distance = origin.distance(destination);
 
             if !is_within_cone_shape(direction, *gx.forward(), cone.half_angle) {
+                continue;
+            }
+
+            if distance > MAX_SHINE_DISTANCE {
                 continue;
             }
 
@@ -186,15 +207,20 @@ fn update_shined_entities(
                 QueryFilter {
                     groups: Some(CollisionGroups::new(
                         Group::all(),
-                        GROUND_GROUP | WALL_GROUP | ACTOR_GROUP | ACTOR_GROUP,
+                        GROUND_GROUP | WALL_GROUP,
                     )),
                     ..Default::default()
                 },
             );
 
+            // let hit = match raycast {
+            //     Some((ent, _toi)) if ent == shineable => true,
+            //     _ => false,
+            // };
+
             let hit = match raycast {
-                Some((ent, _toi)) if ent == shineable => true,
-                _ => false,
+                Some((_ent, toi)) => toi > distance,
+                None => true,
             };
 
             if hit {
@@ -290,7 +316,7 @@ fn camera_charge_effect(
         for ray in rays {
             gizmos.ray(
                 ray.origin.into(),
-                (ray.dir * 10.0).into(),
+                (ray.dir * MAX_SHINE_DISTANCE).into(),
                 spotlight_color(charge.color).with_alpha(alpha),
             );
         }
@@ -388,14 +414,22 @@ fn spotlight_hit_player(
     player: Query<Entity, With<PlayerTag>>,
     level: Res<LevelResources>,
     mut respawn: EventWriter<AddPlayerRespawnEvent>,
+    mut audio: ResMut<Audio>,
+    sfx: Res<AudioAssets>,
 ) {
     for hit in hit.read() {
-        let Ok(_) = player.get(hit.target) else {
+        let Ok(ent) = player.get(hit.target) else {
             continue;
         };
         let Some(spawnpoints) = &level.spawnpoints else {
             continue;
         };
+        audio.play_spatial_vol(
+            sfx.player_kill_1.clone(),
+            AudioChannel::SFX,
+            ent,
+            Volume::Amplitude(0.8),
+        );
 
         let highest_respawn_pos = spawnpoints
             .iter()
@@ -407,6 +441,39 @@ fn spotlight_hit_player(
         respawn.send(AddPlayerRespawnEvent {
             position: highest_respawn_pos,
         });
+    }
+}
+
+fn spotlight_hit_minion(
+    mut cmd: Commands,
+    mut hit: EventReader<SpotlightHitEvent>,
+    minion: Query<(Entity, &MinionKind, &GlobalTransform, &MinionState)>,
+    mut audio: ResMut<Audio>,
+    sfx: Res<AudioAssets>,
+    assets: Res<MinionAssets>,
+) {
+    for hit in hit.read() {
+        let Ok((minion, kind, minion_gx, state)) = minion.get(hit.target) else {
+            continue;
+        };
+        let color = ColorDef::from(*kind);
+        if hit.color.contains_any(color) {
+            cmd.entity(minion).despawn_recursive();
+            let color = ColorDef::from(*kind) - hit.color;
+            let minion = MinionBuilder::new(
+                MinionKind::from(color),
+                minion_gx.translation() + Vec3::Y * 1.0,
+                state.clone(),
+            )
+            .build(&mut cmd, &assets);
+
+            audio.play_spatial_vol(
+                sfx.minion_kill_1.clone(),
+                AudioChannel::SFX,
+                minion,
+                Volume::Amplitude(0.7),
+            );
+        }
     }
 }
 

@@ -5,7 +5,7 @@ use crate::game::{
     minion::{MinionAnimation, MinionKind, MinionState},
     objects::{camera::Shineable, definitions::ColorDef},
 };
-use bevy::{color::palettes::tailwind, prelude::*};
+use bevy::{asset::LoadState, color::palettes::tailwind, prelude::*};
 use bevy_rapier3d::prelude::*;
 
 pub const COLLIDER_HALF_HEIGHT: f32 = 0.3;
@@ -137,68 +137,77 @@ impl MinionAssets {
     }
 }
 
-impl FromWorld for MinionAssets {
-    fn from_world(world: &mut World) -> Self {
-        let ass = world.resource::<AssetServer>();
-
-        #[rustfmt::skip]
-        let body_meshes = ColorDef::VARIANTS.map(|color| {
-            match color {
-                ColorDef::Void    => ass.load("minions.glb#Mesh4/Primitive1"),
-                ColorDef::Red     => ass.load("minions.glb#Mesh1/Primitive1"),
-                ColorDef::Green   => ass.load("minions.glb#Mesh2/Primitive1"),
-                ColorDef::Blue    => ass.load("minions.glb#Mesh3/Primitive1"),
-                ColorDef::Yellow  => ass.load("minions.glb#Mesh7/Primitive0"),
-                ColorDef::Magenta => ass.load("minions.glb#Mesh6/Primitive0"),
-                ColorDef::Cyan    => ass.load("minions.glb#Mesh5/Primitive0"),
-                ColorDef::White   => ass.load("minions.glb#Mesh0/Primitive0"),
-            }
-        });
-
-        #[rustfmt::skip]
-        let eye_meshes = ColorDef::VARIANTS.map(|color| {
-            match color {
-                ColorDef::Void    => ass.load("minions.glb#Mesh4/Primitive0"),
-                ColorDef::Red     => ass.load("minions.glb#Mesh1/Primitive0"),
-                ColorDef::Green   => ass.load("minions.glb#Mesh2/Primitive0"),
-                ColorDef::Blue    => ass.load("minions.glb#Mesh3/Primitive0"),
-                ColorDef::Yellow  => ass.load("minions.glb#Mesh7/Primitive1"),
-                ColorDef::Magenta => ass.load("minions.glb#Mesh6/Primitive1"),
-                ColorDef::Cyan    => ass.load("minions.glb#Mesh5/Primitive1"),
-                ColorDef::White   => ass.load("minions.glb#Mesh0/Primitive1"),
-            }
-        });
-
-        #[rustfmt::skip]
-        let body_materials = ColorDef::VARIANTS.map(|color| {
-            let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
-            let color = minion_base_body_color(MinionKind::from(color));
-            materials.add(StandardMaterial {
-                base_color: color.into(),
-                emissive: (color * 0.2).into(),
-                perceptual_roughness: 0.3,
-                ..Default::default()
-            })
-        });
-
-        #[rustfmt::skip]
-        let eye_materials = ColorDef::VARIANTS.map(|color| {
-            let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
-            let color = minion_base_eye_color(MinionKind::from(color));
-            materials.add(StandardMaterial {
-                base_color: color.into(),
-                emissive: (color * 2.0).into(),
-                ..Default::default()
-            })
-        });
-
-        Self {
-            body_meshes,
-            eye_meshes,
-            body_materials,
-            eye_materials,
+pub fn load_minion_assets(
+    mut cmd: Commands,
+    ass: Res<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    #[rustfmt::skip]
+    let body_meshes = ColorDef::VARIANTS.map(|color| {
+        match color {
+            ColorDef::Void    => ass.load("minions.glb#Mesh4/Primitive1"),
+            ColorDef::Red     => ass.load("minions.glb#Mesh1/Primitive1"),
+            ColorDef::Green   => ass.load("minions.glb#Mesh2/Primitive1"),
+            ColorDef::Blue    => ass.load("minions.glb#Mesh3/Primitive1"),
+            ColorDef::Yellow  => ass.load("minions.glb#Mesh7/Primitive0"),
+            ColorDef::Magenta => ass.load("minions.glb#Mesh6/Primitive0"),
+            ColorDef::Cyan    => ass.load("minions.glb#Mesh5/Primitive0"),
+            ColorDef::White   => ass.load("minions.glb#Mesh0/Primitive0"),
         }
-    }
+    });
+
+    #[rustfmt::skip]
+    let eye_meshes = ColorDef::VARIANTS.map(|color| {
+        match color {
+            ColorDef::Void    => ass.load("minions.glb#Mesh4/Primitive0"),
+            ColorDef::Red     => ass.load("minions.glb#Mesh1/Primitive0"),
+            ColorDef::Green   => ass.load("minions.glb#Mesh2/Primitive0"),
+            ColorDef::Blue    => ass.load("minions.glb#Mesh3/Primitive0"),
+            ColorDef::Yellow  => ass.load("minions.glb#Mesh7/Primitive1"),
+            ColorDef::Magenta => ass.load("minions.glb#Mesh6/Primitive1"),
+            ColorDef::Cyan    => ass.load("minions.glb#Mesh5/Primitive1"),
+            ColorDef::White   => ass.load("minions.glb#Mesh0/Primitive1"),
+        }
+    });
+
+    #[rustfmt::skip]
+    let body_materials = ColorDef::VARIANTS.map(|color| {
+        let color = minion_base_body_color(MinionKind::from(color));
+        materials.add(StandardMaterial {
+            base_color: color.into(),
+            emissive: (color * 0.2).into(),
+            perceptual_roughness: 0.3,
+            ..Default::default()
+        })
+    });
+
+    #[rustfmt::skip]
+    let eye_materials = ColorDef::VARIANTS.map(|color| {
+        let color = minion_base_eye_color(MinionKind::from(color));
+        materials.add(StandardMaterial {
+            base_color: color.into(),
+            emissive: (color * 2.0).into(),
+            ..Default::default()
+        })
+    });
+
+    cmd.insert_resource(MinionAssets {
+        body_meshes,
+        eye_meshes,
+        body_materials,
+        eye_materials,
+    });
+}
+
+#[rustfmt::skip]
+pub fn are_minion_assets_ready(
+    ass: &AssetServer,
+    assets: &MinionAssets,
+) -> bool {
+    assets.body_meshes   .iter().map(|u| (ass.load_state(u) == LoadState::Loading) as u32).sum::<u32>() == 0 && 
+    assets.eye_meshes    .iter().map(|u| (ass.load_state(u) == LoadState::Loading) as u32).sum::<u32>() == 0 && 
+    assets.body_materials.iter().map(|u| (ass.load_state(u) == LoadState::Loading) as u32).sum::<u32>() == 0 && 
+    assets.eye_materials .iter().map(|u| (ass.load_state(u) == LoadState::Loading) as u32).sum::<u32>() == 0
 }
 
 #[rustfmt::skip]

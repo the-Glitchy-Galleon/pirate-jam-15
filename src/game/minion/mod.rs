@@ -190,7 +190,7 @@ pub fn minion_update_path(
         };
         let target_navmesh_pos = Vec3::new(target_pos.x, 0.0, target_pos.z);
         let Some(last) = path.0.path.last() else {
-            info!("Removing last path");
+            // info!("Removing last path");
             commands.entity(ent).remove::<MinionPath>();
             continue;
         };
@@ -198,7 +198,7 @@ pub fn minion_update_path(
         if target_navmesh_pos.distance(*last) < MINION_NODE_DIST {
             continue;
         }
-        info!("Removing path at the end of update");
+        // info!("Removing path at the end of update");
         commands.entity(ent).remove::<MinionPath>();
     }
 }
@@ -240,7 +240,7 @@ pub fn minion_build_path(
             continue;
         }
         if !navmesh.transformed_is_in_mesh(target_pos) {
-            info!("Minion target is not in the navigation");
+            warn!("Minion target is not in the navigation");
             *state = MinionState::Idling;
             continue;
         }
@@ -249,7 +249,7 @@ pub fn minion_build_path(
             Vec3::new(tf.translation().x, 0.0, tf.translation().z),
             Vec3::new(target_pos.x, 0.0, target_pos.z),
         ) else {
-            info!("Failed to find the path");
+            warn!("Failed to find the path");
             *state = MinionState::Idling;
             continue;
         };
@@ -278,7 +278,7 @@ pub fn minion_walk(
             let p = navmesh.transform().transform_point(p).xy();
             if p.distance(minion_pos) <= MINION_NODE_DIST {
                 path.pop();
-                info!("Popped path, remaining: {}", path.len());
+                // info!("Popped path, remaining: {}", path.len());
             }
         }
 
@@ -366,7 +366,7 @@ pub fn cleanup_minion_state(
         }
     }
 }
-
+#[cfg(feature = "debug_visuals")]
 pub fn display_navigator_path(
     navigator: Query<(&Transform, &MinionPath, &GlobalTransform)>,
     mut gizmos: Gizmos,
@@ -461,7 +461,7 @@ pub fn update_animation(
             tx.rotation = Quat::from_euler(EulerRot::XYZ, x, y, z);
 
             let y = (0.5 + 0.5 * f32::sin(anim.hop_t * TAU)) * anim.walk_speed * 0.4;
-            tx.translation.y = -minion_builder::COLLIDER_HALF_HEIGHT + y;
+            tx.translation.y = -minion_builder::COLLIDER_HALF_HEIGHT + y - 0.05;
         }
     }
 }
