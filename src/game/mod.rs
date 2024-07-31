@@ -154,12 +154,14 @@ impl Plugin for GamePlugin {
             (
                 player::minion_storage::minion_storage_throw,
                 player::minion_storage::minion_storage_pickup,
-                player::minion_storage::debug_minion_to_where_ui,
                 player::add_player_respawn,
                 player::process_player_respawning.after(player::add_player_respawn),
                 top_down_camera::update,
             ),
         );
+
+        #[cfg(feature = "debug_visuals")]
+        app.add_systems(Update, player::minion_storage::debug_minion_to_where_ui);
 
         /* Level and Objects */
         app.add_systems(PreUpdate, level::init_level);

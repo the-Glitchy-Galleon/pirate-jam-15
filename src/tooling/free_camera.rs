@@ -1,3 +1,4 @@
+use crate::game::common::PrimaryCamera;
 use bevy::{input::mouse::MouseMotion, prelude::*};
 use std::f32::consts::PI;
 
@@ -21,6 +22,7 @@ impl Plugin for FreeCameraPlugin {
 
 fn setup(mut commands: Commands, setup: Res<FreeCameraSetup>) {
     commands.spawn((
+        PrimaryCamera,
         FreeCameraTag,
         Camera3dBundle {
             transform: setup.transform,

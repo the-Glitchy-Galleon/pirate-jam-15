@@ -1,11 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
-use crate::{
-    game::{
-        level::{self, UserDefinedStartupLevel},
-        GamePlugin,
-    },
-    tooling::fps_counter::FpsCounterPlugin,
+use crate::game::{
+    level::{self, UserDefinedStartupLevel},
+    GamePlugin,
 };
 use bevy::prelude::*;
 
@@ -32,7 +28,8 @@ fn main() -> AppExit {
     let (mut app, run_args) = runner::create_app();
 
     /* Add the base plugins */
-    app.add_plugins(FpsCounterPlugin);
+    #[cfg(feature = "debug_visuals")]
+    app.add_plugins(tooling::fps_counter::FpsCounterPlugin);
 
     /* Add the plugins depending on our config */
     if run_args.init {
