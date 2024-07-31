@@ -140,7 +140,7 @@ impl Plugin for GamePlugin {
                 Update,
                 (
                     minion::display_navigator_path,
-                    minion::update_chosen_minion_ui,
+                    minion::update_chosen_minion_debug_ui,
                 ),
             );
 

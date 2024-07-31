@@ -1,3 +1,5 @@
+use std::f32::EPSILON;
+
 use bevy::prelude::*;
 
 #[cfg(feature = "debug_visuals")]
@@ -54,4 +56,61 @@ pub fn link_root_parents(
             parent: current_root,
         });
     }
+}
+
+pub fn approach_f32(origin: f32, target: f32, step: f32) -> f32 {
+    let distance = (target - origin).abs();
+    if step + f32::EPSILON >= distance - EPSILON {
+        target
+    } else {
+        let direction = (target - origin).signum();
+        origin + step * direction
+    }
+}
+
+pub fn shoot_for_f32(origin: f32, target: f32, step: f32) -> f32 {
+    let direction = (target - origin).signum();
+    origin + step * direction
+}
+
+pub fn approach_vec3(origin: Vec3, target: Vec3, step: f32) -> Vec3 {
+    let distance = origin.distance(target);
+    if step + f32::EPSILON >= distance - f32::EPSILON {
+        target
+    } else {
+        let direction = (target - origin).signum();
+        origin + step * direction
+    }
+}
+
+pub fn shoot_for_vec3(origin: Vec3, target: Vec3, step: f32) -> Vec3 {
+    let direction = (target - origin).signum();
+    origin + step * direction
+}
+
+pub fn approach_angle(origin: f32, target: f32, step: f32) -> f32 {
+    let diff = normalized_angle(target - origin);
+    let direction = diff.signum();
+    let distance = diff.abs();
+
+    if step + f32::EPSILON >= distance - f32::EPSILON {
+        target
+    } else {
+        origin + step * direction
+    }
+}
+
+pub fn angle_distance(a: f32, b: f32) -> f32 {
+    normalized_angle(a - b).abs()
+}
+
+pub fn normalized_angle(mut angle: f32) -> f32 {
+    use std::f32::consts::{PI, TAU};
+    angle %= TAU;
+    if angle > PI {
+        angle -= TAU;
+    } else if angle < -PI {
+        angle += TAU;
+    }
+    angle
 }

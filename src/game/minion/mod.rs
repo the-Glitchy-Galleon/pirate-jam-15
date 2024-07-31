@@ -19,6 +19,8 @@ use minion_builder::MinionMeshTag;
 use std::f32::consts::{PI, TAU};
 use vleue_navigator::{NavMesh, TransformedPath};
 
+use super::common;
+
 pub mod collector;
 pub mod minion_builder;
 pub mod walk_target;
@@ -401,7 +403,7 @@ pub fn setup_chosen_minion_ui(mut cmd: Commands) {
     ));
 }
 
-pub fn update_chosen_minion_ui(
+pub fn update_chosen_minion_debug_ui(
     mut text: Query<&mut Text, With<ChosenMinionUi>>,
     minion: ResMut<MinionStorageInput>,
     mut storage: Query<&MinionStorage>,
@@ -442,30 +444,24 @@ pub fn update_animation(
 ) {
     for (root, mut tx) in mesh.iter_mut() {
         if let Ok((walk, mut anim)) = walk.get_mut(root.parent()) {
-            anim.walk_speed = {
-                let target = if walk.do_move { 1.0 } else { 0.0 };
-                let distance = (target - anim.walk_speed).abs();
-                let step = time.delta_seconds() * 3.0;
-                if step >= distance {
-                    target
-                } else {
-                    let direction = (target - anim.walk_speed).signum();
-                    anim.walk_speed + step * direction
-                }
-            };
+            anim.walk_speed = common::approach_f32(
+                anim.walk_speed,
+                if walk.do_move { 1.0 } else { 0.0 },
+                time.delta_seconds() * 3.0,
+            );
             anim.hop_t = (anim.hop_t + time.delta_seconds()) % 1.0;
             let x = anim.walk_speed
                 * 0.1
-                * (Easing::InOutPowf(3.0).apply(anim.hop_t as f64) as f32 * TAU).sin() as f32;
+                * f32::sin(Easing::InOutPowf(3.0).apply(anim.hop_t as f64) as f32 * TAU);
             let z = anim.walk_speed
                 * 0.2
-                * (Easing::InOutPowf(2.0).apply(anim.hop_t as f64) as f32 * TAU).cos() as f32;
+                * f32::sin(Easing::InOutPowf(2.0).apply(anim.hop_t as f64) as f32 * TAU);
             let offset = walk.direction;
             let y = f32::atan2(offset.x, offset.z) - PI;
             tx.rotation = Quat::from_euler(EulerRot::XYZ, x, y, z);
 
-            let y = anim.hop_t * anim.walk_speed;
-            tx.translation.y = -minion_builder::COLLIDER_HALF_HEIGHT + y * 0.5;
+            let y = (0.5 + 0.5 * f32::sin(anim.hop_t * TAU)) * anim.walk_speed * 0.4;
+            tx.translation.y = -minion_builder::COLLIDER_HALF_HEIGHT + y;
         }
     }
 }
