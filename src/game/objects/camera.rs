@@ -22,8 +22,8 @@ use util::is_within_cone_shape;
 pub const SPOTLIGHT_ANGLE: f32 = 0.4;
 pub const SPOTLIGHT_ANGLE_RANGE: RangeInclusive<f32> = 0.3..=0.6; // range that kinda works out for the angle
 pub const CONE_DETECTION_RADIUS_FACTOR: f32 = 0.9;
-pub const MAX_SHINE_DISTANCE: f32 = 10.0;
-pub const CHARGE_DURATION_SECS: f32 = 1.5;
+pub const MAX_SHINE_DISTANCE: f32 = 20.0;
+pub const CHARGE_DURATION_SECS: f32 = 0.2;
 pub const BEAM_DURATION_SECS: f32 = 1.0;
 
 pub struct CameraObjPlugin;
@@ -35,7 +35,6 @@ impl Plugin for CameraObjPlugin {
             Update,
             (
                 update_path_state,
-                draw_path_state_gizmo.after(update_path_state),
                 follow_path_state.after(update_path_state),
                 look_at_path_state.after(update_path_state),
                 update_shined_entities,
@@ -44,6 +43,9 @@ impl Plugin for CameraObjPlugin {
                 spotlight_hit_player.after(update_phase),
             ),
         );
+
+        #[cfg(feature = "debug_visuals")]
+        app.add_systems(Update, draw_path_state_gizmo.after(update_path_state));
     }
 }
 
@@ -224,7 +226,10 @@ fn update_phase(
                     for (cone, root) in cone.iter() {
                         if root.parent() == ent {
                             cmd.entity(cone).insert(CameraChargeEffect {
-                                timer: Timer::from_seconds(CHARGE_DURATION_SECS, TimerMode::Once),
+                                timer: Timer::from_seconds(
+                                    CHARGE_DURATION_SECS + BEAM_DURATION_SECS,
+                                    TimerMode::Once,
+                                ),
                                 color: *color,
                             });
                             break;
@@ -323,6 +328,7 @@ fn update_path_state(
     }
 }
 
+#[cfg(feature = "debug_visuals")]
 fn draw_path_state_gizmo(state: Query<&CameraPathState>, mut gizmos: Gizmos) {
     for state in state.iter() {
         gizmos.cuboid(

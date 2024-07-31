@@ -151,11 +151,13 @@ pub fn init_level(
 
     cmd.insert_resource(AmbientLight {
         color: Color::WHITE,
-        brightness: 250.,
+        // brightness: 250.,
+        brightness: 50.,
     });
     cmd.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
-            illuminance: 2_500.0,
+            // illuminance: 2_500.0,
+            illuminance: 500.0,
             shadows_enabled: true,
 
             ..Default::default()

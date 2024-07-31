@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-debug_visuals = [] # Toggle for rapier debug and gizmos
+debug_visuals = ["bevy_egui", "bevy-inspector-egui"]
+editor = ["bevy_egui", "bevy-inspector-egui"]
 
 default = [
-    # "debug_visuals",
+    # "debug_visuals", # Toggle for rapier debug, egui inspector and gizmos
+    # "editor", # Toggle for editor. had to do it because egui was fuzzing around in wasm
 ]
 
 [dependencies]
@@ -23,11 +25,11 @@ polyanya = "0.7.1"
 
 bevy_kira_audio = { version = "0.20.0", features = ["ogg"] }
 bevy_rapier3d = { version = "0.27.0", features = ["serde-serialize"] }
-bevy_egui = { version = "0.28.0", default-features = false, features = [
+bevy_egui = { version = "0.28.0", optional = true, default-features = false, features = [
     "render",
     "default_fonts",
 ] }
-bevy-inspector-egui = { git = "https://github.com/the-Glitchy-Galleon/bevy-inspector-egui.git", default-features = false, features = [
+bevy-inspector-egui = { git = "https://github.com/the-Glitchy-Galleon/bevy-inspector-egui.git", optional = true, default-features = false, features = [
     "bevy_render",
 ] }
 
@@ -63,6 +65,7 @@ features = [
 ]
 
 [target.'cfg(target_family="wasm")'.dependencies]
+bevy-pointerlockchange-hook = { git = "https://github.com/the-Glitchy-Galleon/bevy-pointerlockchange-hook.git" }
 web-sys = { version = "0.3.69", features = ["Document", "Window"] }
 
 [target.'cfg(not(target_family="wasm"))'.dependencies]

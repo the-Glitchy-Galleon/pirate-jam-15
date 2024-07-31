@@ -4,7 +4,7 @@ use super::{
     minion::MinionTarget,
 };
 use crate::{
-    framework::logical_cursor::{self, LogicalCursor},
+    framework::logical_cursor::{self, CursorModeChanged, LogicalCursor},
     game::common::PrimaryCamera,
 };
 use bevy::{
@@ -12,6 +12,7 @@ use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     time::Real,
+    window::PrimaryWindow,
 };
 use bevy_rapier3d::prelude::*;
 use std::f32::consts::{PI, TAU};
@@ -29,12 +30,16 @@ impl Plugin for GameCursorPlugin {
         .add_systems(
             Startup,
             (
+                setup_game_cursor,
                 setup_ground_cursor_decal,
                 setup_point_cursor_decal,
                 setup_target_cursor_hud,
             ),
         )
-        .add_systems(PreUpdate, update_game_cursor.after(logical_cursor::update))
+        .add_systems(
+            PreUpdate,
+            update_game_cursor.after(logical_cursor::update_position),
+        )
         .add_systems(
             Update,
             (
@@ -74,7 +79,17 @@ impl Material for DecalMaterial {
 pub struct GameCursor {
     pub hit: Option<GameCursorHit>,
     pub lock: Option<Entity>,
+    pub position: Vec2,
 }
+
+pub fn setup_game_cursor(
+    mut cursor: ResMut<GameCursor>,
+    window: Query<&Window, With<PrimaryWindow>>,
+) {
+    let window = window.single();
+    cursor.position = Vec2::new(window.width() * 0.5, window.height() * 0.5);
+}
+
 pub struct GameCursorHit {
     pub entity: Entity,
     pub point: Vec3,
@@ -87,15 +102,19 @@ pub fn update_game_cursor(
     lcursor: Res<LogicalCursor>,
     rapier: ResMut<RapierContext>,
     targets: Query<Entity, With<MinionTarget>>,
+    mut realign: EventReader<CursorModeChanged>,
 ) {
     cursor.hit = None;
     cursor.lock = None;
     let (camera, camera_gx) = camera.single();
 
-    let Some(cursor_position) = lcursor.position else {
-        return;
-    };
-    let Some(ray) = camera.viewport_to_world(camera_gx, cursor_position) else {
+    for realign in realign.read() {
+        if let Some(pos) = realign.position {
+            cursor.position = pos;
+        }
+    }
+    cursor.position += lcursor.delta;
+    let Some(ray) = camera.viewport_to_world(camera_gx, cursor.position) else {
         return;
     };
     let Some((entity, hit)) = rapier.cast_ray_and_get_normal(

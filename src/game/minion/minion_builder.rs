@@ -29,6 +29,7 @@ impl MinionBuilder {
     }
     pub fn build(self, cmd: &mut Commands, assets: &MinionAssets) -> Entity {
         let root = (
+            Name::new(format!("{} Minion", ColorDef::from(self.kind).as_str())),
             MinionAnimation::default(),
             SpatialBundle {
                 transform: Transform::from_translation(self.position),
@@ -174,6 +175,7 @@ impl FromWorld for MinionAssets {
             let color = minion_base_body_color(MinionKind::from(color));
             materials.add(StandardMaterial {
                 base_color: color.into(),
+                emissive: (color * 0.2).into(),
                 perceptual_roughness: 0.3,
                 ..Default::default()
             })
@@ -185,7 +187,7 @@ impl FromWorld for MinionAssets {
             let color = minion_base_eye_color(MinionKind::from(color));
             materials.add(StandardMaterial {
                 base_color: color.into(),
-                emissive: color.into(),
+                emissive: (color * 2.0).into(),
                 ..Default::default()
             })
         });
@@ -200,10 +202,10 @@ impl FromWorld for MinionAssets {
 }
 
 #[rustfmt::skip]
-pub const fn minion_scene_scale(kind: MinionKind) -> f32 {
-    match kind {
+pub fn minion_scene_scale(kind: MinionKind) -> f32 {
+    0.9 * match kind {
         MinionKind::Void    => 0.500,
-        MinionKind::Red     => 0.300,
+        MinionKind::Red     => 0.275,
         MinionKind::Green   => 0.250,
         MinionKind::Blue    => 0.250,
         MinionKind::Yellow  => 0.275,

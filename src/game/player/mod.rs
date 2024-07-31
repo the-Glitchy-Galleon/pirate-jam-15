@@ -1,68 +1,26 @@
 use crate::game::{
-    collision_groups::{ACTOR_GROUP, DETECTION_GROUP, GROUND_GROUP, TARGET_GROUP, WALL_GROUP},
     game_cursor::GameCursor,
-    kinematic_char::KinematicCharacterBundle,
-    minion::collector::MinionStorage,
-    objects::{camera::Shineable, definitions::ColorDef},
-    player::minion_storage::{MinionStorageInput, MinionThrowTarget, PlayerCollector},
+    player::minion_storage::{MinionStorageInput, MinionThrowTarget},
+    top_down_camera::TopDownCamera,
     CharacterWalkControl, MinionKind,
 };
 use bevy::prelude::{Real, *};
 use bevy_rapier3d::prelude::*;
+use player_builder::{PlayerAssets, PlayerBuilder, PlayerMeshTag, COLLIDER_HALF_HEIGHT};
 use std::time::Duration;
 
 #[cfg(feature = "debug_visuals")]
 use {crate::game::LevelResources, vleue_navigator::NavMesh};
 
 pub mod minion_storage;
+pub mod player_builder;
 
 #[derive(Clone, Copy, Debug, Default, Component, Reflect)]
 #[reflect(Component)]
 pub struct PlayerTag;
 
-pub fn setup_player(mut commands: Commands) {
-    let mut minion_st = MinionStorage::new();
-
-    for color in ColorDef::VARIANTS {
-        let kind = MinionKind::from(color);
-        for _ in 0..5 {
-            minion_st.add_minion(kind);
-        }
-    }
-
-    commands
-        .spawn((
-            PlayerTag,
-            minion_st,
-            Collider::round_cylinder(0.9, 0.3, 0.2),
-            CollisionGroups::new(ACTOR_GROUP | TARGET_GROUP, GROUND_GROUP | WALL_GROUP),
-            SpatialBundle {
-                transform: Transform::from_xyz(0.0, 5.0, 0.0),
-                visibility: Visibility::Hidden,
-                ..default()
-            },
-            KinematicCharacterBundle::default(),
-            Shineable,
-        ))
-        .with_children(|b| {
-            b.spawn((SpatialBundle { ..default() }, PlayerCollector))
-                .with_children(|b| {
-                    b.spawn((
-                        SpatialBundle {
-                            transform: Transform::from_rotation(Quat::from_rotation_z(
-                                std::f32::consts::FRAC_PI_2,
-                            ))
-                            .with_translation(Vec3::new(3.0, -1.0, 0.0)),
-                            ..default()
-                        },
-                        ActiveCollisionTypes::KINEMATIC_STATIC,
-                        Collider::cone(3.0, 4.5),
-                        CollisionGroups::new(DETECTION_GROUP, ACTOR_GROUP),
-                        RigidBody::Fixed,
-                        Sensor,
-                    ));
-                });
-        });
+pub fn setup_player(mut cmd: Commands, assets: Res<PlayerAssets>) {
+    PlayerBuilder::new().build(&mut cmd, &assets);
 }
 
 pub fn player_controls(
@@ -70,8 +28,8 @@ pub fn player_controls(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut player: Query<(&mut Transform, &mut CharacterWalkControl), With<PlayerTag>>,
     mut minion: ResMut<MinionStorageInput>,
-
     cursor: Res<GameCursor>,
+    mut camera: Query<&mut TopDownCamera>,
 ) {
     let Ok((player_tf, mut walk)) = player.get_single_mut() else {
         return;
@@ -85,6 +43,17 @@ pub fn player_controls(
         }
     };
     walk.do_move = mouse_buttons.pressed(MouseButton::Right);
+
+    if keyboard.just_pressed(KeyCode::Space) {
+        let mut camera = camera.single_mut();
+
+        if let Some(hit) = &cursor.hit {
+            let direction = (hit.point - player_tf.translation).normalize();
+            camera.set_target_angle_from_direction(direction);
+        } else {
+            camera.set_target_angle_from_direction(*player_tf.forward());
+        }
+    }
 
     minion.to_where = match (cursor.lock, &cursor.hit) {
         (Some(lock), _) => MinionThrowTarget::Ent(lock),
@@ -182,6 +151,7 @@ pub struct AddPlayerRespawnEvent {
 pub fn add_player_respawn(
     mut cmd: Commands,
     player: Query<(Entity, &GlobalTransform), With<PlayerTag>>,
+    mesh: Query<Entity, With<PlayerMeshTag>>,
     mut respawn: EventReader<AddPlayerRespawnEvent>,
 ) {
     let Some(respawn) = respawn.read().last() else {
@@ -189,24 +159,33 @@ pub fn add_player_respawn(
     };
 
     let (player, gx) = player.single();
+    let mesh = mesh.single();
     cmd.entity(player).insert((
-        PlayerRespawning::new(gx.translation(), respawn.position + Vec3::Y * 1.2),
+        PlayerRespawning::new(
+            gx.translation(),
+            // idk why he still gets stuck in the floor when collider height is added
+            respawn.position + Vec3::Y * (COLLIDER_HALF_HEIGHT + 1.5),
+        ),
         ColliderDisabled,
     ));
+    cmd.entity(mesh).insert(Visibility::Hidden);
 }
 
 pub fn process_player_respawning(
     mut cmd: Commands,
-    mut respawn: Query<(
-        Entity,
-        &mut Visibility,
-        &mut Transform,
-        &GlobalTransform,
-        &mut PlayerRespawning,
-    )>,
+    mut respawn: Query<
+        (
+            Entity,
+            &mut Transform,
+            &GlobalTransform,
+            &mut PlayerRespawning,
+        ),
+        (With<PlayerTag>, Without<PlayerMeshTag>),
+    >,
+    mut mesh: Query<(Entity, &mut Transform), (With<PlayerMeshTag>, Without<PlayerTag>)>,
     time: Res<Time<Real>>,
 ) {
-    for (ent, mut vis, mut tx, gx, mut respawn) in respawn.iter_mut() {
+    for (ent, mut tx, gx, mut respawn) in respawn.iter_mut() {
         respawn.timer.tick(time.delta());
         let offset = tx.translation - gx.translation();
         let origin = respawn.origin + offset;
@@ -214,10 +193,13 @@ pub fn process_player_respawning(
 
         if respawn.timer.finished() {
             tx.translation = target;
-            *vis = Visibility::Inherited;
             cmd.entity(ent)
                 .remove::<PlayerRespawning>()
                 .remove::<ColliderDisabled>();
+
+            let (mesh, mut mesh_tx) = mesh.single_mut();
+            mesh_tx.translation = tx.translation;
+            cmd.entity(mesh).insert(Visibility::Visible);
         } else {
             tx.translation = Vec3::lerp(origin, target, respawn.timer.fraction());
         }

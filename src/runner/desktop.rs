@@ -1,6 +1,9 @@
-use crate::{tooling::editor::LevelEditorPlugin, GameRunArgs};
+use crate::GameRunArgs;
 use bevy::prelude::*;
 use clap::{Parser, Subcommand};
+
+#[cfg(feature = "editor")]
+use crate::tooling::editor::LevelEditorPlugin;
 
 #[derive(Parser, Debug)]
 #[command(version, about = "Runs the game", long_about = None)]
@@ -24,25 +27,38 @@ pub fn create_app() -> (App, GameRunArgs) {
 
     // Check for editor
     let args = Cli::parse();
-    match args.command {
-        Some(Command::Editor) => {
-            // std::env::set_var("RUST_BACKTRACE", "1");
-            app.add_plugins(LevelEditorPlugin);
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "editor")] {
+            match args.command {
+                Some(Command::Editor) => {
+                    // std::env::set_var("RUST_BACKTRACE", "1");
+                    app.add_plugins(LevelEditorPlugin);
+                    (
+                        app,
+                        GameRunArgs {
+                            init: false,
+                            ..Default::default()
+                        },
+                    )
+                }
+                None => (
+                    app,
+                    GameRunArgs {
+                        init: true,
+                        level: args.level,
+                    },
+                ),
+            }
+        } else {
             (
                 app,
                 GameRunArgs {
-                    init: false,
-                    ..Default::default()
+                    init: true,
+                    level: args.level,
                 },
             )
         }
-        None => (
-            app,
-            GameRunArgs {
-                init: true,
-                level: args.level,
-            },
-        ),
     }
 }
 

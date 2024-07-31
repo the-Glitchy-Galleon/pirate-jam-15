@@ -36,7 +36,9 @@ impl Plugin for LevelEditorPlugin {
             WorldInspectorPlugin::default(),
             RapierPhysicsPlugin::<NoUserData>::default(),
             GlobalUiStatePlugin,
-            LogicalCursorPlugin,
+            LogicalCursorPlugin {
+                target_grab_mode: None,
+            },
             FreeCameraPlugin {
                 transform: Transform::from_xyz(0.0, SLOPE_HEIGHT * 12.0, 10.0)
                     .looking_at(Vec3::ZERO, Vec3::Y),
